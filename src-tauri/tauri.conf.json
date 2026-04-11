@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Nexzam",
+  "version": "0.1.0",
+  "identifier": "com.nexzam.app",
+  "build": {
+    "beforeDevCommand": "cd ../app/frontend && npm run dev -- --host 127.0.0.1",
+    "beforeBuildCommand": "cd ../app/frontend && npm run build",
+    "devUrl": "http://127.0.0.1:5173",
+    "frontendDist": "../app/frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Nexzam",
+        "width": 1440,
+        "height": 960,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "app",
+    "macOS": {
+      "minimumSystemVersion": "12.0"
+    }
+  }
+}

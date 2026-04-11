@@ -12,6 +12,7 @@
   "status": "draft",
   "teacher_notes": "Look for distinction between intrinsic mass and gravitational force.",
   "sample_solution": "Mass is amount of matter, weight is gravitational force mg.",
+  "exemplar_answer": "Mass is how much matter an object contains and does not change with location. Weight is the gravitational force on that mass, so it depends on the local gravitational field. For example, an astronaut's mass stays the same on the Moon, but their weight is smaller because lunar gravity is weaker.",
   "rubric": [
     {"criterion": "Defines mass", "points": 1},
     {"criterion": "Defines weight", "points": 1},

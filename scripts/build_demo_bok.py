@@ -24,7 +24,7 @@ def build_demo_bank_archive() -> None:
     with zipfile.ZipFile(OUTPUT_FILE, "w", zipfile.ZIP_DEFLATED) as archive:
         for file_path in sorted(SOURCE_DIR.rglob("*")):
             if file_path.is_file():
-                archive.write(file_path, file_path.relative_to(SAMPLES_DIR))
+                archive.write(file_path, file_path.relative_to(SOURCE_DIR))
 
 
 if __name__ == "__main__":

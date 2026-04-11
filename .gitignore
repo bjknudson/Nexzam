@@ -209,3 +209,12 @@ __marimo__/
 # Nexzam packaged bank artifacts (generated locally)
 *.bok
 *.bokx
+!samples/demo-bank.bok
+
+# Frontend and Tauri build outputs
+app/frontend/node_modules/
+app/frontend/dist/
+!app/frontend/dist/
+!app/frontend/dist/index.html
+!app/frontend/dist/.gitkeep
+src-tauri/target/

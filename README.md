@@ -53,32 +53,138 @@ mybank.bok
 - `difficulty`
 - `prompt`
 
-## Repo layout
+## Vertical slice status
+
+This repo now includes a first working vertical slice for:
+
+- opening a `.bok` archive
+- unpacking it to a managed working directory
+- browsing and filtering questions
+- editing one question in form mode or raw JSON mode
+- saving question edits back to disk
+- repacking the bank into `.bok`
+
+## Updated repo layout
 
 ```text
 nexzam/
 ├── README.md
 ├── AGENTS.md
 ├── app/
-│   ├── frontend/
-│   └── backend/
+│   ├── backend/
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── requirements.txt
+│   │   └── service.py
+│   └── frontend/
+│       ├── package.json
+│       ├── src/
+│       │   ├── App.tsx
+│       │   ├── api.ts
+│       │   ├── main.tsx
+│       │   ├── styles.css
+│       │   └── types.ts
+│       └── vite.config.ts
 ├── src-tauri/
+│   ├── Cargo.toml
+│   ├── src/main.rs
+│   └── tauri.conf.json
 ├── docs/
 ├── samples/
+│   ├── demo-bank/
+│   └── demo-bank.bok
 └── scripts/
 ```
 
-
 ## Sample package artifact
 
-To avoid binary-file PR limitations, `samples/demo-bank.bok` is generated locally and is not committed.
-
-Build it with:
+Build the sample archive with:
 
 ```bash
-python scripts/build_demo_bok.py
+python3 scripts/build_demo_bok.py
 ```
 
-## Current status
+The generated archive is written to `samples/demo-bank.bok`.
 
-This repository currently provides project scaffolding, format/schema documentation, and sample data for milestone 1 planning.
+## Demo content
+
+The demo bank includes five questions across:
+
+- `multiple_choice`
+- `numeric_response`
+- `short_answer`
+- `free_response`
+
+## Backend setup
+
+Install backend dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r app/backend/requirements.txt
+```
+
+Run the API from the repo root:
+
+```bash
+python3 -m uvicorn app.backend.main:app --reload
+```
+
+API endpoints included in this slice:
+
+- `POST /api/banks/open`
+- `POST /api/banks/open-demo`
+- `GET /api/banks/current`
+- `POST /api/banks/save`
+- `GET /api/questions`
+- `GET /api/questions/{question_id}`
+- `PUT /api/questions/{question_id}`
+
+## Frontend setup
+
+Prerequisites:
+
+- Node.js 20+
+- npm 10+
+
+Install and run the frontend:
+
+```bash
+cd app/frontend
+npm install
+npm run dev
+```
+
+The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to the backend on port `8000`.
+
+## Tauri dev shell
+
+Prerequisites:
+
+- Rust toolchain
+- Tauri CLI
+- Xcode command line tools on macOS
+
+With the backend running separately, start the desktop shell from `app/frontend`:
+
+```bash
+npm install
+npm run tauri dev
+```
+
+If you prefer, you can also use the browser dev flow with the Vite frontend and FastAPI backend only.
+
+## Working flow
+
+1. Build `samples/demo-bank.bok`.
+2. Start the backend.
+3. Start the frontend.
+4. Click `Open Demo Bank`, or paste an absolute `.bok` path into the top bar and open it.
+5. Select a question, edit it in form mode or raw JSON mode, save the question, then save the bank.
+
+## Unfinished edges
+
+- Tauri is scaffolded, but backend process supervision is not yet wired into the Rust shell; run FastAPI separately in this slice.
+- The open flow currently uses a demo-bank shortcut or typed file path instead of a native macOS file picker.
+- There is no automated migration layer yet; validation is strict against the current v1 schema.

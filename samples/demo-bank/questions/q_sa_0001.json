@@ -1,0 +1,21 @@
+{
+  "id": "q_sa_0001",
+  "type": "short_answer",
+  "topic": "Electricity",
+  "subtopic": "Circuits",
+  "difficulty": 2,
+  "prompt": "State Ohm's law in words and write the symbolic equation.",
+  "tags": [
+    "circuits",
+    "ohms-law"
+  ],
+  "standards": [
+    "PHY-ELE-01"
+  ],
+  "estimated_time_sec": 90,
+  "points": 2,
+  "status": "ready",
+  "teacher_notes": "Expect both verbal statement and V = IR.",
+  "sample_solution": "Ohm's law states that current is directly proportional to voltage for a conductor at constant temperature. The equation is V = IR.",
+  "assets": []
+}

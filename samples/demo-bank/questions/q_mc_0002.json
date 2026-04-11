@@ -1,0 +1,29 @@
+{
+  "id": "q_mc_0002",
+  "type": "multiple_choice",
+  "topic": "Electricity",
+  "subtopic": "Charge",
+  "difficulty": 1,
+  "prompt": "Which particle carries a negative electric charge?",
+  "tags": [
+    "charge",
+    "atomic-structure"
+  ],
+  "standards": [
+    "PHY-ELE-00"
+  ],
+  "estimated_time_sec": 45,
+  "points": 1,
+  "status": "draft",
+  "answer": {
+    "choices": [
+      "Proton",
+      "Electron",
+      "Neutron",
+      "Photon"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Electrons carry negative charge, protons are positive, and neutrons are neutral.",
+  "assets": []
+}
