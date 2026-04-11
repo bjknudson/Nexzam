@@ -72,3 +72,11 @@ export interface QuestionListResponseModel {
   available_topics: string[];
   available_types: string[];
 }
+
+export interface DesktopContext {
+  isDesktop: boolean;
+  backendBaseUrl: string | null;
+  backendReady: boolean;
+  backendError: string | null;
+  archiveDirty: boolean;
+}

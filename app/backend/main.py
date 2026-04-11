@@ -18,7 +18,12 @@ service = BankWorkspaceService()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "tauri://localhost"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "tauri://localhost",
+        "http://tauri.localhost",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,6 +45,7 @@ def handle_request_validation_error(_, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
+@app.get("/health")
 @app.get("/api/health")
 def healthcheck() -> dict[str, str]:
     return {"status": "ok"}

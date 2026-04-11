@@ -63,6 +63,9 @@ This repo now includes a first working vertical slice for:
 - editing one question in form mode or raw JSON mode
 - saving question edits back to disk
 - repacking the bank into `.bok`
+- launching the backend automatically from the Tauri shell
+- using native desktop open/save dialogs for `.bok` files
+- showing working-copy vs archive-save state in the UI
 
 ## Updated repo layout
 
@@ -133,6 +136,7 @@ python3 -m uvicorn app.backend.main:app --reload
 
 API endpoints included in this slice:
 
+- `GET /health`
 - `POST /api/banks/open`
 - `POST /api/banks/open-demo`
 - `GET /api/banks/current`
@@ -156,7 +160,29 @@ npm install
 npm run dev
 ```
 
-The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to the backend on port `8000`.
+The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to the backend on port `8000` in browser-only dev.
+
+## Browser dev flow
+
+If you want to run the frontend in a browser without Tauri:
+
+1. Start the backend yourself:
+
+```bash
+python3 -m uvicorn app.backend.main:app --reload --port 8000
+```
+
+2. Start the frontend:
+
+```bash
+cd app/frontend
+npm install
+npm run dev
+```
+
+3. Open `http://localhost:5173`
+
+In browser-only dev, manual path fields remain available as a fallback.
 
 ## Tauri dev shell
 
@@ -166,25 +192,60 @@ Prerequisites:
 - Tauri CLI
 - Xcode command line tools on macOS
 
-With the backend running separately, start the desktop shell from `app/frontend`:
+Recommended local setup:
+
+- create a repo-root virtualenv at `.venv`
+- install backend requirements into that virtualenv
+- install frontend dependencies in `app/frontend`
+
+Then start the desktop shell from `app/frontend`:
 
 ```bash
 npm install
-npm run tauri dev
+npm run tauri:dev
 ```
 
-If you prefer, you can also use the browser dev flow with the Vite frontend and FastAPI backend only.
+What the desktop shell now does:
+
+- starts the Python backend automatically
+- waits for the backend health check before enabling the UI
+- exposes the backend base URL to the frontend
+- opens native macOS open/save dialogs for `.bok`
+- warns on close if the working copy has changes not yet written to the archive
 
 ## Working flow
 
 1. Build `samples/demo-bank.bok`.
-2. Start the backend.
-3. Start the frontend.
-4. Click `Open Demo Bank`, or paste an absolute `.bok` path into the top bar and open it.
-5. Select a question, edit it in form mode or raw JSON mode, save the question, then save the bank.
+2. Launch either the browser dev flow or the Tauri shell.
+3. Click `Open Bank` to choose a `.bok`, or `Open Demo Bank`.
+4. Select a question and edit it in form mode or raw JSON mode.
+5. Question edits autosave to the unpacked working copy.
+6. Click `Save Bank` to write the `.bok` archive, or `Save As` to write a new archive path.
+
+## Save model
+
+Nexzam now distinguishes two save layers:
+
+- `Working copy`: unpacked files in the managed workspace. Question edits autosave here.
+- `Archive`: the `.bok` zip file on disk. `Save Bank` writes this layer.
+
+The top bar shows:
+
+- current archive path
+- whether a workspace is open
+- whether the working copy is autosaved
+- whether the archive still needs `Save Bank`
+
+## Verification run for this milestone
+
+Verified locally in this repo:
+
+- `python3 -m compileall app/backend`
+- `cargo check` in `src-tauri`
+- `cargo test wait_for_healthcheck` in `src-tauri`
 
 ## Unfinished edges
 
-- Tauri is scaffolded, but backend process supervision is not yet wired into the Rust shell; run FastAPI separately in this slice.
-- The open flow currently uses a demo-bank shortcut or typed file path instead of a native macOS file picker.
+- The desktop launcher assumes a local development checkout and prefers repo-root `.venv/bin/python3`, falling back to `python3`. Packaged-app Python bundling is not implemented yet.
+- Browser-only dev still uses manual path fallback because native dialogs are wired through Tauri commands.
 - There is no automated migration layer yet; validation is strict against the current v1 schema.

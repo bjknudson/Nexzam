@@ -156,6 +156,7 @@ class BankWorkspaceService:
             for file_path in sorted(workspace_path.rglob("*")):
                 if file_path.is_file():
                     archive.write(file_path, file_path.relative_to(workspace_path))
+        self._source_path = target_path
         return str(target_path)
 
     def _read_manifest(self) -> ManifestModel:

@@ -7,10 +7,19 @@ import {
   openBank,
   openDemoBank,
   saveBank,
+  setApiBaseUrl,
   updateQuestion,
 } from "./api";
+import {
+  getDesktopContext,
+  isDesktopShell,
+  openBankDialog,
+  saveBankDialog,
+  setArchiveDirtyInShell,
+} from "./desktop";
 import type {
   BankSummaryModel,
+  DesktopContext,
   QuestionListItemModel,
   QuestionModel,
   QuestionType,
@@ -48,6 +57,19 @@ const emptyQuestion = (): QuestionModel => ({
 });
 
 function App() {
+  const desktopMode = isDesktopShell();
+
+  const [desktopContext, setDesktopContext] = useState<DesktopContext | null>(
+    desktopMode
+      ? {
+          isDesktop: true,
+          backendBaseUrl: null,
+          backendReady: false,
+          backendError: null,
+          archiveDirty: false,
+        }
+      : null,
+  );
   const [bank, setBank] = useState<BankSummaryModel | null>(null);
   const [questionItems, setQuestionItems] = useState<QuestionListItemModel[]>([]);
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
@@ -61,7 +83,9 @@ function App() {
   const [typeFilter, setTypeFilter] = useState("");
   const [openPath, setOpenPath] = useState("");
   const [savePath, setSavePath] = useState("");
-  const [statusMessage, setStatusMessage] = useState("Open a .bok file or load the demo bank.");
+  const [statusMessage, setStatusMessage] = useState(
+    desktopMode ? "Starting local backend..." : "Open a .bok file or load the demo bank.",
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
@@ -94,8 +118,51 @@ function App() {
   }, [editorMode]);
 
   useEffect(() => {
-    void refreshCurrentBank();
-  }, []);
+    if (!desktopMode) {
+      setApiBaseUrl(null);
+      void refreshCurrentBank();
+      return;
+    }
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const syncDesktopContext = async () => {
+      const context = await getDesktopContext().catch(() => null);
+      if (!context || cancelled) return;
+
+      setDesktopContext(context);
+      setApiBaseUrl(context.backendBaseUrl);
+
+      if (context.backendReady) {
+        setStatusMessage("Desktop backend ready.");
+        await refreshCurrentBank();
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+      } else if (context.backendError) {
+        setErrorMessage(context.backendError);
+        setStatusMessage("Desktop backend failed to start.");
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+
+    void syncDesktopContext();
+    intervalId = window.setInterval(() => {
+      void syncDesktopContext();
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== null) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [desktopMode]);
 
   useEffect(() => {
     if (!bank) return;
@@ -141,6 +208,21 @@ function App() {
       }
     };
   }, [selectedId, draftQuestion, rawJson, editorMode, jsonError]);
+
+  useEffect(() => {
+    void setArchiveDirtyInShell(workspaceDirty);
+  }, [workspaceDirty]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!workspaceDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [workspaceDirty]);
 
   async function refreshCurrentBank() {
     try {
@@ -212,8 +294,7 @@ function App() {
       if (jsonError) {
         throw new Error("Raw JSON is invalid. Fix it before switching questions or saving the bank.");
       }
-      const parsed = JSON.parse(rawJsonRef.current) as QuestionModel;
-      return parsed;
+      return JSON.parse(rawJsonRef.current) as QuestionModel;
     }
     return draftQuestionRef.current;
   }
@@ -260,7 +341,7 @@ function App() {
 
         if (reason === "autosave") {
           setStatusMessage(
-            `Saved ${savedQuestion.id} to the working copy. Save Bank writes the .bok archive.`,
+            `Saved ${savedQuestion.id} to the working copy. Save Bank writes the archive.`,
           );
         }
 
@@ -276,6 +357,30 @@ function App() {
 
     persistInFlightRef.current = run;
     return run;
+  }
+
+  async function openBankAtPath(path: string) {
+    setLoading(true);
+    try {
+      const summary = await openBank(path);
+      setBank(summary);
+      setSelectedId(null);
+      setWorkspaceDirty(false);
+      setAutosaveState("idle");
+      setStatusMessage(`Opened ${summary.manifest.title}`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleOpenDialog() {
+    if (!(await persistDraft("open-bank"))) return;
+    const path = await openBankDialog();
+    if (!path) return;
+    await openBankAtPath(path);
   }
 
   async function handleOpenDemo() {
@@ -297,37 +402,23 @@ function App() {
     }
   }
 
-  async function handleOpenByPath() {
+  async function handleManualOpen() {
     if (!openPath.trim()) {
       setErrorMessage("Enter a .bok path to open.");
       return;
     }
 
     if (!(await persistDraft("open-bank"))) return;
-
-    setLoading(true);
-    try {
-      const summary = await openBank(openPath.trim());
-      setBank(summary);
-      setSelectedId(null);
-      setWorkspaceDirty(false);
-      setAutosaveState("idle");
-      setStatusMessage(`Opened ${summary.manifest.title}`);
-      setErrorMessage("");
-    } catch (error) {
-      setErrorMessage((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    await openBankAtPath(openPath.trim());
   }
 
-  async function handleSaveBank() {
+  async function runSave(destinationPath?: string) {
     setLoading(true);
     try {
       const questionSaved = await persistDraft("save-bank");
       if (!questionSaved) return;
 
-      const response = await saveBank(savePath.trim() || undefined);
+      const response = await saveBank(destinationPath);
       setStatusMessage(`Saved bank to ${response.saved_to}`);
       const summary = await getCurrentBank();
       setBank(summary);
@@ -338,6 +429,26 @@ function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleSaveBank() {
+    if (!bank) return;
+    await runSave(undefined);
+  }
+
+  async function handleSaveAs() {
+    let destinationPath = savePath.trim() || undefined;
+
+    if (desktopMode) {
+      destinationPath = (await saveBankDialog(bank?.source_path)) ?? undefined;
+    }
+
+    if (!destinationPath) {
+      setErrorMessage("Choose a destination for Save As.");
+      return;
+    }
+
+    await runSave(destinationPath);
   }
 
   async function handleSelectQuestion(nextId: string) {
@@ -439,44 +550,70 @@ function App() {
       : autosaveState === "dirty"
         ? "Working copy has unsaved edits"
         : autosaveState === "saved"
-          ? "Working copy saved"
+          ? "Autosaved to working copy"
           : autosaveState === "error"
             ? "Working copy save failed"
             : "Working copy up to date";
 
   const archiveLabel = workspaceDirty
-    ? "Bank archive needs Save Bank"
-    : "Bank archive up to date";
+    ? "Archive needs Save Bank"
+    : bank
+      ? "Archive up to date"
+      : "No archive open";
+
+  const archivePathLabel = bank?.source_path ?? "No archive open";
+  const workspaceLabel = bank ? `Workspace open at ${bank.workspace_path}` : "No workspace open";
+  const desktopBootBlocked = desktopMode && !desktopContext?.backendReady;
+
+  if (desktopBootBlocked) {
+    return (
+      <div className="startup-screen">
+        <div className="startup-card">
+          <h1>Nexzam</h1>
+          <p>{desktopContext?.backendError ? "Backend startup failed." : "Starting local backend..."}</p>
+          <p className="startup-detail">
+            {desktopContext?.backendError ??
+              "The desktop shell is waiting for the local FastAPI backend to report healthy."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div>
+        <div className="topbar-title">
           <h1>Nexzam</h1>
           <p>{bank ? bank.manifest.title : "No bank open"}</p>
         </div>
+
         <div className="topbar-controls">
-          <button onClick={handleOpenDemo} disabled={loading}>
+          <button onClick={() => void handleOpenDialog()} disabled={loading || !desktopMode}>
+            Open Bank
+          </button>
+          <button onClick={() => void handleOpenDemo()} disabled={loading}>
             Open Demo Bank
           </button>
-          <input
-            value={openPath}
-            onChange={(event) => setOpenPath(event.target.value)}
-            placeholder="/absolute/path/to/demo-bank.bok"
-          />
-          <button onClick={handleOpenByPath} disabled={loading}>
-            Open .bok Path
-          </button>
-          <input
-            value={savePath}
-            onChange={(event) => setSavePath(event.target.value)}
-            placeholder="Optional save-as path"
-          />
-          <button onClick={handleSaveBank} disabled={loading || !bank}>
+          <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
             Save Bank
+          </button>
+          <button onClick={() => void handleSaveAs()} disabled={loading || !bank}>
+            Save As
           </button>
         </div>
       </header>
+
+      <div className="archive-strip">
+        <div className="archive-meta">
+          <span className="meta-label">Archive</span>
+          <span className="meta-value">{archivePathLabel}</span>
+        </div>
+        <div className="archive-meta">
+          <span className="meta-label">Workspace</span>
+          <span className="meta-value">{workspaceLabel}</span>
+        </div>
+      </div>
 
       <div className="status-strip">
         <span>{statusMessage}</span>
@@ -486,6 +623,28 @@ function App() {
         </div>
         {errorMessage ? <span className="error-text">{errorMessage}</span> : null}
       </div>
+
+      <details className="fallback-panel">
+        <summary>Manual Path Fallback</summary>
+        <div className="fallback-grid">
+          <input
+            value={openPath}
+            onChange={(event) => setOpenPath(event.target.value)}
+            placeholder="/absolute/path/to/bank.bok"
+          />
+          <button onClick={() => void handleManualOpen()} disabled={loading}>
+            Open Path
+          </button>
+          <input
+            value={savePath}
+            onChange={(event) => setSavePath(event.target.value)}
+            placeholder="/absolute/path/to/save-as.bok"
+          />
+          <button onClick={() => void handleSaveAs()} disabled={loading || !bank}>
+            Save As Path
+          </button>
+        </div>
+      </details>
 
       <div className="workspace">
         <aside className="sidebar">
@@ -549,7 +708,7 @@ function App() {
                   </button>
                 </div>
                 <span className="editor-note">
-                  Question edits autosave to the working copy. Use Save Bank to write the `.bok`.
+                  Question edits autosave to the working copy. Save Bank writes the `.bok` archive.
                 </span>
               </div>
 

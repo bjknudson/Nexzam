@@ -54,6 +54,31 @@ textarea {
   min-height: 100vh;
 }
 
+.startup-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #eef3f8, #d8e5f2);
+  padding: 2rem;
+}
+
+.startup-card {
+  max-width: 560px;
+  background: #ffffff;
+  border: 1px solid #d1dbe5;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+}
+
+.startup-card h1 {
+  margin-top: 0;
+}
+
+.startup-detail {
+  color: #475569;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -69,8 +94,13 @@ textarea {
   font-size: 1.4rem;
 }
 
+.topbar-title {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .topbar p {
-  margin: 0.35rem 0 0;
+  margin: 0;
   color: #4b5563;
 }
 
@@ -79,6 +109,31 @@ textarea {
   grid-template-columns: repeat(5, minmax(120px, auto));
   gap: 0.6rem;
   align-items: center;
+}
+
+.archive-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: #edf4fb;
+  border-bottom: 1px solid #d1dbe5;
+}
+
+.archive-meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.meta-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.meta-value {
+  word-break: break-all;
 }
 
 .status-strip {
@@ -124,6 +179,25 @@ textarea {
 
 .error-text {
   color: #b91c1c;
+}
+
+.fallback-panel {
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #d1dbe5;
+  background: #ffffff;
+}
+
+.fallback-panel summary {
+  cursor: pointer;
+  color: #475569;
+  font-weight: 600;
+}
+
+.fallback-grid {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
 }
 
 .workspace {
@@ -246,6 +320,14 @@ textarea {
   .topbar-controls {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .archive-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .fallback-grid {
+    grid-template-columns: 1fr;
   }
 
   .workspace {
