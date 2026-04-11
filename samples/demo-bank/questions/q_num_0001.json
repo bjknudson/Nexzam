@@ -1,0 +1,20 @@
+{
+  "id": "q_num_0001",
+  "type": "numeric_response",
+  "topic": "Waves",
+  "subtopic": "Frequency",
+  "difficulty": 3,
+  "prompt": "A wave has speed 12 m/s and wavelength 3 m. Find its frequency.",
+  "tags": ["waves"],
+  "standards": ["PHY-WAV-02"],
+  "estimated_time_sec": 120,
+  "points": 2,
+  "status": "review",
+  "answer": {
+    "value": 4,
+    "unit": "Hz",
+    "tolerance": 0.05
+  },
+  "explanation": "Use v = fλ, so f = v/λ = 12/3 = 4 Hz.",
+  "assets": []
+}

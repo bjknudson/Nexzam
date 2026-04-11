@@ -1,0 +1,7 @@
+[
+  {
+    "timestamp": "2026-04-11T00:00:00Z",
+    "event": "bank_created",
+    "details": "Initial demo bank scaffolded"
+  }
+]

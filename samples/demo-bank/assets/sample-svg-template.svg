@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160" viewBox="0 0 300 160">
+  <rect x="20" y="20" width="120" height="120" fill="#d9ecff" stroke="#1d4f91" stroke-width="2"/>
+  <text x="80" y="85" text-anchor="middle" font-size="16" fill="#123">{{label}}</text>
+  <line x1="80" y1="140" x2="80" y2="150" stroke="#b11" stroke-width="3"/>
+  <polygon points="80,152 74,142 86,142" fill="#b11"/>
+  <text x="100" y="152" font-size="14" fill="#b11">{{arrow_text}}</text>
+</svg>

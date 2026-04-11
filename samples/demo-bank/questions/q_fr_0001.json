@@ -1,0 +1,31 @@
+{
+  "id": "q_fr_0001",
+  "type": "free_response",
+  "topic": "Mechanics",
+  "subtopic": "Newton's Laws",
+  "difficulty": 4,
+  "prompt": "Explain the difference between mass and weight, and give one real-world example.",
+  "tags": ["forces", "conceptual"],
+  "standards": ["PHY-NEW-01"],
+  "estimated_time_sec": 300,
+  "points": 4,
+  "status": "draft",
+  "teacher_notes": "Look for distinction between intrinsic mass and gravitational force.",
+  "sample_solution": "Mass is amount of matter, weight is gravitational force mg.",
+  "rubric": [
+    {"criterion": "Defines mass", "points": 1},
+    {"criterion": "Defines weight", "points": 1},
+    {"criterion": "States equation W=mg", "points": 1},
+    {"criterion": "Provides valid example", "points": 1}
+  ],
+  "assets": [
+    {
+      "path": "assets/sample-svg-template.svg",
+      "kind": "svg",
+      "svg_variables": {
+        "label": "Mass m",
+        "arrow_text": "Weight W"
+      }
+    }
+  ]
+}
