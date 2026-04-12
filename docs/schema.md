@@ -75,6 +75,8 @@ Support static and parameterized SVG metadata:
 
 `svg_variables` keys map to token placeholders like `{{label}}` in source SVG templates.
 
+Questions may attach more than one asset by adding multiple entries to the `assets` array.
+
 ## Validation principles
 
 - Validate on open/import/save.

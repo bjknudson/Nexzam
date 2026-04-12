@@ -20,6 +20,35 @@ class AssetModel(BaseModel):
     svg_variables: dict[str, str] = Field(default_factory=dict)
 
 
+class AssetUploadResponseModel(BaseModel):
+    path: str
+    kind: str
+
+
+class AssetInspectionRequest(BaseModel):
+    path: str
+    kind: str
+    svg_variables: dict[str, str] = Field(default_factory=dict)
+
+
+class AssetInspectionResponseModel(BaseModel):
+    path: str
+    kind: str
+    svg_placeholders: list[str] = Field(default_factory=list)
+    rendered_svg: str | None = None
+
+
+class AssetListItemModel(BaseModel):
+    path: str
+    kind: str
+    referenced_by: list[str] = Field(default_factory=list)
+    svg_placeholders: list[str] = Field(default_factory=list)
+
+
+class AssetListResponseModel(BaseModel):
+    items: list[AssetListItemModel] = Field(default_factory=list)
+
+
 class RubricRowModel(BaseModel):
     criterion: str
     points: float
@@ -107,6 +136,10 @@ class SaveBankRequest(BaseModel):
     destination_path: str | None = None
 
 
+class CreateQuestionRequest(BaseModel):
+    template_question_id: str | None = None
+
+
 class BankSummaryModel(BaseModel):
     source_path: str
     workspace_path: str
@@ -127,4 +160,3 @@ class QuestionListResponseModel(BaseModel):
     items: list[QuestionListItemModel]
     available_topics: list[str]
     available_types: list[str]
-

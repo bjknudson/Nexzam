@@ -27,6 +27,15 @@
         "label": "Mass m",
         "arrow_text": "Weight W"
       }
+    },
+    {
+      "path": "assets/sample-force-diagram.svg",
+      "kind": "svg",
+      "svg_variables": {
+        "object_label": "Crate",
+        "up_force": "Normal N",
+        "down_force": "Weight W"
+      }
     }
   ]
 }

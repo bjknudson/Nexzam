@@ -3,13 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 import zipfile
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
-from .models import OpenBankRequest, QuestionModel, SaveBankRequest
+from .models import (
+    AssetInspectionRequest,
+    CreateQuestionRequest,
+    OpenBankRequest,
+    QuestionModel,
+    SaveBankRequest,
+)
 from .service import BankWorkspaceError, BankWorkspaceService
 
 
@@ -88,6 +94,11 @@ def list_questions(
     return service.list_questions(search=search, topic=topic, question_type=question_type)
 
 
+@app.get("/api/assets")
+def list_assets():
+    return service.list_assets()
+
+
 @app.get("/api/questions/{question_id}")
 def get_question(question_id: str):
     return service.get_question(question_id)
@@ -96,3 +107,29 @@ def get_question(question_id: str):
 @app.put("/api/questions/{question_id}")
 def update_question(question_id: str, payload: QuestionModel):
     return service.update_question(question_id, payload)
+
+
+@app.post("/api/questions")
+def create_question(request: CreateQuestionRequest):
+    return service.create_question(template_question_id=request.template_question_id)
+
+
+@app.delete("/api/questions/{question_id}", status_code=204)
+def delete_question(question_id: str):
+    service.delete_question(question_id)
+
+
+@app.post("/api/assets/upload")
+async def upload_asset(file: UploadFile = File(...)):
+    return service.upload_asset(file.filename or "", await file.read())
+
+
+@app.post("/api/assets/inspect")
+def inspect_asset(payload: AssetInspectionRequest):
+    return service.inspect_asset(payload)
+
+
+@app.get("/api/assets/file")
+def get_asset_file(path: str = Query(...)):
+    asset_path = service.resolve_asset_path(path)
+    return FileResponse(asset_path, media_type=service.get_asset_media_type(path))

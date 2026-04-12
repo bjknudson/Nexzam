@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  createQuestion,
+  deleteQuestion,
   getCurrentBank,
+  getAssetFileUrl,
   getQuestion,
+  inspectAsset,
+  listAssets,
   listQuestions,
   openBank,
   openDemoBank,
   saveBank,
   setApiBaseUrl,
+  uploadAsset,
   updateQuestion,
 } from "./api";
 import {
@@ -18,6 +24,9 @@ import {
   setArchiveDirtyInShell,
 } from "./desktop";
 import type {
+  AssetInspectionResponseModel,
+  AssetListItemModel,
+  AssetModel,
   BankSummaryModel,
   DesktopContext,
   QuestionListItemModel,
@@ -91,8 +100,12 @@ function App() {
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
   const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [jsonError, setJsonError] = useState(false);
+  const [assetInspections, setAssetInspections] = useState<AssetInspectionResponseModel[]>([]);
+  const [bankAssets, setBankAssets] = useState<AssetListItemModel[]>([]);
+  const [assetBusy, setAssetBusy] = useState(false);
 
   const saveTimerRef = useRef<number | null>(null);
+  const assetInputRef = useRef<HTMLInputElement | null>(null);
   const selectedIdRef = useRef<string | null>(null);
   const draftQuestionRef = useRef<QuestionModel | null>(null);
   const rawJsonRef = useRef("");
@@ -100,6 +113,7 @@ function App() {
   const draftDirtyRef = useRef(false);
   const isHydratingRef = useRef(false);
   const persistInFlightRef = useRef<Promise<boolean> | null>(null);
+  const assetInspectionRequestRef = useRef(0);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -210,6 +224,44 @@ function App() {
   }, [selectedId, draftQuestion, rawJson, editorMode, jsonError]);
 
   useEffect(() => {
+    if (!draftQuestion) {
+      setAssetInspections([]);
+      return;
+    }
+
+    const requestId = assetInspectionRequestRef.current + 1;
+    assetInspectionRequestRef.current = requestId;
+    const assets = draftQuestion.assets;
+
+    if (assets.length === 0) {
+      setAssetInspections([]);
+      return;
+    }
+
+    void (async () => {
+      const inspections = await Promise.all(
+        assets.map(async (asset) => {
+          try {
+            return await inspectAsset(asset);
+          } catch (error) {
+            setErrorMessage((error as Error).message);
+            return {
+              path: asset.path,
+              kind: asset.kind,
+              svg_placeholders: [],
+              rendered_svg: null,
+            } satisfies AssetInspectionResponseModel;
+          }
+        }),
+      );
+
+      if (assetInspectionRequestRef.current === requestId) {
+        setAssetInspections(inspections);
+      }
+    })();
+  }, [draftQuestion]);
+
+  useEffect(() => {
     void setArchiveDirtyInShell(workspaceDirty);
   }, [workspaceDirty]);
 
@@ -230,8 +282,19 @@ function App() {
       setBank(summary);
       setStatusMessage(`Opened ${summary.manifest.title}`);
       setWorkspaceDirty(false);
+      await refreshAssetList();
     } catch {
       setBank(null);
+      setBankAssets([]);
+    }
+  }
+
+  async function refreshAssetList() {
+    try {
+      const response = await listAssets();
+      setBankAssets(response.items);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
     }
   }
 
@@ -324,6 +387,7 @@ function App() {
         if (!payload) return true;
 
         const previousId = selectedIdRef.current;
+        if (!previousId) return true;
         const savedQuestion = await updateQuestion(previousId, payload);
 
         draftDirtyRef.current = false;
@@ -338,6 +402,7 @@ function App() {
         }
 
         await refreshQuestionList(savedQuestion.id);
+        await refreshAssetList();
 
         if (reason === "autosave") {
           setStatusMessage(
@@ -368,6 +433,7 @@ function App() {
       setWorkspaceDirty(false);
       setAutosaveState("idle");
       setStatusMessage(`Opened ${summary.manifest.title}`);
+      await refreshAssetList();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -394,6 +460,7 @@ function App() {
       setWorkspaceDirty(false);
       setAutosaveState("idle");
       setStatusMessage(`Opened demo bank from ${summary.source_path}`);
+      await refreshAssetList();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -423,6 +490,7 @@ function App() {
       const summary = await getCurrentBank();
       setBank(summary);
       setWorkspaceDirty(false);
+      await refreshAssetList();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -457,6 +525,62 @@ function App() {
     setSelectedId(nextId);
   }
 
+  async function handleCreateQuestion(templateQuestionId?: string) {
+    if (!(await persistDraft("switch"))) return;
+
+    setLoading(true);
+    try {
+      const createdQuestion = await createQuestion(templateQuestionId);
+      draftDirtyRef.current = false;
+      setWorkspaceDirty(true);
+      setAutosaveState("idle");
+      replaceDraftLocally(createdQuestion);
+      selectedIdRef.current = createdQuestion.id;
+      setSelectedId(createdQuestion.id);
+      await refreshQuestionList(createdQuestion.id);
+      await refreshAssetList();
+      setStatusMessage(
+        templateQuestionId
+          ? `Copied ${templateQuestionId} to ${createdQuestion.id} in the working copy.`
+          : `Created ${createdQuestion.id} in the working copy.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDeleteQuestion() {
+    const currentId = selectedIdRef.current;
+    if (!currentId) return;
+
+    setLoading(true);
+    try {
+      await deleteQuestion(currentId);
+      draftDirtyRef.current = false;
+      isHydratingRef.current = true;
+      draftQuestionRef.current = null;
+      setDraftQuestion(null);
+      setRawJson("");
+      setJsonError(false);
+      setAutosaveState("idle");
+      isHydratingRef.current = false;
+      selectedIdRef.current = null;
+      setSelectedId(null);
+      setWorkspaceDirty(true);
+      await refreshQuestionList(null);
+      await refreshAssetList();
+      setStatusMessage(`Deleted ${currentId} from the working copy.`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function updateDraft<K extends keyof QuestionModel>(field: K, value: QuestionModel[K]) {
     setDraftQuestion((current) => {
       if (!current) return current;
@@ -466,6 +590,76 @@ function App() {
       return next;
     });
     markDraftDirty();
+  }
+
+  function updateAsset(index: number, updater: (asset: AssetModel) => AssetModel) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    updateDraft(
+      "assets",
+      current.assets.map((asset, assetIndex) =>
+        assetIndex === index ? updater(asset) : asset,
+      ),
+    );
+  }
+
+  function removeAsset(index: number) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    updateDraft(
+      "assets",
+      current.assets.filter((_, assetIndex) => assetIndex !== index),
+    );
+  }
+
+  function handleAttachExistingAsset(asset: AssetListItemModel) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    if (current.assets.some((attached) => attached.path === asset.path)) {
+      setStatusMessage(`${asset.path} is already attached to ${current.id}.`);
+      return;
+    }
+
+    updateDraft("assets", [
+      ...current.assets,
+      {
+        path: asset.path,
+        kind: asset.kind,
+        svg_variables: {},
+      },
+    ]);
+    setStatusMessage(`Attached ${asset.path} to ${current.id}.`);
+  }
+
+  async function handleAssetUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+
+    setAssetBusy(true);
+    try {
+      const uploadedAssets = await Promise.all(
+        Array.from(fileList).map(async (file) => {
+          const uploaded = await uploadAsset(file);
+          return {
+            path: uploaded.path,
+            kind: uploaded.kind,
+            svg_variables: {},
+          } satisfies AssetModel;
+        }),
+      );
+
+      const current = draftQuestionRef.current;
+      if (!current) return;
+      updateDraft("assets", [...current.assets, ...uploadedAssets]);
+      await refreshAssetList();
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setAssetBusy(false);
+      if (assetInputRef.current) {
+        assetInputRef.current.value = "";
+      }
+    }
   }
 
   function handleRawJsonChange(value: string) {
@@ -649,6 +843,24 @@ function App() {
       <div className="workspace">
         <aside className="sidebar">
           <div className="filters">
+            <div className="question-actions">
+              <button onClick={() => void handleCreateQuestion()} disabled={loading || !bank}>
+                New Blank
+              </button>
+              <button
+                onClick={() => void handleCreateQuestion(selectedIdRef.current ?? undefined)}
+                disabled={loading || !selectedId}
+              >
+                Duplicate
+              </button>
+              <button
+                className="danger-button"
+                onClick={() => void handleDeleteQuestion()}
+                disabled={loading || !selectedId}
+              >
+                Delete
+              </button>
+            </div>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -690,6 +902,77 @@ function App() {
         </aside>
 
         <main className="editor-pane">
+          {bank ? (
+            <section className="bank-assets-panel">
+              <div className="bank-assets-header">
+                <div>
+                  <h2>Bank Assets</h2>
+                  <p>Browse uploaded SVGs and images across the open bank.</p>
+                </div>
+                <span className="bank-assets-count">
+                  {bankAssets.length} asset{bankAssets.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {bankAssets.length === 0 ? (
+                <p className="asset-empty">No assets are stored in this bank yet.</p>
+              ) : (
+                <div className="bank-asset-grid">
+                  {bankAssets.map((asset) => {
+                    const attachedToCurrent = !!draftQuestion?.assets.some(
+                      (attached) => attached.path === asset.path,
+                    );
+
+                    return (
+                      <article key={asset.path} className="bank-asset-tile">
+                        <div className="bank-asset-thumb">
+                          {asset.kind === "svg" ? (
+                            <img src={getAssetFileUrl(asset.path)} alt={asset.path} />
+                          ) : (
+                            <img src={getAssetFileUrl(asset.path)} alt={asset.path} />
+                          )}
+                        </div>
+                        <div className="bank-asset-body">
+                          <strong>{asset.path.split("/").slice(-1)[0] ?? asset.path}</strong>
+                          <p>{asset.path}</p>
+                          <div className="bank-asset-badges">
+                            <span className="asset-badge">{asset.kind}</span>
+                            <span className="asset-badge">
+                              Used by {asset.referenced_by.length} question
+                              {asset.referenced_by.length === 1 ? "" : "s"}
+                            </span>
+                            {asset.kind === "svg" ? (
+                              <span className="asset-badge">
+                                {asset.svg_placeholders.length} variable
+                                {asset.svg_placeholders.length === 1 ? "" : "s"}
+                              </span>
+                            ) : null}
+                          </div>
+                          {asset.referenced_by.length > 0 ? (
+                            <p className="bank-asset-refs">
+                              {asset.referenced_by.join(", ")}
+                            </p>
+                          ) : (
+                            <p className="bank-asset-refs">Unused</p>
+                          )}
+                          {draftQuestion ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAttachExistingAsset(asset)}
+                              disabled={attachedToCurrent}
+                            >
+                              {attachedToCurrent ? "Attached" : "Attach to Question"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
+
           {draftQuestion ? (
             <>
               <div className="editor-toolbar">
@@ -707,9 +990,18 @@ function App() {
                     Raw JSON
                   </button>
                 </div>
-                <span className="editor-note">
-                  Question edits autosave to the working copy. Save Bank writes the `.bok` archive.
-                </span>
+                <div className="editor-toolbar-meta">
+                  <span className="editor-note">
+                    Question edits autosave to the working copy. Save Bank writes the `.bok` archive.
+                  </span>
+                  <button
+                    className="danger-button"
+                    onClick={() => void handleDeleteQuestion()}
+                    disabled={loading}
+                  >
+                    Delete Question
+                  </button>
+                </div>
               </div>
 
               {editorMode === "json" ? (
@@ -837,6 +1129,121 @@ function App() {
                       onChange={(event) => updateDraft("teacher_notes", event.target.value)}
                     />
                   </label>
+
+                  <section className="asset-section">
+                    <div className="asset-section-header">
+                      <div>
+                        <h2>Attached Assets</h2>
+                        <p>Attach one or more SVG or image files to this question.</p>
+                      </div>
+                      <div className="asset-section-actions">
+                        <input
+                          ref={assetInputRef}
+                          className="visually-hidden"
+                          type="file"
+                          accept=".svg,image/*"
+                          multiple
+                          onChange={(event) => void handleAssetUpload(event.target.files)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => assetInputRef.current?.click()}
+                          disabled={assetBusy}
+                        >
+                          {assetBusy ? "Uploading..." : "Attach Asset"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {draftQuestion.assets.length === 0 ? (
+                      <p className="asset-empty">
+                        No assets attached. SVG templates expose editable controls automatically.
+                      </p>
+                    ) : (
+                      <div className="asset-list">
+                        {draftQuestion.assets.map((asset, index) => {
+                          const inspection = assetInspections[index];
+                          const svgPlaceholders = inspection?.svg_placeholders ?? [];
+                          const svgMarkup = inspection?.rendered_svg;
+                          return (
+                            <article key={`${asset.path}-${index}`} className="asset-card">
+                              <div className="asset-card-header">
+                                <div>
+                                  <strong>{asset.path.split("/").slice(-1)[0] ?? asset.path}</strong>
+                                  <p>{asset.path}</p>
+                                </div>
+                                <button type="button" onClick={() => removeAsset(index)}>
+                                  Remove
+                                </button>
+                              </div>
+
+                              <div className="asset-meta-row">
+                                <label>
+                                  Kind
+                                  <input value={asset.kind} readOnly />
+                                </label>
+                                <label>
+                                  Stored Path
+                                  <input value={asset.path} readOnly />
+                                </label>
+                              </div>
+
+                              {asset.kind === "svg" ? (
+                                <div className="asset-svg-tools">
+                                  <div className="asset-variable-list">
+                                    <h3>SVG Controls</h3>
+                                    {svgPlaceholders.length === 0 ? (
+                                      <p className="asset-empty">
+                                        No {"{{token}}"} placeholders were found in this SVG.
+                                      </p>
+                                    ) : (
+                                      svgPlaceholders.map((placeholder) => (
+                                        <label key={placeholder}>
+                                          {placeholder}
+                                          <input
+                                            value={asset.svg_variables[placeholder] ?? ""}
+                                            onChange={(event) =>
+                                              updateAsset(index, (currentAsset) => ({
+                                                ...currentAsset,
+                                                svg_variables: {
+                                                  ...currentAsset.svg_variables,
+                                                  [placeholder]: event.target.value,
+                                                },
+                                              }))
+                                            }
+                                          />
+                                        </label>
+                                      ))
+                                    )}
+                                  </div>
+                                  <div className="asset-preview-panel">
+                                    <h3>Preview</h3>
+                                    {svgMarkup ? (
+                                      <div
+                                        className="asset-svg-preview"
+                                        dangerouslySetInnerHTML={{ __html: svgMarkup }}
+                                      />
+                                    ) : (
+                                      <p className="asset-empty">Preview unavailable.</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="asset-preview-panel">
+                                  <h3>Preview</h3>
+                                  <img
+                                    className="asset-image-preview"
+                                    src={getAssetFileUrl(asset.path)}
+                                    alt={asset.path}
+                                  />
+                                </div>
+                              )}
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
 
                   {draftQuestion.type === "multiple_choice" ? (
                     <section className="question-specific">

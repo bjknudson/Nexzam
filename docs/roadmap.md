@@ -18,8 +18,16 @@
 - Question browser with filters/search.
 - Editor with form + raw JSON tabs.
 - Asset attach/copy workflow.
+- Bank asset browser with usage visibility.
 - KaTeX preview.
 - SVG token replacement preview.
+
+## Current milestone snapshot
+
+- Milestone 2: desktop-native flow is largely in place.
+- Milestone 3: authoring basics are mostly in place except bank metadata editing.
+- Milestone 4: asset management is in progress with attach, preview, and bank-wide browsing now active.
+- Next planning track: native SVG authoring with simple shapes, style controls, placeholders, and reusable teaching elements.
 
 ## Phase 3 — Import
 

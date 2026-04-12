@@ -10,6 +10,29 @@ export interface AssetModel {
   svg_variables: Record<string, string>;
 }
 
+export interface AssetUploadResponseModel {
+  path: string;
+  kind: string;
+}
+
+export interface AssetInspectionResponseModel {
+  path: string;
+  kind: string;
+  svg_placeholders: string[];
+  rendered_svg?: string | null;
+}
+
+export interface AssetListItemModel {
+  path: string;
+  kind: string;
+  referenced_by: string[];
+  svg_placeholders: string[];
+}
+
+export interface AssetListResponseModel {
+  items: AssetListItemModel[];
+}
+
 export interface RubricRowModel {
   criterion: string;
   points: number;

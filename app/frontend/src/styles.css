@@ -222,6 +222,18 @@ textarea {
   border-bottom: 1px solid #d1dbe5;
 }
 
+.question-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.danger-button {
+  border-color: #f1a6a6;
+  background: #fff5f5;
+  color: #991b1b;
+}
+
 .question-list {
   overflow: auto;
   padding: 0.75rem;
@@ -255,6 +267,14 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.editor-toolbar-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .editor-mode-toggle {
   display: flex;
   gap: 0.5rem;
@@ -268,7 +288,7 @@ textarea {
 .editor-grid {
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .editor-form label,
@@ -279,6 +299,8 @@ textarea {
 }
 
 .question-specific,
+.asset-section,
+.bank-assets-panel,
 .empty-state {
   background: #fff;
   border: 1px solid #d1dbe5;
@@ -296,6 +318,88 @@ textarea {
   font-family: "SFMono-Regular", "Menlo", monospace;
 }
 
+.bank-assets-panel {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bank-assets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bank-assets-header h2,
+.bank-asset-body strong {
+  margin: 0;
+}
+
+.bank-assets-header p,
+.bank-asset-body p,
+.bank-asset-refs {
+  margin: 0.25rem 0 0;
+  color: #475569;
+}
+
+.bank-assets-count,
+.asset-badge {
+  border-radius: 999px;
+  border: 1px solid #d7e1eb;
+  background: #f8fbfd;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.84rem;
+}
+
+.bank-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.bank-asset-tile {
+  border: 1px solid #d7e1eb;
+  border-radius: 12px;
+  background: #fbfdff;
+  overflow: hidden;
+  display: grid;
+}
+
+.bank-asset-thumb {
+  min-height: 160px;
+  padding: 0.75rem;
+  border-bottom: 1px solid #d7e1eb;
+  background:
+    linear-gradient(45deg, #eef3f8 25%, transparent 25%),
+    linear-gradient(-45deg, #eef3f8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eef3f8 75%),
+    linear-gradient(-45deg, transparent 75%, #eef3f8 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  display: grid;
+  place-items: center;
+}
+
+.bank-asset-thumb img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+}
+
+.bank-asset-body {
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.bank-asset-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .editor-note {
   color: #475569;
   font-size: 0.95rem;
@@ -310,6 +414,114 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 120px;
   gap: 0.6rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.asset-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-section-header,
+.asset-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.asset-section-header h2,
+.asset-card h3 {
+  margin: 0;
+}
+
+.asset-section-header p,
+.asset-card-header p,
+.asset-empty {
+  margin: 0.25rem 0 0;
+  color: #475569;
+}
+
+.asset-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-card {
+  border: 1px solid #d7e1eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fbfdff;
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-meta-row,
+.asset-svg-tools {
+  display: grid;
+  gap: 1rem;
+}
+
+.asset-meta-row {
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.asset-svg-tools {
+  grid-template-columns: minmax(240px, 320px) 1fr;
+}
+
+.asset-variable-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.asset-preview-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.asset-svg-preview,
+.asset-image-preview {
+  border: 1px solid #d7e1eb;
+  border-radius: 12px;
+  background:
+    linear-gradient(45deg, #eef3f8 25%, transparent 25%),
+    linear-gradient(-45deg, #eef3f8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #eef3f8 75%),
+    linear-gradient(-45deg, transparent 75%, #eef3f8 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+}
+
+.asset-svg-preview {
+  padding: 1rem;
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.asset-svg-preview svg,
+.asset-image-preview {
+  max-width: 100%;
+  height: auto;
+}
+
+.asset-image-preview {
+  padding: 1rem;
+  max-height: 320px;
+  object-fit: contain;
 }
 
 @media (max-width: 980px) {
@@ -335,6 +547,18 @@ textarea {
   }
 
   .editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .question-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-meta-row {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-svg-tools {
     grid-template-columns: 1fr;
   }
 }

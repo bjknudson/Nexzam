@@ -1,4 +1,8 @@
 import type {
+  AssetInspectionResponseModel,
+  AssetListResponseModel,
+  AssetModel,
+  AssetUploadResponseModel,
   BankSummaryModel,
   QuestionListResponseModel,
   QuestionModel,
@@ -44,6 +48,10 @@ export async function getCurrentBank(): Promise<BankSummaryModel> {
   return handleResponse(await fetch(buildApiUrl("/api/banks/current")));
 }
 
+export async function listAssets(): Promise<AssetListResponseModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/assets")));
+}
+
 export async function listQuestions(params: {
   search?: string;
   topic?: string;
@@ -70,6 +78,31 @@ export async function updateQuestion(id: string, question: QuestionModel): Promi
   );
 }
 
+export async function createQuestion(templateQuestionId?: string): Promise<QuestionModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/questions"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template_question_id: templateQuestionId || null }),
+    }),
+  );
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  const response = await fetch(buildApiUrl(`/api/questions/${id}`), {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ detail: "Request failed." }));
+    const detail =
+      typeof payload.detail === "string"
+        ? payload.detail
+        : JSON.stringify(payload.detail ?? "Request failed.");
+    throw new Error(detail);
+  }
+}
+
 export async function saveBank(destinationPath?: string): Promise<{ saved_to: string }> {
   return handleResponse(
     await fetch(buildApiUrl("/api/banks/save"), {
@@ -78,4 +111,29 @@ export async function saveBank(destinationPath?: string): Promise<{ saved_to: st
       body: JSON.stringify({ destination_path: destinationPath || null }),
     }),
   );
+}
+
+export async function uploadAsset(file: File): Promise<AssetUploadResponseModel> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return handleResponse(
+    await fetch(buildApiUrl("/api/assets/upload"), {
+      method: "POST",
+      body: formData,
+    }),
+  );
+}
+
+export async function inspectAsset(asset: AssetModel): Promise<AssetInspectionResponseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/assets/inspect"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(asset),
+    }),
+  );
+}
+
+export function getAssetFileUrl(path: string): string {
+  return buildApiUrl(`/api/assets/file?path=${encodeURIComponent(path)}`);
 }

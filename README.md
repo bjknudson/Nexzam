@@ -61,6 +61,9 @@ This repo now includes a first working vertical slice for:
 - unpacking it to a managed working directory
 - browsing and filtering questions
 - editing one question in form mode or raw JSON mode
+- attaching multiple SVG/image assets to a question
+- previewing attached SVGs with live placeholder controls
+- browsing bank-wide assets with previews and usage counts
 - saving question edits back to disk
 - repacking the bank into `.bok`
 - launching the backend automatically from the Tauri shell
@@ -142,8 +145,20 @@ API endpoints included in this slice:
 - `GET /api/banks/current`
 - `POST /api/banks/save`
 - `GET /api/questions`
+- `POST /api/questions`
 - `GET /api/questions/{question_id}`
 - `PUT /api/questions/{question_id}`
+- `DELETE /api/questions/{question_id}`
+- `GET /api/assets`
+- `POST /api/assets/upload`
+- `POST /api/assets/inspect`
+- `GET /api/assets/file`
+
+## Milestone status
+
+- `Milestone 2` mostly complete: desktop backend supervision, native `.bok` open/save, and working-copy vs archive status are in place.
+- `Milestone 3` mostly complete: create, duplicate, and delete question are implemented. Bank metadata editing is still pending.
+- `Milestone 4` in progress: question asset attach, SVG preview, live variable controls, and bank-wide asset browsing are implemented. Dedicated bank asset maintenance and SVG editing are the next layer.
 
 ## Frontend setup
 
@@ -204,6 +219,7 @@ Then start the desktop shell from `app/frontend`:
 npm install
 npm run tauri:dev
 ```
+The `tauri:dev` script enters `src-tauri/` before invoking the Tauri CLI, so the CLI, config, and build hooks all resolve paths from the same place.
 
 What the desktop shell now does:
 
