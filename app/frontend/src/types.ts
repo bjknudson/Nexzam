@@ -33,6 +33,55 @@ export interface AssetListResponseModel {
   items: AssetListItemModel[];
 }
 
+export interface StandardReferenceModel {
+  standard_id: string;
+}
+
+export interface SourceStandardListModel {
+  id: string;
+  title: string;
+  issuer: string;
+  subject?: string | null;
+  version?: string | null;
+  description?: string | null;
+  imported_at: string;
+}
+
+export interface StandardRecordModel {
+  id: string;
+  source_list_id: string;
+  code: string;
+  statement: string;
+  subject?: string | null;
+  grade_band?: string | null;
+  tags: string[];
+}
+
+export interface StandardListResponseModel {
+  items: SourceStandardListModel[];
+}
+
+export interface StandardSearchResponseModel {
+  items: StandardRecordModel[];
+}
+
+export interface CourseModel {
+  id: string;
+  title: string;
+  description?: string | null;
+  standard_refs: StandardReferenceModel[];
+}
+
+export interface CourseListResponseModel {
+  items: CourseModel[];
+}
+
+export interface StandardImportResponseModel {
+  source_list: SourceStandardListModel;
+  imported_count: number;
+  imported_path?: string | null;
+}
+
 export interface RubricRowModel {
   criterion: string;
   points: number;
@@ -68,7 +117,7 @@ export interface QuestionModel {
   prompt: string;
   subtopic?: string | null;
   tags: string[];
-  standards: string[];
+  standards: StandardReferenceModel[];
   estimated_time_sec?: number | null;
   points?: number | null;
   status: string;

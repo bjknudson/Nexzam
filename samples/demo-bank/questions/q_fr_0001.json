@@ -6,7 +6,11 @@
   "difficulty": 4,
   "prompt": "Explain the difference between mass and weight, and give one real-world example.",
   "tags": ["forces", "conceptual"],
-  "standards": ["PHY-NEW-01"],
+  "standards": [
+    {
+      "standard_id": "PHY-NEW-01"
+    }
+  ],
   "estimated_time_sec": 300,
   "points": 4,
   "status": "draft",
@@ -33,7 +37,9 @@
       "kind": "svg",
       "svg_variables": {
         "object_label": "Crate",
+        "up_force_length": "40",
         "up_force": "Normal N",
+        "down_force_length": "30",
         "down_force": "Weight W"
       }
     }

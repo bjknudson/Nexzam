@@ -60,6 +60,8 @@ Variable text should carry:
 
 On SVG export, variable text renders as `{{variable_name}}`. The current question-level `svg_variables` map can continue to populate these placeholders with no schema break.
 
+For numeric geometry, Nexzam can also support simple SVG expressions such as `{{calc: 60 - arrow_length}}`. That lets one variable drive line length, arrowhead position, and label position together instead of forcing authors to hand-calculate every coordinate.
+
 ## Editing workflow
 
 1. User creates a new SVG asset or opens an existing SVG asset.
@@ -132,6 +134,32 @@ Each library element should define:
 - editable handles
 - exposed variables
 - themeable fill/stroke regions
+
+### Force arrow component note
+
+The current sample force diagram proved that numeric geometry variables work well for arrow sizing. Treat `force arrow` as an early reusable component in the SVG builder/editor.
+
+Recommended editable properties:
+
+- position
+- direction
+- length
+- stroke color
+- stroke width
+- label text
+- label offset
+
+Recommended exported variables:
+
+- `arrow_length`
+- `arrow_label`
+
+Recommended editor behavior:
+
+- the builder/editor pane should let the user drag the arrow to set location
+- the builder/editor pane should let the user rotate or flip the arrow to set direction
+- the builder/editor pane should let the user edit length numerically or by dragging the endpoint
+- the label should stay attached to the arrow and update automatically when length or direction changes
 
 These can live in a local repo folder such as `assets/library/` or `meta/svg-library/` and be inserted as grouped elements into a diagram.
 

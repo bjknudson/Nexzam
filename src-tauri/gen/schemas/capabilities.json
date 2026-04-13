@@ -1,1 +1,1 @@
-{}
+{"desktop-default":{"identifier":"desktop-default","description":"Default desktop permissions for the main editor window and pane pop-out windows.","local":true,"windows":["main","nexzam-*-pane"],"permissions":["core:default","core:window:allow-create","core:window:allow-close","core:window:allow-destroy","core:window:allow-get-all-windows","core:window:allow-set-focus","core:window:allow-show","core:webview:allow-create-webview-window"]}}

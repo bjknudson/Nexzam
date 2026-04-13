@@ -6,7 +6,11 @@
   "difficulty": 3,
   "prompt": "A wave has speed 12 m/s and wavelength 3 m. Find its frequency.",
   "tags": ["waves"],
-  "standards": ["PHY-WAV-02"],
+  "standards": [
+    {
+      "standard_id": "PHY-WAV-02"
+    }
+  ],
   "estimated_time_sec": 120,
   "points": 2,
   "status": "review",

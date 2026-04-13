@@ -7,6 +7,9 @@ import {
   getAssetFileUrl,
   getQuestion,
   inspectAsset,
+  listCourses,
+  listSourceStandardLists,
+  listStandards,
   listAssets,
   listQuestions,
   openBank,
@@ -17,29 +20,86 @@ import {
   updateQuestion,
 } from "./api";
 import {
+  closeCurrentPaneWindow,
   getDesktopContext,
   isDesktopShell,
   openBankDialog,
+  openPaneWindow,
   saveBankDialog,
   setArchiveDirtyInShell,
+  watchPaneWindowClose,
 } from "./desktop";
+import StandardsWorkspace from "./StandardsWorkspace";
 import type {
   AssetInspectionResponseModel,
   AssetListItemModel,
   AssetModel,
   BankSummaryModel,
+  CourseModel,
   DesktopContext,
   QuestionListItemModel,
   QuestionModel,
   QuestionType,
   RubricRowModel,
+  SourceStandardListModel,
+  StandardRecordModel,
+  StandardReferenceModel,
 } from "./types";
 
 type EditorMode = "form" | "json";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 type PersistReason = "autosave" | "switch" | "save-bank" | "open-bank";
+type PaneKind = "questions" | "assets" | "standards";
+
+interface QuestionPaneSnapshot {
+  hasBank: boolean;
+  loading: boolean;
+  search: string;
+  topicFilter: string;
+  typeFilter: string;
+  availableTopics: string[];
+  availableTypes: string[];
+  questionItems: QuestionListItemModel[];
+  selectedId: string | null;
+  promptPreview: string;
+}
+
+interface AssetPaneSnapshot {
+  hasBank: boolean;
+  search: string;
+  assets: AssetListItemModel[];
+  selectedQuestionId: string | null;
+  attachedAssetPaths: string[];
+}
+
+interface QuestionStandardsSnapshot {
+  questionId: string | null;
+  attachedStandardIds: string[];
+}
+
+type PaneMessage =
+  | { type: "request-state"; pane: PaneKind }
+  | { type: "questions-state"; state: QuestionPaneSnapshot }
+  | { type: "assets-state"; state: AssetPaneSnapshot }
+  | { type: "questions-search"; value: string }
+  | { type: "questions-topic-filter"; value: string }
+  | { type: "questions-type-filter"; value: string }
+  | { type: "questions-select"; id: string }
+  | { type: "questions-create" }
+  | { type: "questions-duplicate" }
+  | { type: "questions-delete" }
+  | { type: "assets-search"; value: string }
+  | { type: "assets-attach"; path: string }
+  | { type: "standards-data-changed" }
+  | { type: "request-question-standards-state" }
+  | { type: "question-standards-state"; state: QuestionStandardsSnapshot }
+  | { type: "question-attach-standard"; standardId: string }
+  | { type: "question-remove-standard"; standardId: string }
+  | { type: "dock-pane"; pane: PaneKind }
+  | { type: "pane-closed"; pane: PaneKind };
 
 const AUTOSAVE_DELAY_MS = 700;
+const PANE_SYNC_CHANNEL = "nexzam-pane-sync";
 
 const emptyQuestion = (): QuestionModel => ({
   id: "",
@@ -65,8 +125,316 @@ const emptyQuestion = (): QuestionModel => ({
   assets: [],
 });
 
+function getPaneMode(): PaneKind | null {
+  const pane = new URLSearchParams(window.location.search).get("pane");
+  return pane === "questions" || pane === "assets" || pane === "standards" ? pane : null;
+}
+
+function filterAssets(items: AssetListItemModel[], searchTerm: string): AssetListItemModel[] {
+  const needle = searchTerm.trim().toLowerCase();
+  if (!needle) return items;
+
+  return items.filter((asset) => {
+    const haystack = [
+      asset.path,
+      asset.path.split("/").slice(-1)[0] ?? "",
+      asset.kind,
+      asset.referenced_by.join(" "),
+      asset.svg_placeholders.join(" "),
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(needle);
+  });
+}
+
+interface QuestionPaneProps {
+  open: boolean;
+  poppedOut: boolean;
+  hasBank: boolean;
+  loading: boolean;
+  search: string;
+  topicFilter: string;
+  typeFilter: string;
+  availableTopics: string[];
+  availableTypes: string[];
+  questionItems: QuestionListItemModel[];
+  selectedId: string | null;
+  promptPreview: string;
+  showPromptPreview: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  onPopOut: () => void;
+  onDock: () => void;
+  onSearchChange: (value: string) => void;
+  onTopicFilterChange: (value: string) => void;
+  onTypeFilterChange: (value: string) => void;
+  onSelectQuestion: (id: string) => void;
+  onCreateQuestion: () => void;
+  onDuplicateQuestion: () => void;
+  onDeleteQuestion: () => void;
+}
+
+function QuestionPane({
+  open,
+  poppedOut,
+  hasBank,
+  loading,
+  search,
+  topicFilter,
+  typeFilter,
+  availableTopics,
+  availableTypes,
+  questionItems,
+  selectedId,
+  promptPreview,
+  showPromptPreview,
+  onOpen,
+  onClose,
+  onPopOut,
+  onDock,
+  onSearchChange,
+  onTopicFilterChange,
+  onTypeFilterChange,
+  onSelectQuestion,
+  onCreateQuestion,
+  onDuplicateQuestion,
+  onDeleteQuestion,
+}: QuestionPaneProps) {
+  if (!open && !poppedOut) {
+    return (
+      <aside className="dock-pane drawer-closed left">
+        <button className="pane-tab-button left" type="button" onClick={onOpen}>
+          Questions
+        </button>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className={`dock-pane question-pane ${poppedOut ? "popout" : "docked"}`}>
+      <div className="pane-header">
+        <h2>Questions</h2>
+        <div className="pane-header-actions">
+          <button type="button" onClick={poppedOut ? onDock : onPopOut}>
+            {poppedOut ? "Dock" : "Pop Out"}
+          </button>
+          {!poppedOut ? (
+            <button type="button" onClick={onClose}>
+              Hide
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="pane-content">
+        <div className="filters">
+          <div className="question-actions">
+            <button onClick={onCreateQuestion} disabled={loading || !hasBank}>
+              New
+            </button>
+            <button onClick={onDuplicateQuestion} disabled={loading || !selectedId}>
+              Duplicate
+            </button>
+            <button
+              className="danger-button"
+              onClick={onDeleteQuestion}
+              disabled={loading || !selectedId}
+            >
+              Delete
+            </button>
+          </div>
+          <input
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search text"
+          />
+          <select value={topicFilter} onChange={(event) => onTopicFilterChange(event.target.value)}>
+            <option value="">All topics</option>
+            {availableTopics.map((topic) => (
+              <option key={topic} value={topic}>
+                {topic}
+              </option>
+            ))}
+          </select>
+          <select value={typeFilter} onChange={(event) => onTypeFilterChange(event.target.value)}>
+            <option value="">All types</option>
+            {availableTypes.map((questionType) => (
+              <option key={questionType} value={questionType}>
+                {questionType}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="question-pane-body">
+          <div className="question-list">
+            {questionItems.map((item) => (
+              <button
+                key={item.id}
+                className={`question-row ${selectedId === item.id ? "selected" : ""}`}
+                onClick={() => onSelectQuestion(item.id)}
+              >
+                <strong>{item.id}</strong>
+                <span>{item.topic}</span>
+                <span>{item.type}</span>
+                <span>Difficulty {item.difficulty}</span>
+                <span>{item.status}</span>
+              </button>
+            ))}
+          </div>
+
+          {showPromptPreview ? (
+            <section className="question-preview-panel">
+              <div className="question-preview-header">
+                <h3>Prompt Preview</h3>
+              </div>
+              <div className="question-preview-copy">
+                {promptPreview ? promptPreview : "Select a question to preview its prompt."}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+interface AssetPaneProps {
+  open: boolean;
+  poppedOut: boolean;
+  hasBank: boolean;
+  search: string;
+  assets: AssetListItemModel[];
+  selectedQuestionId: string | null;
+  attachedAssetPaths: string[];
+  onOpen: () => void;
+  onClose: () => void;
+  onPopOut: () => void;
+  onDock: () => void;
+  onSearchChange: (value: string) => void;
+  onAttach: (asset: AssetListItemModel) => void;
+}
+
+function AssetPane({
+  open,
+  poppedOut,
+  hasBank,
+  search,
+  assets,
+  selectedQuestionId,
+  attachedAssetPaths,
+  onOpen,
+  onClose,
+  onPopOut,
+  onDock,
+  onSearchChange,
+  onAttach,
+}: AssetPaneProps) {
+  if (!open && !poppedOut) {
+    return (
+      <aside className="dock-pane drawer-closed right">
+        <button className="pane-tab-button right" type="button" onClick={onOpen}>
+          Assets
+        </button>
+      </aside>
+    );
+  }
+
+  const filteredAssets = filterAssets(assets, search);
+
+  return (
+    <aside className={`dock-pane asset-pane ${poppedOut ? "popout" : "docked"}`}>
+      <div className="pane-header">
+        <h2>Bank Assets</h2>
+        <div className="pane-header-actions">
+          <button type="button" onClick={poppedOut ? onDock : onPopOut}>
+            {poppedOut ? "Dock" : "Pop Out"}
+          </button>
+          {!poppedOut ? (
+            <button type="button" onClick={onClose}>
+              Hide
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="pane-content">
+        <div className="bank-assets-header">
+          <p>Search filenames, kind, labels, placeholders, and usage.</p>
+          <span className="bank-assets-count">
+            {filteredAssets.length}/{assets.length}
+          </span>
+        </div>
+
+        <input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search assets"
+        />
+
+        {hasBank ? (
+          filteredAssets.length === 0 ? (
+            <p className="asset-empty">No assets match this search.</p>
+          ) : (
+            <div className="bank-asset-list">
+              {filteredAssets.map((asset) => {
+                const attachedToCurrent = attachedAssetPaths.includes(asset.path);
+
+                return (
+                  <article key={asset.path} className="bank-asset-tile compact">
+                    <div className="bank-asset-card-top">
+                      <strong>{asset.path.split("/").slice(-1)[0] ?? asset.path}</strong>
+                      <div className="bank-asset-badges">
+                        <span className="asset-badge">{asset.kind}</span>
+                        {asset.kind === "svg" ? (
+                          <span className="asset-badge">{asset.svg_placeholders.length} vars</span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="bank-asset-thumb square">
+                      <img src={getAssetFileUrl(asset.path)} alt={asset.path} />
+                    </div>
+                    <div className="bank-asset-body compact">
+                      <span className="asset-badge">
+                        Used by {asset.referenced_by.length} question
+                        {asset.referenced_by.length === 1 ? "" : "s"}
+                      </span>
+                      <p className="bank-asset-refs">
+                        {asset.referenced_by.length > 0
+                          ? asset.referenced_by.join(", ")
+                          : "Unused"}
+                      </p>
+                      {selectedQuestionId ? (
+                        <button
+                          type="button"
+                          onClick={() => onAttach(asset)}
+                          disabled={attachedToCurrent}
+                        >
+                          {attachedToCurrent ? "Attached" : "Attach"}
+                        </button>
+                      ) : (
+                        <p className="asset-empty">Select a question to attach assets.</p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          <p className="asset-empty">Open a bank to browse assets.</p>
+        )}
+      </div>
+    </aside>
+  );
+}
+
 function App() {
   const desktopMode = isDesktopShell();
+  const paneMode = getPaneMode();
+  const isPaneWindow = paneMode !== null;
+  const isMainWindow = paneMode === null;
 
   const [desktopContext, setDesktopContext] = useState<DesktopContext | null>(
     desktopMode
@@ -102,7 +470,35 @@ function App() {
   const [jsonError, setJsonError] = useState(false);
   const [assetInspections, setAssetInspections] = useState<AssetInspectionResponseModel[]>([]);
   const [bankAssets, setBankAssets] = useState<AssetListItemModel[]>([]);
+  const [sourceStandardLists, setSourceStandardLists] = useState<SourceStandardListModel[]>([]);
+  const [standardRecords, setStandardRecords] = useState<StandardRecordModel[]>([]);
+  const [courses, setCourses] = useState<CourseModel[]>([]);
   const [assetBusy, setAssetBusy] = useState(false);
+  const [questionDrawerOpen, setQuestionDrawerOpen] = useState(true);
+  const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
+  const [questionPanePoppedOut, setQuestionPanePoppedOut] = useState(false);
+  const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
+  const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const [assetSearch, setAssetSearch] = useState("");
+  const [questionPaneSnapshot, setQuestionPaneSnapshot] = useState<QuestionPaneSnapshot>({
+    hasBank: false,
+    loading: false,
+    search: "",
+    topicFilter: "",
+    typeFilter: "",
+    availableTopics: [],
+    availableTypes: [],
+    questionItems: [],
+    selectedId: null,
+    promptPreview: "",
+  });
+  const [assetPaneSnapshot, setAssetPaneSnapshot] = useState<AssetPaneSnapshot>({
+    hasBank: false,
+    search: "",
+    assets: [],
+    selectedQuestionId: null,
+    attachedAssetPaths: [],
+  });
 
   const saveTimerRef = useRef<number | null>(null);
   const assetInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,6 +510,9 @@ function App() {
   const isHydratingRef = useRef(false);
   const persistInFlightRef = useRef<Promise<boolean> | null>(null);
   const assetInspectionRequestRef = useRef(0);
+  const paneChannelRef = useRef<BroadcastChannel | null>(null);
+  const questionCloseWatchRef = useRef<(() => void) | null>(null);
+  const assetCloseWatchRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -134,7 +533,9 @@ function App() {
   useEffect(() => {
     if (!desktopMode) {
       setApiBaseUrl(null);
-      void refreshCurrentBank();
+      if (isMainWindow) {
+        void refreshCurrentBank();
+      }
       return;
     }
 
@@ -150,7 +551,9 @@ function App() {
 
       if (context.backendReady) {
         setStatusMessage("Desktop backend ready.");
-        await refreshCurrentBank();
+        if (isMainWindow) {
+          await refreshCurrentBank();
+        }
         if (intervalId !== null) {
           window.clearInterval(intervalId);
           intervalId = null;
@@ -176,14 +579,16 @@ function App() {
         window.clearInterval(intervalId);
       }
     };
-  }, [desktopMode]);
+  }, [desktopMode, isMainWindow]);
 
   useEffect(() => {
+    if (!isMainWindow) return;
     if (!bank) return;
     void refreshQuestionList();
-  }, [bank, search, topicFilter, typeFilter]);
+  }, [bank, search, topicFilter, typeFilter, isMainWindow]);
 
   useEffect(() => {
+    if (!isMainWindow) return;
     if (!selectedId) {
       isHydratingRef.current = true;
       setDraftQuestion(null);
@@ -195,9 +600,10 @@ function App() {
     }
 
     void loadQuestion(selectedId);
-  }, [selectedId]);
+  }, [selectedId, isMainWindow]);
 
   useEffect(() => {
+    if (!isMainWindow) return;
     if (
       !selectedId ||
       !draftQuestion ||
@@ -221,9 +627,10 @@ function App() {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [selectedId, draftQuestion, rawJson, editorMode, jsonError]);
+  }, [selectedId, draftQuestion, rawJson, editorMode, jsonError, isMainWindow]);
 
   useEffect(() => {
+    if (!isMainWindow) return;
     if (!draftQuestion) {
       setAssetInspections([]);
       return;
@@ -259,7 +666,7 @@ function App() {
         setAssetInspections(inspections);
       }
     })();
-  }, [draftQuestion]);
+  }, [draftQuestion, isMainWindow]);
 
   useEffect(() => {
     void setArchiveDirtyInShell(workspaceDirty);
@@ -283,9 +690,28 @@ function App() {
       setStatusMessage(`Opened ${summary.manifest.title}`);
       setWorkspaceDirty(false);
       await refreshAssetList();
+      await refreshStandardsData();
     } catch {
       setBank(null);
       setBankAssets([]);
+      setSourceStandardLists([]);
+      setStandardRecords([]);
+      setCourses([]);
+    }
+  }
+
+  async function refreshStandardsData() {
+    try {
+      const [sourceListsResponse, standardsResponse, courseResponse] = await Promise.all([
+        listSourceStandardLists(),
+        listStandards(),
+        listCourses(),
+      ]);
+      setSourceStandardLists(sourceListsResponse.items);
+      setStandardRecords(standardsResponse.items);
+      setCourses(courseResponse.items);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
     }
   }
 
@@ -434,6 +860,7 @@ function App() {
       setAutosaveState("idle");
       setStatusMessage(`Opened ${summary.manifest.title}`);
       await refreshAssetList();
+      await refreshStandardsData();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -461,6 +888,7 @@ function App() {
       setAutosaveState("idle");
       setStatusMessage(`Opened demo bank from ${summary.source_path}`);
       await refreshAssetList();
+      await refreshStandardsData();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -491,6 +919,7 @@ function App() {
       setBank(summary);
       setWorkspaceDirty(false);
       await refreshAssetList();
+      await refreshStandardsData();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -717,6 +1146,45 @@ function App() {
     });
   }
 
+  function addMultipleChoiceChoice() {
+    const answer = (draftQuestionRef.current?.answer as {
+      choices?: string[];
+      correct_choice_index?: number;
+    }) ?? { choices: ["", ""], correct_choice_index: 0 };
+    const choices = [...(answer.choices ?? ["", ""]), ""];
+    updateDraft("answer", {
+      ...answer,
+      choices,
+      correct_choice_index: answer.correct_choice_index ?? 0,
+    });
+  }
+
+  function removeMultipleChoiceChoice(index: number) {
+    const answer = (draftQuestionRef.current?.answer as {
+      choices?: string[];
+      correct_choice_index?: number;
+    }) ?? { choices: ["", ""], correct_choice_index: 0 };
+    const existingChoices = [...(answer.choices ?? ["", ""])];
+    if (existingChoices.length <= 2) {
+      return;
+    }
+
+    const choices = existingChoices.filter((_, choiceIndex) => choiceIndex !== index);
+    const currentCorrectIndex = answer.correct_choice_index ?? 0;
+    const nextCorrectIndex =
+      currentCorrectIndex === index
+        ? Math.max(0, Math.min(index, choices.length - 1))
+        : currentCorrectIndex > index
+          ? currentCorrectIndex - 1
+          : currentCorrectIndex;
+
+    updateDraft("answer", {
+      ...answer,
+      choices,
+      correct_choice_index: nextCorrectIndex,
+    });
+  }
+
   function updateNumericAnswer(field: "value" | "unit" | "tolerance", value: string) {
     const answer = (draftQuestionRef.current?.answer as Record<string, unknown>) ?? {};
     updateDraft("answer", {
@@ -738,6 +1206,364 @@ function App() {
     updateDraft("rubric", rubric);
   }
 
+  function attachStandardToQuestion(standardId: string) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    if (current.standards.some((reference) => reference.standard_id === standardId)) {
+      setStatusMessage(`${standardId} is already attached to ${current.id}.`);
+      return;
+    }
+
+    updateDraft("standards", [
+      ...current.standards,
+      {
+        standard_id: standardId,
+      } satisfies StandardReferenceModel,
+    ]);
+    setStatusMessage(`Attached ${standardId} to ${current.id}.`);
+  }
+
+  function removeStandardFromQuestion(standardId: string) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    updateDraft(
+      "standards",
+      current.standards.filter((reference) => reference.standard_id !== standardId),
+    );
+  }
+
+  async function handleOpenQuestionStandardsPicker() {
+    try {
+      await openPaneWindow("standards", "Question Standards", {
+        mode: "picker",
+        width: 1080,
+        height: 860,
+      });
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    }
+  }
+
+  async function handlePopOutPane(pane: PaneKind) {
+    if (!isMainWindow) return;
+
+    try {
+      await openPaneWindow(pane, pane === "questions" ? "Questions" : "Bank Assets");
+
+      if (pane === "questions") {
+        setQuestionPanePoppedOut(true);
+        setQuestionDrawerOpen(false);
+      } else {
+        setAssetPanePoppedOut(true);
+        setAssetDrawerOpen(false);
+      }
+
+      setStatusMessage(
+        pane === "questions"
+          ? "Opened the Questions pane in a separate window."
+          : "Opened the Bank Assets pane in a separate window.",
+      );
+    } catch (error) {
+      if (pane === "questions") {
+        setQuestionPanePoppedOut(false);
+        setQuestionDrawerOpen(true);
+      } else {
+        setAssetPanePoppedOut(false);
+        setAssetDrawerOpen(true);
+      }
+      setErrorMessage((error as Error).message);
+    }
+  }
+
+  async function handleOpenStandardsWorkspace() {
+    try {
+      await openPaneWindow("standards", "Standards", {
+        mode: "workspace",
+        width: 1280,
+        height: 900,
+      });
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    }
+  }
+
+  async function handleDockPane(pane: PaneKind) {
+    if (isMainWindow) {
+      if (pane === "questions") {
+        setQuestionPanePoppedOut(false);
+        setQuestionDrawerOpen(true);
+      } else {
+        setAssetPanePoppedOut(false);
+        setAssetDrawerOpen(true);
+      }
+      return;
+    }
+
+    paneChannelRef.current?.postMessage({ type: "dock-pane", pane });
+    await closeCurrentPaneWindow().catch(() => {
+      window.close();
+    });
+  }
+
+  function handlePaneAttach(path: string) {
+    const asset = bankAssets.find((item) => item.path === path);
+    if (!asset) return;
+    handleAttachExistingAsset(asset);
+  }
+
+  const promptPreview =
+    (selectedId && draftQuestion?.id === selectedId
+      ? draftQuestion.prompt
+      : questionItems.find((item) => item.id === selectedId)?.prompt) ?? "";
+
+  const questionSnapshot: QuestionPaneSnapshot = {
+    hasBank: !!bank,
+    loading,
+    search,
+    topicFilter,
+    typeFilter,
+    availableTopics,
+    availableTypes,
+    questionItems,
+    selectedId,
+    promptPreview,
+  };
+
+  const assetSnapshot: AssetPaneSnapshot = {
+    hasBank: !!bank,
+    search: assetSearch,
+    assets: bankAssets,
+    selectedQuestionId: selectedId,
+    attachedAssetPaths: draftQuestion?.assets.map((asset) => asset.path) ?? [],
+  };
+  const questionStandardsSnapshot: QuestionStandardsSnapshot = {
+    questionId: selectedId,
+    attachedStandardIds: draftQuestion?.standards.map((reference) => reference.standard_id) ?? [],
+  };
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    if (!paneChannelRef.current) {
+      paneChannelRef.current = new BroadcastChannel(PANE_SYNC_CHANNEL);
+    }
+
+    const channel = paneChannelRef.current;
+    channel.onmessage = (event: MessageEvent<PaneMessage>) => {
+      const message = event.data;
+
+      if (isMainWindow) {
+        if (message.type === "request-state") {
+          channel.postMessage(
+            message.pane === "questions"
+              ? { type: "questions-state", state: questionSnapshot }
+              : { type: "assets-state", state: assetSnapshot },
+          );
+          return;
+        }
+
+        if (message.type === "questions-search") {
+          setSearch(message.value);
+          return;
+        }
+        if (message.type === "questions-topic-filter") {
+          setTopicFilter(message.value);
+          return;
+        }
+        if (message.type === "questions-type-filter") {
+          setTypeFilter(message.value);
+          return;
+        }
+        if (message.type === "questions-select") {
+          void handleSelectQuestion(message.id);
+          return;
+        }
+        if (message.type === "questions-create") {
+          void handleCreateQuestion();
+          return;
+        }
+        if (message.type === "questions-duplicate") {
+          void handleCreateQuestion(selectedIdRef.current ?? undefined);
+          return;
+        }
+        if (message.type === "questions-delete") {
+          void handleDeleteQuestion();
+          return;
+        }
+        if (message.type === "assets-search") {
+          setAssetSearch(message.value);
+          return;
+        }
+        if (message.type === "assets-attach") {
+          handlePaneAttach(message.path);
+          return;
+        }
+        if (message.type === "standards-data-changed") {
+          void refreshStandardsData();
+          return;
+        }
+        if (message.type === "request-question-standards-state") {
+          channel.postMessage({
+            type: "question-standards-state",
+            state: questionStandardsSnapshot,
+          });
+          return;
+        }
+        if (message.type === "question-attach-standard") {
+          attachStandardToQuestion(message.standardId);
+          return;
+        }
+        if (message.type === "question-remove-standard") {
+          removeStandardFromQuestion(message.standardId);
+          return;
+        }
+        if (message.type === "dock-pane") {
+          if (message.pane === "questions") {
+            setQuestionPanePoppedOut(false);
+            setQuestionDrawerOpen(true);
+          } else {
+            setAssetPanePoppedOut(false);
+            setAssetDrawerOpen(true);
+          }
+          return;
+        }
+        if (message.type === "pane-closed") {
+          if (message.pane === "questions") {
+            setQuestionPanePoppedOut(false);
+          } else {
+            setAssetPanePoppedOut(false);
+          }
+        }
+        return;
+      }
+
+      if (paneMode === "questions" && message.type === "questions-state") {
+        setQuestionPaneSnapshot(message.state);
+        return;
+      }
+
+      if (paneMode === "assets" && message.type === "assets-state") {
+        setAssetPaneSnapshot(message.state);
+      }
+    };
+
+    return () => {
+      channel.onmessage = null;
+    };
+  }, [assetSnapshot, isMainWindow, paneMode, questionSnapshot, questionStandardsSnapshot]);
+
+  useEffect(() => {
+    if (!paneChannelRef.current) return;
+    if (isMainWindow) {
+      paneChannelRef.current.postMessage({ type: "questions-state", state: questionSnapshot });
+      paneChannelRef.current.postMessage({ type: "assets-state", state: assetSnapshot });
+      paneChannelRef.current.postMessage({
+        type: "question-standards-state",
+        state: questionStandardsSnapshot,
+      });
+    }
+  }, [assetSnapshot, isMainWindow, questionSnapshot, questionStandardsSnapshot]);
+
+  useEffect(() => {
+    if (!isPaneWindow || !paneChannelRef.current) return;
+    paneChannelRef.current.postMessage({ type: "request-state", pane: paneMode });
+  }, [isPaneWindow, paneMode]);
+
+  useEffect(() => {
+    if (!isPaneWindow || !paneChannelRef.current) return;
+
+    const channel = paneChannelRef.current;
+    const notifyClosed = () => {
+      channel.postMessage({ type: "pane-closed", pane: paneMode });
+    };
+
+    window.addEventListener("beforeunload", notifyClosed);
+    return () => window.removeEventListener("beforeunload", notifyClosed);
+  }, [isPaneWindow, paneMode]);
+
+  useEffect(() => {
+    return () => {
+      questionCloseWatchRef.current?.();
+      questionCloseWatchRef.current = null;
+      assetCloseWatchRef.current?.();
+      assetCloseWatchRef.current = null;
+      paneChannelRef.current?.close();
+      paneChannelRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMainWindow || !questionPanePoppedOut) {
+      questionCloseWatchRef.current?.();
+      questionCloseWatchRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const unlisten = await watchPaneWindowClose("questions", () => {
+        setQuestionPanePoppedOut(false);
+        setQuestionDrawerOpen(false);
+      }).catch(() => null);
+
+      if (cancelled) {
+        unlisten?.();
+        return;
+      }
+
+      questionCloseWatchRef.current?.();
+      questionCloseWatchRef.current = unlisten ?? null;
+    })();
+
+    return () => {
+      cancelled = true;
+      questionCloseWatchRef.current?.();
+      questionCloseWatchRef.current = null;
+    };
+  }, [isMainWindow, questionPanePoppedOut]);
+
+  useEffect(() => {
+    if (!isMainWindow || !assetPanePoppedOut) {
+      assetCloseWatchRef.current?.();
+      assetCloseWatchRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const unlisten = await watchPaneWindowClose("assets", () => {
+        setAssetPanePoppedOut(false);
+        setAssetDrawerOpen(false);
+      }).catch(() => null);
+
+      if (cancelled) {
+        unlisten?.();
+        return;
+      }
+
+      assetCloseWatchRef.current?.();
+      assetCloseWatchRef.current = unlisten ?? null;
+    })();
+
+    return () => {
+      cancelled = true;
+      assetCloseWatchRef.current?.();
+      assetCloseWatchRef.current = null;
+    };
+  }, [assetPanePoppedOut, isMainWindow]);
+
+  useEffect(() => {
+    document.title =
+      paneMode === "questions"
+        ? "Questions - Nexzam"
+        : paneMode === "assets"
+          ? "Assets - Nexzam"
+          : paneMode === "standards"
+            ? "Standards - Nexzam"
+          : "Nexzam";
+  }, [paneMode]);
+
   const workingCopyLabel =
     autosaveState === "saving"
       ? "Saving working copy..."
@@ -758,6 +1584,12 @@ function App() {
   const archivePathLabel = bank?.source_path ?? "No archive open";
   const workspaceLabel = bank ? `Workspace open at ${bank.workspace_path}` : "No workspace open";
   const desktopBootBlocked = desktopMode && !desktopContext?.backendReady;
+  const questionPaneDocked = !questionPanePoppedOut && questionDrawerOpen;
+  const assetPaneDocked = !assetPanePoppedOut && assetDrawerOpen;
+  const editorShouldFill = !questionPaneDocked && !assetPaneDocked;
+  const standardsById = Object.fromEntries(
+    standardRecords.map((standard) => [standard.id, standard] satisfies [string, StandardRecordModel]),
+  );
 
   if (desktopBootBlocked) {
     return (
@@ -770,6 +1602,83 @@ function App() {
               "The desktop shell is waiting for the local FastAPI backend to report healthy."}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (paneMode === "questions") {
+    return (
+      <div className="pane-window-shell">
+        <QuestionPane
+          open
+          poppedOut
+          hasBank={questionPaneSnapshot.hasBank}
+          loading={questionPaneSnapshot.loading}
+          search={questionPaneSnapshot.search}
+          topicFilter={questionPaneSnapshot.topicFilter}
+          typeFilter={questionPaneSnapshot.typeFilter}
+          availableTopics={questionPaneSnapshot.availableTopics}
+          availableTypes={questionPaneSnapshot.availableTypes}
+          questionItems={questionPaneSnapshot.questionItems}
+          selectedId={questionPaneSnapshot.selectedId}
+          promptPreview={questionPaneSnapshot.promptPreview}
+          showPromptPreview
+          onOpen={() => undefined}
+          onClose={() => undefined}
+          onPopOut={() => undefined}
+          onDock={() => void handleDockPane("questions")}
+          onSearchChange={(value) =>
+            paneChannelRef.current?.postMessage({ type: "questions-search", value })
+          }
+          onTopicFilterChange={(value) =>
+            paneChannelRef.current?.postMessage({ type: "questions-topic-filter", value })
+          }
+          onTypeFilterChange={(value) =>
+            paneChannelRef.current?.postMessage({ type: "questions-type-filter", value })
+          }
+          onSelectQuestion={(id) =>
+            paneChannelRef.current?.postMessage({ type: "questions-select", id })
+          }
+          onCreateQuestion={() => paneChannelRef.current?.postMessage({ type: "questions-create" })}
+          onDuplicateQuestion={() =>
+            paneChannelRef.current?.postMessage({ type: "questions-duplicate" })
+          }
+          onDeleteQuestion={() => paneChannelRef.current?.postMessage({ type: "questions-delete" })}
+        />
+      </div>
+    );
+  }
+
+  if (paneMode === "assets") {
+    return (
+      <div className="pane-window-shell">
+        <AssetPane
+          open
+          poppedOut
+          hasBank={assetPaneSnapshot.hasBank}
+          search={assetPaneSnapshot.search}
+          assets={assetPaneSnapshot.assets}
+          selectedQuestionId={assetPaneSnapshot.selectedQuestionId}
+          attachedAssetPaths={assetPaneSnapshot.attachedAssetPaths}
+          onOpen={() => undefined}
+          onClose={() => undefined}
+          onPopOut={() => undefined}
+          onDock={() => void handleDockPane("assets")}
+          onSearchChange={(value) =>
+            paneChannelRef.current?.postMessage({ type: "assets-search", value })
+          }
+          onAttach={(asset) =>
+            paneChannelRef.current?.postMessage({ type: "assets-attach", path: asset.path })
+          }
+        />
+      </div>
+    );
+  }
+
+  if (paneMode === "standards") {
+    return (
+      <div className="pane-window-shell standards-window-shell">
+        <StandardsWorkspace showCloseHint />
       </div>
     );
   }
@@ -788,6 +1697,9 @@ function App() {
           </button>
           <button onClick={() => void handleOpenDemo()} disabled={loading}>
             Open Demo Bank
+          </button>
+          <button onClick={() => void handleOpenStandardsWorkspace()} disabled={loading || !bank}>
+            Manage Standards
           </button>
           <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
             Save Bank
@@ -841,139 +1753,40 @@ function App() {
       </details>
 
       <div className="workspace">
-        <aside className="sidebar">
-          <div className="filters">
-            <div className="question-actions">
-              <button onClick={() => void handleCreateQuestion()} disabled={loading || !bank}>
-                New Blank
-              </button>
-              <button
-                onClick={() => void handleCreateQuestion(selectedIdRef.current ?? undefined)}
-                disabled={loading || !selectedId}
-              >
-                Duplicate
-              </button>
-              <button
-                className="danger-button"
-                onClick={() => void handleDeleteQuestion()}
-                disabled={loading || !selectedId}
-              >
-                Delete
-              </button>
-            </div>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search text"
-            />
-            <select value={topicFilter} onChange={(event) => setTopicFilter(event.target.value)}>
-              <option value="">All topics</option>
-              {availableTopics.map((topic) => (
-                <option key={topic} value={topic}>
-                  {topic}
-                </option>
-              ))}
-            </select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-              <option value="">All types</option>
-              {availableTypes.map((questionType) => (
-                <option key={questionType} value={questionType}>
-                  {questionType}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="question-list">
-            {questionItems.map((item) => (
-              <button
-                key={item.id}
-                className={`question-row ${selectedId === item.id ? "selected" : ""}`}
-                onClick={() => void handleSelectQuestion(item.id)}
-              >
-                <strong>{item.id}</strong>
-                <span>{item.topic}</span>
-                <span>{item.type}</span>
-                <span>Difficulty {item.difficulty}</span>
-                <span>{item.status}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
+        {!questionPanePoppedOut ? (
+          <QuestionPane
+            open={questionDrawerOpen}
+            poppedOut={false}
+            hasBank={!!bank}
+            loading={loading}
+            search={search}
+            topicFilter={topicFilter}
+            typeFilter={typeFilter}
+            availableTopics={availableTopics}
+            availableTypes={availableTypes}
+            questionItems={questionItems}
+            selectedId={selectedId}
+            promptPreview={promptPreview}
+            showPromptPreview={false}
+            onOpen={() => setQuestionDrawerOpen(true)}
+            onClose={() => setQuestionDrawerOpen(false)}
+            onPopOut={() => void handlePopOutPane("questions")}
+            onDock={() => undefined}
+            onSearchChange={setSearch}
+            onTopicFilterChange={setTopicFilter}
+            onTypeFilterChange={setTypeFilter}
+            onSelectQuestion={(id) => void handleSelectQuestion(id)}
+            onCreateQuestion={() => void handleCreateQuestion()}
+            onDuplicateQuestion={() =>
+              void handleCreateQuestion(selectedIdRef.current ?? undefined)
+            }
+            onDeleteQuestion={() => void handleDeleteQuestion()}
+          />
+        ) : null}
 
         <main className="editor-pane">
-          {bank ? (
-            <section className="bank-assets-panel">
-              <div className="bank-assets-header">
-                <div>
-                  <h2>Bank Assets</h2>
-                  <p>Browse uploaded SVGs and images across the open bank.</p>
-                </div>
-                <span className="bank-assets-count">
-                  {bankAssets.length} asset{bankAssets.length === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              {bankAssets.length === 0 ? (
-                <p className="asset-empty">No assets are stored in this bank yet.</p>
-              ) : (
-                <div className="bank-asset-grid">
-                  {bankAssets.map((asset) => {
-                    const attachedToCurrent = !!draftQuestion?.assets.some(
-                      (attached) => attached.path === asset.path,
-                    );
-
-                    return (
-                      <article key={asset.path} className="bank-asset-tile">
-                        <div className="bank-asset-thumb">
-                          {asset.kind === "svg" ? (
-                            <img src={getAssetFileUrl(asset.path)} alt={asset.path} />
-                          ) : (
-                            <img src={getAssetFileUrl(asset.path)} alt={asset.path} />
-                          )}
-                        </div>
-                        <div className="bank-asset-body">
-                          <strong>{asset.path.split("/").slice(-1)[0] ?? asset.path}</strong>
-                          <p>{asset.path}</p>
-                          <div className="bank-asset-badges">
-                            <span className="asset-badge">{asset.kind}</span>
-                            <span className="asset-badge">
-                              Used by {asset.referenced_by.length} question
-                              {asset.referenced_by.length === 1 ? "" : "s"}
-                            </span>
-                            {asset.kind === "svg" ? (
-                              <span className="asset-badge">
-                                {asset.svg_placeholders.length} variable
-                                {asset.svg_placeholders.length === 1 ? "" : "s"}
-                              </span>
-                            ) : null}
-                          </div>
-                          {asset.referenced_by.length > 0 ? (
-                            <p className="bank-asset-refs">
-                              {asset.referenced_by.join(", ")}
-                            </p>
-                          ) : (
-                            <p className="bank-asset-refs">Unused</p>
-                          )}
-                          {draftQuestion ? (
-                            <button
-                              type="button"
-                              onClick={() => handleAttachExistingAsset(asset)}
-                              disabled={attachedToCurrent}
-                            >
-                              {attachedToCurrent ? "Attached" : "Attach to Question"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          {draftQuestion ? (
+          <div className={`editor-main ${editorShouldFill ? "full-width" : ""}`}>
+              {draftQuestion ? (
             <>
               <div className="editor-toolbar">
                 <div className="editor-mode-toggle">
@@ -1046,24 +1859,60 @@ function App() {
                         onChange={(event) => updateDraft("subtopic", event.target.value)}
                       />
                     </label>
-                    <label>
-                      Difficulty
-                      <input
-                        type="number"
-                        min={1}
-                        max={5}
-                        value={draftQuestion.difficulty}
-                        onChange={(event) => updateDraft("difficulty", Number(event.target.value))}
-                      />
-                    </label>
-                    <label>
+                  </section>
+
+                  <details
+                    className="metadata-panel"
+                    open={metadataExpanded}
+                    onToggle={(event) =>
+                      setMetadataExpanded((event.currentTarget as HTMLDetailsElement).open)
+                    }
+                  >
+                    <summary>Additional Metadata</summary>
+                    <section className="metadata-grid">
+                      <label className="compact-stepper">
+                        Difficulty
+                        <input
+                          className="compact-number-input"
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={draftQuestion.difficulty}
+                          onChange={(event) => updateDraft("difficulty", Number(event.target.value))}
+                        />
+                      </label>
+                      <label className="compact-stepper">
+                        Estimated Time
+                        <input
+                          className="compact-number-input"
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={draftQuestion.estimated_time_sec ?? 0}
+                          onChange={(event) =>
+                            updateDraft("estimated_time_sec", Number(event.target.value))
+                          }
+                        />
+                      </label>
+                      <label className="compact-stepper">
+                        Points
+                        <input
+                          className="compact-number-input"
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          value={draftQuestion.points ?? 0}
+                          onChange={(event) => updateDraft("points", Number(event.target.value))}
+                        />
+                      </label>
+                      <label>
                       Status
                       <input
                         value={draftQuestion.status}
                         onChange={(event) => updateDraft("status", event.target.value)}
                       />
-                    </label>
-                    <label>
+                      </label>
+                      <label className="metadata-span-2">
                       Tags
                       <input
                         value={draftQuestion.tags.join(", ")}
@@ -1077,42 +1926,55 @@ function App() {
                           )
                         }
                       />
-                    </label>
-                    <label>
-                      Standards
-                      <input
-                        value={draftQuestion.standards.join(", ")}
-                        onChange={(event) =>
-                          updateDraft(
-                            "standards",
-                            event.target.value
-                              .split(",")
-                              .map((part) => part.trim())
-                              .filter(Boolean),
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      Estimated Time (sec)
-                      <input
-                        type="number"
-                        value={draftQuestion.estimated_time_sec ?? 0}
-                        onChange={(event) =>
-                          updateDraft("estimated_time_sec", Number(event.target.value))
-                        }
-                      />
-                    </label>
-                    <label>
-                      Points
-                      <input
-                        type="number"
-                        step="0.5"
-                        value={draftQuestion.points ?? 0}
-                        onChange={(event) => updateDraft("points", Number(event.target.value))}
-                      />
-                    </label>
-                  </section>
+                      </label>
+                      <div className="metadata-span-full standards-metadata-field">
+                        <div className="standards-metadata-header">
+                          <span>Standards</span>
+                          <button
+                            type="button"
+                            onClick={() => void handleOpenQuestionStandardsPicker()}
+                          >
+                            Edit Standards
+                          </button>
+                        </div>
+                        {draftQuestion.standards.length > 0 ? (
+                          <div className="standards-inline-chips">
+                            {draftQuestion.standards.map((reference) => {
+                              const standard = standardsById[reference.standard_id];
+                              return (
+                                <span key={reference.standard_id} className="inline-standard-chip">
+                                  {standard?.code ?? reference.standard_id}
+                                  <button
+                                    type="button"
+                                    onClick={() => removeStandardFromQuestion(reference.standard_id)}
+                                    aria-label={`Remove ${standard?.code ?? reference.standard_id}`}
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="metadata-help-text">
+                            No standards attached.
+                          </p>
+                        )}
+                      </div>
+                      <label className="metadata-span-full">
+                        Teacher Notes
+                        <textarea
+                          className="teacher-notes-input"
+                          value={draftQuestion.teacher_notes ?? ""}
+                          onChange={(event) => updateDraft("teacher_notes", event.target.value)}
+                        />
+                      </label>
+                      <label className="metadata-span-full">
+                        Uses
+                        <input value="Not tracked yet. Exam usage will appear here." readOnly />
+                      </label>
+                    </section>
+                  </details>
 
                   <label>
                     Prompt
@@ -1122,44 +1984,47 @@ function App() {
                     />
                   </label>
 
-                  <label>
-                    Teacher Notes
-                    <textarea
-                      value={draftQuestion.teacher_notes ?? ""}
-                      onChange={(event) => updateDraft("teacher_notes", event.target.value)}
-                    />
-                  </label>
-
                   <section className="asset-section">
-                    <div className="asset-section-header">
-                      <div>
-                        <h2>Attached Assets</h2>
-                        <p>Attach one or more SVG or image files to this question.</p>
-                      </div>
-                      <div className="asset-section-actions">
-                        <input
-                          ref={assetInputRef}
-                          className="visually-hidden"
-                          type="file"
-                          accept=".svg,image/*"
-                          multiple
-                          onChange={(event) => void handleAssetUpload(event.target.files)}
-                        />
+                    <input
+                      ref={assetInputRef}
+                      className="visually-hidden"
+                      type="file"
+                      accept=".svg,image/*"
+                      multiple
+                      onChange={(event) => void handleAssetUpload(event.target.files)}
+                    />
+
+                    {draftQuestion.assets.length === 0 ? (
+                      <div className="asset-empty-row">
+                        <div className="asset-empty-copy">
+                          <strong>Assets</strong>
+                          <p>Add SVG or image assets only when this question needs them.</p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => assetInputRef.current?.click()}
                           disabled={assetBusy}
                         >
-                          {assetBusy ? "Uploading..." : "Attach Asset"}
+                          {assetBusy ? "Uploading..." : "Add Assets"}
                         </button>
                       </div>
-                    </div>
-
-                    {draftQuestion.assets.length === 0 ? (
-                      <p className="asset-empty">
-                        No assets attached. SVG templates expose editable controls automatically.
-                      </p>
                     ) : (
+                      <>
+                        <div className="asset-section-header">
+                          <div>
+                            <h2>Attached Assets</h2>
+                            <p>Attach one or more SVG or image files to this question.</p>
+                          </div>
+                          <div className="asset-section-actions">
+                            <button
+                              type="button"
+                              onClick={() => assetInputRef.current?.click()}
+                              disabled={assetBusy}
+                            >
+                              {assetBusy ? "Uploading..." : "Attach Asset"}
+                            </button>
+                          </div>
+                        </div>
                       <div className="asset-list">
                         {draftQuestion.assets.map((asset, index) => {
                           const inspection = assetInspections[index];
@@ -1242,23 +2107,41 @@ function App() {
                           );
                         })}
                       </div>
+                      </>
                     )}
                   </section>
 
                   {draftQuestion.type === "multiple_choice" ? (
                     <section className="question-specific">
-                      <h2>Multiple Choice</h2>
+                      <div className="question-section-header">
+                        <h2>Multiple Choice</h2>
+                        <button type="button" onClick={() => addMultipleChoiceChoice()}>
+                          Add Choice
+                        </button>
+                      </div>
                       {(((draftQuestion.answer as { choices?: string[] })?.choices ?? ["", ""]) as string[]).map(
                         (choice, index) => (
-                          <label key={index}>
-                            Choice {index + 1}
-                            <input
-                              value={choice}
-                              onChange={(event) =>
-                                updateMultipleChoiceChoice(index, event.target.value)
+                          <div key={index} className="choice-row">
+                            <label>
+                              Choice {index + 1}
+                              <input
+                                value={choice}
+                                onChange={(event) =>
+                                  updateMultipleChoiceChoice(index, event.target.value)
+                                }
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeMultipleChoiceChoice(index)}
+                              disabled={
+                                (((draftQuestion.answer as { choices?: string[] })?.choices ?? ["", ""]) as string[])
+                                  .length <= 2
                               }
-                            />
-                          </label>
+                            >
+                              Remove
+                            </button>
+                          </div>
                         ),
                       )}
                       <label>
@@ -1407,7 +2290,26 @@ function App() {
               <p>Open a bank and select a question to start editing.</p>
             </div>
           )}
+          </div>
         </main>
+
+        {!assetPanePoppedOut ? (
+          <AssetPane
+            open={assetDrawerOpen}
+            poppedOut={false}
+            hasBank={!!bank}
+            search={assetSearch}
+            assets={bankAssets}
+            selectedQuestionId={selectedId}
+            attachedAssetPaths={draftQuestion?.assets.map((asset) => asset.path) ?? []}
+            onOpen={() => setAssetDrawerOpen(true)}
+            onClose={() => setAssetDrawerOpen(false)}
+            onPopOut={() => void handlePopOutPane("assets")}
+            onDock={() => undefined}
+            onSearchChange={setAssetSearch}
+            onAttach={handleAttachExistingAsset}
+          />
+        ) : null}
       </div>
     </div>
   );

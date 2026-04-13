@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use backend::{start_backend_supervisor, AppRuntimeState, DesktopContext};
 use rfd::{FileDialog, MessageButtons, MessageDialog, MessageDialogResult, MessageLevel};
-use tauri::{Manager, RunEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 
 #[tauri::command]
 fn get_desktop_context(state: tauri::State<'_, Arc<AppRuntimeState>>) -> DesktopContext {
@@ -64,6 +64,12 @@ fn main() {
         .expect("error while running Nexzam");
 
     app.run(|app_handle, event| match event {
+            RunEvent::WindowEvent { event: WindowEvent::Destroyed, .. } => {
+                let state = app_handle.state::<Arc<AppRuntimeState>>();
+                if app_handle.webview_windows().is_empty() {
+                    state.stop_backend();
+                }
+            }
             RunEvent::ExitRequested { api, .. } => {
                 let state = app_handle.state::<Arc<AppRuntimeState>>();
                 if state.allow_exit() {

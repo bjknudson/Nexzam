@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "id": "physics-1",
+      "title": "Physics 1",
+      "description": "Sample course curation for an introductory high school physics sequence.",
+      "standard_refs": [
+        {
+          "standard_id": "PHY-KIN-01"
+        },
+        {
+          "standard_id": "PHY-NEW-01"
+        },
+        {
+          "standard_id": "PHY-WAV-02"
+        },
+        {
+          "standard_id": "PHY-ELE-01"
+        }
+      ]
+    }
+  ]
+}

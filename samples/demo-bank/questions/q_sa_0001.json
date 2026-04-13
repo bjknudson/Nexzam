@@ -10,7 +10,9 @@
     "ohms-law"
   ],
   "standards": [
-    "PHY-ELE-01"
+    {
+      "standard_id": "PHY-ELE-01"
+    }
   ],
   "estimated_time_sec": 90,
   "points": 2,

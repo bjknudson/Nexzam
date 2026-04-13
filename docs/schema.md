@@ -5,6 +5,9 @@
 - `manifest.json`: package metadata and schema/version info.
 - `bank.json`: index and high-level bank metadata.
 - `questions/*.json`: one file per question.
+- `standards/source_lists.json`: complete imported source standard sets.
+- `standards/records.json`: explicit standard records referenced by courses and questions.
+- `courses/courses.json`: course-specific standard curation as references.
 - `assets/*`: copied image/SVG assets.
 - `imports/*`: imported source files and staging references.
 - `meta/*`: audit and maintenance metadata.
@@ -58,6 +61,75 @@
 - `sample_solution`
 - `assets`
 
+## Standards collections (draft)
+
+Source standard lists are preserved as complete imported reference sets:
+
+```json
+{
+  "items": [
+    {
+      "id": "physics-core-2026",
+      "title": "Physics Core Standards",
+      "issuer": "Nexzam Sample Curriculum",
+      "subject": "Physics",
+      "version": "2026.1",
+      "description": "Sample complete reference set for introductory physics topics.",
+      "imported_at": "2026-04-11T00:00:00Z"
+    }
+  ]
+}
+```
+
+Standard records stay explicit and are referenced by id:
+
+```json
+{
+  "items": [
+    {
+      "id": "PHY-KIN-01",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-KIN-01",
+      "statement": "Apply constant-acceleration relationships to one-dimensional motion."
+    }
+  ]
+}
+```
+
+Courses store curated references rather than duplicate standard text:
+
+```json
+{
+  "items": [
+    {
+      "id": "physics-1",
+      "title": "Physics 1",
+      "description": "Sample course curation.",
+      "standard_refs": [
+        {
+          "standard_id": "PHY-KIN-01"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Standards import formats
+
+CSV headers supported:
+
+- required: `id` or `standard_id`, `code`, `statement`
+- optional: `subject`, `grade_band`, `tags`
+
+JSON imports may be:
+
+- an array of standards
+- an object with `items`
+- an object with `source_list` and `standards`
+
+Imported source files may be copied into `imports/` for reference alongside the normalized standards collections.
+
 ## Asset metadata (draft)
 
 Support static and parameterized SVG metadata:
@@ -74,8 +146,19 @@ Support static and parameterized SVG metadata:
 ```
 
 `svg_variables` keys map to token placeholders like `{{label}}` in source SVG templates.
+Numeric geometry can also use simple expressions such as `{{calc: 60 - arrow_length}}`, referencing values from the same `svg_variables` map.
 
 Questions may attach more than one asset by adding multiple entries to the `assets` array.
+
+Question standards should be stored as references:
+
+```json
+[
+  {
+    "standard_id": "PHY-KIN-01"
+  }
+]
+```
 
 ## Validation principles
 

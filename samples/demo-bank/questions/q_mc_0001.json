@@ -6,7 +6,11 @@
   "difficulty": 2,
   "prompt": "A cart starts from rest and accelerates at 2 m/s^2 for 3 s. What is its final speed?",
   "tags": ["motion", "acceleration"],
-  "standards": ["PHY-KIN-01"],
+  "standards": [
+    {
+      "standard_id": "PHY-KIN-01"
+    }
+  ],
   "estimated_time_sec": 90,
   "points": 1,
   "status": "draft",

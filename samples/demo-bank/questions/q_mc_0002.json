@@ -10,7 +10,9 @@
     "atomic-structure"
   ],
   "standards": [
-    "PHY-ELE-00"
+    {
+      "standard_id": "PHY-ELE-00"
+    }
   ],
   "estimated_time_sec": 45,
   "points": 1,

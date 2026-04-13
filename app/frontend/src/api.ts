@@ -4,8 +4,14 @@ import type {
   AssetModel,
   AssetUploadResponseModel,
   BankSummaryModel,
+  CourseListResponseModel,
+  CourseModel,
   QuestionListResponseModel,
   QuestionModel,
+  StandardImportResponseModel,
+  StandardListResponseModel,
+  StandardReferenceModel,
+  StandardSearchResponseModel,
 } from "./types";
 
 let apiBaseUrl = "";
@@ -46,6 +52,92 @@ export async function openBank(path: string): Promise<BankSummaryModel> {
 
 export async function getCurrentBank(): Promise<BankSummaryModel> {
   return handleResponse(await fetch(buildApiUrl("/api/banks/current")));
+}
+
+export async function listSourceStandardLists(): Promise<StandardListResponseModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/standards/source-lists")));
+}
+
+export async function listStandards(params?: {
+  source_list_id?: string;
+  search?: string;
+  course_id?: string;
+}): Promise<StandardSearchResponseModel> {
+  const searchParams = new URLSearchParams();
+  if (params?.source_list_id) searchParams.set("source_list_id", params.source_list_id);
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.course_id) searchParams.set("course_id", params.course_id);
+  return handleResponse(await fetch(buildApiUrl(`/api/standards?${searchParams.toString()}`)));
+}
+
+export async function listCourses(): Promise<CourseListResponseModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/courses")));
+}
+
+export async function upsertCourse(
+  courseId: string,
+  payload: { title: string; description?: string | null; standard_refs: StandardReferenceModel[] },
+): Promise<CourseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/courses/${encodeURIComponent(courseId)}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function attachStandardToCourse(
+  courseId: string,
+  standardId: string,
+): Promise<CourseModel> {
+  return handleResponse(
+    await fetch(
+      buildApiUrl(
+        `/api/courses/${encodeURIComponent(courseId)}/standards/${encodeURIComponent(standardId)}`,
+      ),
+      { method: "POST" },
+    ),
+  );
+}
+
+export async function detachStandardFromCourse(
+  courseId: string,
+  standardId: string,
+): Promise<CourseModel> {
+  return handleResponse(
+    await fetch(
+      buildApiUrl(
+        `/api/courses/${encodeURIComponent(courseId)}/standards/${encodeURIComponent(standardId)}`,
+      ),
+      { method: "DELETE" },
+    ),
+  );
+}
+
+export async function importStandards(payload: {
+  file: File;
+  source_list_id?: string;
+  title?: string;
+  issuer?: string;
+  subject?: string;
+  version?: string;
+  description?: string;
+}): Promise<StandardImportResponseModel> {
+  const formData = new FormData();
+  formData.append("file", payload.file);
+  if (payload.source_list_id) formData.append("source_list_id", payload.source_list_id);
+  if (payload.title) formData.append("title", payload.title);
+  if (payload.issuer) formData.append("issuer", payload.issuer);
+  if (payload.subject) formData.append("subject", payload.subject);
+  if (payload.version) formData.append("version", payload.version);
+  if (payload.description) formData.append("description", payload.description);
+  return handleResponse(
+    await fetch(buildApiUrl("/api/standards/import"), {
+      method: "POST",
+      body: formData,
+    }),
+  );
 }
 
 export async function listAssets(): Promise<AssetListResponseModel> {

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import zipfile
 
-from fastapi import FastAPI, File, Query, UploadFile
+from fastapi import FastAPI, File, Form, Query, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +15,7 @@ from .models import (
     OpenBankRequest,
     QuestionModel,
     SaveBankRequest,
+    UpsertCourseRequest,
 )
 from .service import BankWorkspaceError, BankWorkspaceService
 
@@ -92,6 +93,71 @@ def list_questions(
     question_type: str | None = Query(default=None, alias="type"),
 ):
     return service.list_questions(search=search, topic=topic, question_type=question_type)
+
+
+@app.get("/api/standards/source-lists")
+def list_source_standard_lists():
+    return service.list_source_standard_lists()
+
+
+@app.get("/api/standards")
+def list_standards(
+    source_list_id: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    course_id: str | None = Query(default=None),
+):
+    return service.list_standards(
+        source_list_id=source_list_id,
+        search=search,
+        course_id=course_id,
+    )
+
+
+@app.get("/api/courses")
+def list_courses():
+    return service.list_courses()
+
+
+@app.put("/api/courses/{course_id}")
+def upsert_course(course_id: str, request: UpsertCourseRequest):
+    return service.upsert_course(
+        course_id=course_id,
+        title=request.title,
+        description=request.description,
+        standard_refs=request.standard_refs,
+    )
+
+
+@app.post("/api/courses/{course_id}/standards/{standard_id}")
+def attach_standard_to_course(course_id: str, standard_id: str):
+    return service.attach_standard_to_course(course_id, standard_id)
+
+
+@app.delete("/api/courses/{course_id}/standards/{standard_id}")
+def detach_standard_from_course(course_id: str, standard_id: str):
+    return service.detach_standard_from_course(course_id, standard_id)
+
+
+@app.post("/api/standards/import")
+async def import_standards(
+    file: UploadFile = File(...),
+    source_list_id: str | None = Form(default=None),
+    title: str | None = Form(default=None),
+    issuer: str | None = Form(default=None),
+    subject: str | None = Form(default=None),
+    version: str | None = Form(default=None),
+    description: str | None = Form(default=None),
+):
+    return service.import_standards(
+        filename=file.filename or "",
+        content=await file.read(),
+        source_list_id=source_list_id,
+        title=title,
+        issuer=issuer,
+        subject=subject,
+        version=version,
+        description=description,
+    )
 
 
 @app.get("/api/assets")

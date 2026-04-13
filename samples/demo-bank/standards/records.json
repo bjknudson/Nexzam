@@ -1,0 +1,63 @@
+{
+  "items": [
+    {
+      "id": "PHY-KIN-01",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-KIN-01",
+      "statement": "Apply constant-acceleration relationships to one-dimensional motion.",
+      "subject": "Physics",
+      "grade_band": "HS",
+      "tags": [
+        "mechanics",
+        "kinematics"
+      ]
+    },
+    {
+      "id": "PHY-NEW-01",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-NEW-01",
+      "statement": "Distinguish mass from weight and explain how forces relate to motion.",
+      "subject": "Physics",
+      "grade_band": "HS",
+      "tags": [
+        "mechanics",
+        "forces"
+      ]
+    },
+    {
+      "id": "PHY-WAV-02",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-WAV-02",
+      "statement": "Use wave speed, wavelength, and frequency relationships to solve problems.",
+      "subject": "Physics",
+      "grade_band": "HS",
+      "tags": [
+        "waves"
+      ]
+    },
+    {
+      "id": "PHY-ELE-00",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-ELE-00",
+      "statement": "Identify charged particles and basic atomic charge relationships.",
+      "subject": "Physics",
+      "grade_band": "HS",
+      "tags": [
+        "electricity",
+        "charge"
+      ]
+    },
+    {
+      "id": "PHY-ELE-01",
+      "source_list_id": "physics-core-2026",
+      "code": "PHY-ELE-01",
+      "statement": "Describe current, voltage, and resistance using Ohm's law.",
+      "subject": "Physics",
+      "grade_band": "HS",
+      "tags": [
+        "electricity",
+        "circuits"
+      ]
+    }
+  ]
+}

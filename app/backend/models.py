@@ -49,6 +49,73 @@ class AssetListResponseModel(BaseModel):
     items: list[AssetListItemModel] = Field(default_factory=list)
 
 
+class StandardReferenceModel(BaseModel):
+    standard_id: str
+
+
+class SourceStandardListModel(BaseModel):
+    id: str
+    title: str
+    issuer: str
+    subject: str | None = None
+    version: str | None = None
+    description: str | None = None
+    imported_at: datetime
+
+
+class StandardRecordModel(BaseModel):
+    id: str
+    source_list_id: str
+    code: str
+    statement: str
+    subject: str | None = None
+    grade_band: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class SourceStandardListCollectionModel(BaseModel):
+    items: list[SourceStandardListModel] = Field(default_factory=list)
+
+
+class StandardRecordCollectionModel(BaseModel):
+    items: list[StandardRecordModel] = Field(default_factory=list)
+
+
+class CourseModel(BaseModel):
+    id: str
+    title: str
+    description: str | None = None
+    standard_refs: list[StandardReferenceModel] = Field(default_factory=list)
+
+
+class CourseCollectionModel(BaseModel):
+    items: list[CourseModel] = Field(default_factory=list)
+
+
+class StandardListResponseModel(BaseModel):
+    items: list[SourceStandardListModel] = Field(default_factory=list)
+
+
+class StandardSearchResponseModel(BaseModel):
+    items: list[StandardRecordModel] = Field(default_factory=list)
+
+
+class CourseListResponseModel(BaseModel):
+    items: list[CourseModel] = Field(default_factory=list)
+
+
+class StandardImportResponseModel(BaseModel):
+    source_list: SourceStandardListModel
+    imported_count: int
+    imported_path: str | None = None
+
+
+class UpsertCourseRequest(BaseModel):
+    title: str
+    description: str | None = None
+    standard_refs: list[StandardReferenceModel] = Field(default_factory=list)
+
+
 class RubricRowModel(BaseModel):
     criterion: str
     points: float
@@ -77,7 +144,7 @@ class QuestionModel(BaseModel):
     prompt: str
     subtopic: str | None = None
     tags: list[str] = Field(default_factory=list)
-    standards: list[str] = Field(default_factory=list)
+    standards: list[StandardReferenceModel] = Field(default_factory=list)
     estimated_time_sec: int | None = None
     points: float | None = None
     status: str = "draft"
@@ -103,6 +170,24 @@ class QuestionModel(BaseModel):
         if not text:
             raise ValueError("field must not be empty")
         return text
+
+    @field_validator("standards", mode="before")
+    @classmethod
+    def normalize_standard_references(cls, value: Any) -> list[dict[str, str]]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("standards must be a list")
+
+        normalized: list[dict[str, str]] = []
+        for item in value:
+            if isinstance(item, str):
+                normalized.append({"standard_id": item})
+            elif isinstance(item, dict) and isinstance(item.get("standard_id"), str):
+                normalized.append({"standard_id": item["standard_id"]})
+            else:
+                raise ValueError("standards entries must be standard references")
+        return normalized
 
     @model_validator(mode="after")
     def validate_question_shape(self) -> "QuestionModel":

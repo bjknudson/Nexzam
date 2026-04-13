@@ -1,10 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
   <rect x="90" y="60" width="140" height="70" rx="12" fill="#fde68a" stroke="#92400e" stroke-width="2"/>
   <text x="160" y="102" text-anchor="middle" font-size="18" fill="#78350f">{{object_label}}</text>
-  <line x1="160" y1="60" x2="160" y2="20" stroke="#1d4ed8" stroke-width="4"/>
-  <polygon points="160,18 152,34 168,34" fill="#1d4ed8"/>
-  <text x="172" y="34" font-size="16" fill="#1d4ed8">{{up_force}}</text>
-  <line x1="160" y1="130" x2="160" y2="160" stroke="#b91c1c" stroke-width="4"/>
-  <polygon points="160,162 152,146 168,146" fill="#b91c1c"/>
-  <text x="172" y="156" font-size="16" fill="#b91c1c">{{down_force}}</text>
+  <line
+    x1="160"
+    y1="60"
+    x2="160"
+    y2="{{calc: 60 - up_force_length}}"
+    stroke="#1d4ed8"
+    stroke-width="4"
+  />
+  <polygon
+    points="160,{{calc: 58 - up_force_length}} 152,{{calc: 74 - up_force_length}} 168,{{calc: 74 - up_force_length}}"
+    fill="#1d4ed8"
+  />
+  <text x="172" y="{{calc: 74 - up_force_length}}" font-size="16" fill="#1d4ed8">{{up_force}}</text>
+  <line
+    x1="160"
+    y1="130"
+    x2="160"
+    y2="{{calc: 130 + down_force_length}}"
+    stroke="#b91c1c"
+    stroke-width="4"
+  />
+  <polygon
+    points="160,{{calc: 132 + down_force_length}} 152,{{calc: 116 + down_force_length}} 168,{{calc: 116 + down_force_length}}"
+    fill="#b91c1c"
+  />
+  <text x="172" y="{{calc: 126 + down_force_length}}" font-size="16" fill="#b91c1c">{{down_force}}</text>
 </svg>

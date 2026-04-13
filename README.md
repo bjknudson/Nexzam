@@ -31,6 +31,11 @@ Nexzam is a **desktop-first, local-first** question bank and test-building app.
 mybank.bok
 ├── manifest.json
 ├── bank.json
+├── standards/
+│   ├── source_lists.json
+│   └── records.json
+├── courses/
+│   └── courses.json
 ├── questions/
 │   ├── q_mc_0001.json
 │   ├── q_num_0001.json
@@ -149,6 +154,13 @@ API endpoints included in this slice:
 - `GET /api/questions/{question_id}`
 - `PUT /api/questions/{question_id}`
 - `DELETE /api/questions/{question_id}`
+- `GET /api/standards/source-lists`
+- `GET /api/standards`
+- `POST /api/standards/import`
+- `GET /api/courses`
+- `PUT /api/courses/{course_id}`
+- `POST /api/courses/{course_id}/standards/{standard_id}`
+- `DELETE /api/courses/{course_id}/standards/{standard_id}`
 - `GET /api/assets`
 - `POST /api/assets/upload`
 - `POST /api/assets/inspect`
@@ -176,6 +188,21 @@ npm run dev
 ```
 
 The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to the backend on port `8000` in browser-only dev.
+
+## Standards import format
+
+CSV headers:
+
+- required: `id` or `standard_id`, `code`, `statement`
+- optional: `subject`, `grade_band`, `tags`
+
+JSON formats accepted:
+
+- an array of standard objects
+- `{ "items": [...] }`
+- `{ "source_list": { ... }, "standards": [...] }`
+
+CSV imports require source-list metadata alongside the file. JSON imports can provide that metadata either in the file or in the import form.
 
 ## Browser dev flow
 

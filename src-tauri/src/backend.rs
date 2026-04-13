@@ -71,6 +71,8 @@ impl AppRuntimeState {
             let _ = child.kill();
             let _ = child.wait();
         }
+        state.backend_child = None;
+        state.backend_base_url = None;
         state.backend_ready = false;
     }
 
@@ -94,6 +96,12 @@ impl AppRuntimeState {
         state.backend_error = Some(message);
     }
 
+}
+
+impl Drop for AppRuntimeState {
+    fn drop(&mut self) {
+        self.stop_backend();
+    }
 }
 
 pub fn start_backend_supervisor<R: Runtime>(app_handle: AppHandle<R>) {
@@ -131,8 +139,10 @@ fn start_backend_process(state: &Arc<AppRuntimeState>) -> Result<()> {
 
     state.set_backend_started(child, base_url.clone());
 
-    wait_for_healthcheck(&format!("{base_url}/health"), BACKEND_START_TIMEOUT)
-        .context("Backend process started but never became healthy.")?;
+    if let Err(error) = wait_for_healthcheck(&format!("{base_url}/health"), BACKEND_START_TIMEOUT) {
+        state.stop_backend();
+        return Err(error).context("Backend process started but never became healthy.");
+    }
 
     state.set_backend_ready();
     Ok(())
