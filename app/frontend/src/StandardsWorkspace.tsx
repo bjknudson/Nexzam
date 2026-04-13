@@ -46,7 +46,6 @@ export default function StandardsWorkspace({
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
   const [courseSearch, setCourseSearch] = useState("");
-  const [courseDraftId, setCourseDraftId] = useState("");
   const [courseDraftTitle, setCourseDraftTitle] = useState("");
   const [courseDraftDescription, setCourseDraftDescription] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -58,7 +57,7 @@ export default function StandardsWorkspace({
   const [importDescription, setImportDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("Load or import standards to begin.");
+  const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [showSourceDrawer, setShowSourceDrawer] = useState(false);
@@ -135,7 +134,6 @@ export default function StandardsWorkspace({
 
   useEffect(() => {
     if (!selectedCourseId) {
-      setCourseDraftId("");
       setCourseDraftTitle("");
       setCourseDraftDescription("");
       return;
@@ -143,7 +141,6 @@ export default function StandardsWorkspace({
 
     const course = courses.find((item) => item.id === selectedCourseId);
     if (!course) return;
-    setCourseDraftId(course.id);
     setCourseDraftTitle(course.title);
     setCourseDraftDescription(course.description ?? "");
   }, [courses, selectedCourseId]);
@@ -161,11 +158,19 @@ export default function StandardsWorkspace({
     setImportSourceListId(normalizeId(importTitle));
   }, [importTitle, importSourceListId]);
 
+  useEffect(() => {
+    if (!statusMessage) return;
+    const timer = window.setTimeout(() => setStatusMessage(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [statusMessage]);
+
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
   const selectedCourseStandardIds = new Set(
     selectedCourse?.standard_refs.map((reference) => reference.standard_id) ?? [],
   );
   const selectedQuestionStandardIds = new Set(questionStandardsState.attachedStandardIds);
+  const selectedSourceList = sourceLists.find((item) => item.id === selectedSourceListId) ?? null;
+  const computedCourseId = normalizeId(courseDraftTitle);
   const standardsById = useMemo(
     () => Object.fromEntries(standards.map((standard) => [standard.id, standard])),
     [standards],
@@ -215,24 +220,70 @@ export default function StandardsWorkspace({
       });
   }, [courseSearch, selectedCourse, standardsById]);
 
+  function handleNewCourse() {
+    setSelectedCourseId("");
+    setCourseDraftTitle("");
+    setCourseDraftDescription("");
+    setErrorMessage("");
+    setStatusMessage("Started a new course library draft.");
+  }
+
+  async function persistCourse(courseId: string, title: string) {
+    const saved = await upsertCourse(courseId, {
+      title,
+      description: courseDraftDescription || null,
+      standard_refs: selectedCourse?.standard_refs ?? [],
+    });
+    setSelectedCourseId(saved.id);
+    setStatusMessage(`Saved ${saved.title}.`);
+    channelRef.current?.postMessage({ type: "standards-data-changed" });
+    await refreshData();
+  }
+
   async function handleSaveCourse() {
-    const nextCourseId = courseDraftId.trim();
-    if (!nextCourseId || !courseDraftTitle.trim()) {
-      setErrorMessage("Course id and title are required.");
+    if (!courseDraftTitle.trim()) {
+      setErrorMessage("Course title is required.");
+      return;
+    }
+
+    const targetCourseId = selectedCourseId || computedCourseId;
+    if (!targetCourseId) {
+      setErrorMessage("Course title must produce a valid library id.");
       return;
     }
 
     setBusy(true);
     try {
-      const saved = await upsertCourse(nextCourseId, {
-        title: courseDraftTitle,
-        description: courseDraftDescription || null,
-        standard_refs: selectedCourse?.standard_refs ?? [],
-      });
-      setSelectedCourseId(saved.id);
-      setStatusMessage(`Saved course ${saved.id}.`);
-      channelRef.current?.postMessage({ type: "standards-data-changed" });
-      await refreshData();
+      await persistCourse(targetCourseId, courseDraftTitle.trim());
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveCourseAs() {
+    const defaultTitle = courseDraftTitle.trim() || `${selectedCourse?.title ?? "New Course"} Copy`;
+    const requestedTitle = window.prompt("Save course library as", defaultTitle);
+    if (requestedTitle === null) return;
+
+    const nextTitle = requestedTitle.trim();
+    const nextCourseId = normalizeId(nextTitle);
+    if (!nextTitle || !nextCourseId) {
+      setErrorMessage("Provide a course title that produces a valid library id.");
+      return;
+    }
+    if (courses.some((course) => course.id === nextCourseId && course.id !== selectedCourseId)) {
+      setErrorMessage(`A course library already exists for ${nextTitle}. Choose a different title.`);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      setCourseDraftTitle(nextTitle);
+      await persistCourse(nextCourseId, nextTitle);
+      setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {
@@ -322,8 +373,18 @@ export default function StandardsWorkspace({
           <p>
             {pickerMode
               ? "Attach standards to the currently selected question without crowding the main editor."
-              : "Manage imported source lists, curate course standards, and prepare standards for questions."}
+              : "Manage course libraries first, then pull in standards from imported source lists as needed."}
           </p>
+          {!pickerMode ? (
+            <div className="standards-header-summary">
+              <span className="bank-assets-count">
+                {selectedCourse ? selectedCourse.title : "No course library selected"}
+              </span>
+              <span className="bank-assets-count">
+                {selectedCourse?.standard_refs.length ?? 0} curated
+              </span>
+            </div>
+          ) : null}
         </div>
         <div className="standards-header-actions">
           <button type="button" onClick={() => void refreshData()} disabled={loading || busy}>
@@ -340,50 +401,19 @@ export default function StandardsWorkspace({
               <button type="button" onClick={() => setShowImportPanel((current) => !current)}>
                 {showImportPanel ? "Close Import" : "Import Standards"}
               </button>
-              <button type="button" onClick={() => setShowSourceDrawer((current) => !current)}>
-                {showSourceDrawer ? "Hide Source Drawer" : "Pull From Sources"}
+              <button
+                type="button"
+                onClick={() => setShowSourceDrawer(true)}
+                disabled={showSourceDrawer}
+              >
+                Show Sources
               </button>
             </>
           ) : null}
+          {statusMessage ? <span className="status-pill saved">{statusMessage}</span> : null}
+          {errorMessage ? <span className="status-pill error">{errorMessage}</span> : null}
         </div>
       </header>
-
-      <div className="standards-status-row">
-        <span>{statusMessage}</span>
-        {errorMessage ? <span className="error-text">{errorMessage}</span> : null}
-      </div>
-
-      {!pickerMode ? (
-      <section className="standards-course-toolbar standards-panel">
-        <div>
-          <h2>Current Course Library</h2>
-          <p>
-            {selectedCourse
-              ? `${selectedCourse.title} (${selectedCourse.id})`
-              : "Create or select a course library to begin curating standards."}
-          </p>
-        </div>
-        <div className="standards-course-toolbar-actions">
-          <label>
-            Course Library
-            <select
-              value={selectedCourseId}
-              onChange={(event) => setSelectedCourseId(event.target.value)}
-            >
-              <option value="">Select a course library</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" onClick={() => setSelectedCourseId("")}>
-            New Course Library
-          </button>
-        </div>
-      </section>
-      ) : null}
 
       {!pickerMode && showImportPanel ? (
       <section className="standards-import-panel">
@@ -469,13 +499,77 @@ export default function StandardsWorkspace({
       </section>
       ) : null}
 
-      <div className={`standards-layout ${pickerMode ? "picker" : ""}`}>
+      {!pickerMode ? (
+        <section className="standards-course-bar standards-panel">
+          <label>
+            Library
+            <select
+              value={selectedCourseId}
+              onChange={(event) => setSelectedCourseId(event.target.value)}
+            >
+              <option value="">Select a course library</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Title
+            <input
+              value={courseDraftTitle}
+              onChange={(event) => setCourseDraftTitle(event.target.value)}
+              placeholder="Physics 1"
+            />
+          </label>
+          <div className="standards-course-id-preview">
+            <span className="meta-label">Library ID</span>
+            <strong>{selectedCourseId || computedCourseId || "set by title"}</strong>
+          </div>
+          <label className="standards-course-description-field">
+            Description
+            <textarea
+              className="standards-description-input"
+              value={courseDraftDescription}
+              onChange={(event) => setCourseDraftDescription(event.target.value)}
+              placeholder="Course library notes"
+            />
+          </label>
+          <div className="standards-course-actions">
+            <button type="button" onClick={handleNewCourse}>
+              New
+            </button>
+            <button type="button" onClick={() => void handleSaveCourseAs()} disabled={busy}>
+              Save As
+            </button>
+            <button type="button" onClick={() => void handleSaveCourse()} disabled={busy}>
+              {busy ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <div
+        className={`standards-layout ${pickerMode ? "picker" : showSourceDrawer ? "drawer-open" : "drawer-closed"}`}
+      >
         {!pickerMode ? (
-        <aside className={`standards-sidebar-column standards-source-drawer ${showSourceDrawer ? "open" : "closed"}`}>
+        <aside
+          className={`standards-sidebar-column standards-source-drawer ${showSourceDrawer ? "open" : "closed"}`}
+        >
           {showSourceDrawer ? (
-            <>
+            <section className="standards-panel standards-results-panel">
+              <div className="pane-header standards-drawer-header">
+                <h2>Source Standards</h2>
+                <div className="pane-header-actions">
+                  <button type="button" onClick={() => setShowSourceDrawer(false)}>
+                    Hide
+                  </button>
+                </div>
+              </div>
+
               {showSourceListsPanel ? (
-                <section className="standards-panel">
+                <section className="standards-inline-section">
                   <div className="standards-panel-header">
                     <h2>Source Lists</h2>
                     <span className="bank-assets-count">{sourceLists.length}</span>
@@ -512,21 +606,26 @@ export default function StandardsWorkspace({
                 </section>
               ) : null}
 
-              <section className="standards-panel standards-results-panel">
-                <div className="standards-panel-header">
-                  <div>
-                    <h2>Source Standards</h2>
-                    <p>Browse imported source lists and add standards into the current course library.</p>
-                  </div>
-                  <span className="bank-assets-count">{filteredSourceStandards.length}</span>
+              <div className="standards-panel-header">
+                <div>
+                  <p>
+                    {selectedSourceList
+                      ? `Showing ${selectedSourceList.title}.`
+                      : "Browse imported source lists and add standards into the current course library."}
+                  </p>
                 </div>
+                <span className="bank-assets-count">{filteredSourceStandards.length}</span>
+              </div>
 
-                <div className="standards-filter-row source-drawer">
-                  <input
-                    value={sourceSearch}
-                    onChange={(event) => setSourceSearch(event.target.value)}
-                    placeholder="Search imported standards"
-                  />
+              <div
+                className={`standards-filter-row ${showSourceListsPanel ? "course-library" : "source-drawer"}`}
+              >
+                <input
+                  value={sourceSearch}
+                  onChange={(event) => setSourceSearch(event.target.value)}
+                  placeholder="Search imported standards"
+                />
+                {!showSourceListsPanel ? (
                   <select
                     value={selectedSourceListId}
                     onChange={(event) => setSelectedSourceListId(event.target.value)}
@@ -538,51 +637,54 @@ export default function StandardsWorkspace({
                       </option>
                     ))}
                   </select>
-                </div>
+                ) : null}
+              </div>
 
-                <div className="standards-record-list">
-                  {filteredSourceStandards.map((standard) => {
-                    const inCourse = selectedCourseStandardIds.has(standard.id);
-                    return (
-                      <article key={standard.id} className="standards-record-card">
-                        <div className="standards-record-top">
-                          <div>
-                            <strong>{standard.code}</strong>
-                            <p>{standard.statement}</p>
-                          </div>
-                          {selectedCourse ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleToggleCourseStandard(standard.id)}
-                              disabled={busy}
-                            >
-                              {inCourse ? "Remove" : "Add"}
-                            </button>
-                          ) : null}
+              <div className="standards-record-list compact">
+                {filteredSourceStandards.map((standard) => {
+                  const inCourse = selectedCourseStandardIds.has(standard.id);
+                  return (
+                    <article key={standard.id} className="standards-record-card compact">
+                      <div className="standards-record-top compact">
+                        <div>
+                          <strong>{standard.code}</strong>
+                          <p>{standard.statement}</p>
                         </div>
-                        <div className="bank-asset-badges">
-                          <span className="asset-badge">{standard.id}</span>
-                          <span className="asset-badge">
-                            {sourceLists.find((item) => item.id === standard.source_list_id)?.title ??
-                              standard.source_list_id}
-                          </span>
-                          {standard.subject ? (
-                            <span className="asset-badge">{standard.subject}</span>
-                          ) : null}
-                          {standard.grade_band ? (
-                            <span className="asset-badge">{standard.grade_band}</span>
-                          ) : null}
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            </>
+                        {selectedCourse ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleCourseStandard(standard.id)}
+                            disabled={busy}
+                          >
+                            {inCourse ? "Remove" : "Add"}
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="bank-asset-badges">
+                        <span className="asset-badge">{standard.id}</span>
+                        <span className="asset-badge">
+                          {sourceLists.find((item) => item.id === standard.source_list_id)?.title ??
+                            standard.source_list_id}
+                        </span>
+                        {standard.subject ? <span className="asset-badge">{standard.subject}</span> : null}
+                        {standard.grade_band ? (
+                          <span className="asset-badge">{standard.grade_band}</span>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
           ) : (
-            <div className="standards-panel standards-drawer-placeholder">
-              <strong>Source Drawer Closed</strong>
-              <p>Open Pull From Sources to browse imported source standards and add them into the current course library.</p>
+            <div className="standards-drawer-tab-shell">
+              <button
+                className="standards-drawer-tab"
+                type="button"
+                onClick={() => setShowSourceDrawer(true)}
+              >
+                Sources
+              </button>
             </div>
           )}
         </aside>
@@ -640,12 +742,12 @@ export default function StandardsWorkspace({
             </div>
           )}
 
-          <div className="standards-record-list">
+          <div className="standards-record-list compact">
             {(pickerMode ? filteredSourceStandards : curatedStandards).map((standard) => {
               const inCourse = selectedCourseStandardIds.has(standard.id);
               return (
-                <article key={standard.id} className="standards-record-card">
-                  <div className="standards-record-top">
+                <article key={standard.id} className="standards-record-card compact">
+                  <div className="standards-record-top compact">
                     <div>
                       <strong>{standard.code}</strong>
                       <p>{standard.statement}</p>
@@ -691,81 +793,7 @@ export default function StandardsWorkspace({
           </div>
         </section>
 
-        {!pickerMode ? (
-        <aside className="standards-sidebar-column">
-          <section className="standards-panel">
-            <div className="standards-panel-header">
-              <h2>{selectedCourse ? "Course Library Details" : "New Course Library"}</h2>
-            </div>
-            <div className="standards-course-form">
-              <label>
-                Course ID
-                <input
-                  value={courseDraftId}
-                  onChange={(event) => setCourseDraftId(normalizeId(event.target.value))}
-                  placeholder="physics-1"
-                />
-              </label>
-              <label>
-                Title
-                <input
-                  value={courseDraftTitle}
-                  onChange={(event) => setCourseDraftTitle(event.target.value)}
-                  placeholder="Physics 1"
-                />
-              </label>
-              <label>
-                Description
-                <textarea
-                  value={courseDraftDescription}
-                  onChange={(event) => setCourseDraftDescription(event.target.value)}
-                />
-              </label>
-              <button type="button" onClick={() => void handleSaveCourse()} disabled={busy}>
-                {busy ? "Saving..." : "Save Course"}
-              </button>
-            </div>
-          </section>
-
-          <section className="standards-panel">
-            <div className="standards-panel-header">
-              <h2>Course Summary</h2>
-              <span className="bank-assets-count">
-                {selectedCourse?.standard_refs.length ?? 0}
-              </span>
-            </div>
-            {selectedCourse ? (
-              <div className="standards-source-list">
-                <div className="standards-curated-summary">
-                  <strong>{selectedCourse.title}</strong>
-                  <span>{selectedCourse.id}</span>
-                  <span>{selectedCourse.description || "No course description yet."}</span>
-                </div>
-                {selectedCourse.standard_refs.map((reference) => {
-                  const standard = standardsById[reference.standard_id];
-                  return (
-                    <div key={reference.standard_id} className="standards-curated-row">
-                      <div>
-                        <strong>{standard?.code ?? reference.standard_id}</strong>
-                        <span>{standard?.statement ?? "Standard not found."}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleCourseStandard(reference.standard_id)}
-                        disabled={busy}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="asset-empty">Select or create a course to curate standards.</p>
-            )}
-          </section>
-        </aside>
-        ) : (
+        {!pickerMode ? null : (
         <aside className="standards-sidebar-column">
           <section className="standards-panel">
             <div className="standards-panel-header">
