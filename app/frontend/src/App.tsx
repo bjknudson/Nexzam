@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   createQuestion,
+  createQuestionFromJson,
   deleteQuestion,
   getCurrentBank,
   getAssetFileUrl,
   getQuestion,
+  getNextQuestionId,
   inspectAsset,
   listCourses,
   listSourceStandardLists,
@@ -29,6 +31,10 @@ import {
   setArchiveDirtyInShell,
   watchPaneWindowClose,
 } from "./desktop";
+import {
+  MathPreviewField,
+  QuestionMathSummaryPreview,
+} from "./MathPreview";
 import StandardsWorkspace from "./StandardsWorkspace";
 import type {
   AssetInspectionResponseModel,
@@ -48,7 +54,7 @@ import type {
 
 type EditorMode = "form" | "json";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "error";
-type PersistReason = "autosave" | "switch" | "save-bank" | "open-bank";
+type PersistReason = "autosave" | "manual" | "switch" | "save-bank" | "open-bank";
 type PaneKind = "questions" | "assets" | "standards";
 
 interface QuestionPaneSnapshot {
@@ -125,6 +131,63 @@ const emptyQuestion = (): QuestionModel => ({
   assets: [],
 });
 
+const QUESTION_TYPES: QuestionType[] = [
+  "multiple_choice",
+  "numeric_response",
+  "short_answer",
+  "free_response",
+];
+
+function isQuestionType(value: unknown): value is QuestionType {
+  return typeof value === "string" && QUESTION_TYPES.includes(value as QuestionType);
+}
+
+function normalizeQuestionForView(payload: Record<string, unknown>): QuestionModel {
+  const base = emptyQuestion();
+  return {
+    ...base,
+    ...payload,
+    id: typeof payload.id === "string" ? payload.id : base.id,
+    type: isQuestionType(payload.type) ? payload.type : base.type,
+    topic: typeof payload.topic === "string" ? payload.topic : base.topic,
+    difficulty: typeof payload.difficulty === "number" ? payload.difficulty : base.difficulty,
+    prompt: typeof payload.prompt === "string" ? payload.prompt : base.prompt,
+    subtopic:
+      typeof payload.subtopic === "string" || payload.subtopic === null
+        ? payload.subtopic
+        : base.subtopic,
+    tags: Array.isArray(payload.tags) ? payload.tags.map(String) : base.tags,
+    standards: Array.isArray(payload.standards)
+      ? (payload.standards as StandardReferenceModel[])
+      : base.standards,
+    estimated_time_sec:
+      typeof payload.estimated_time_sec === "number"
+        ? payload.estimated_time_sec
+        : base.estimated_time_sec,
+    points: typeof payload.points === "number" ? payload.points : base.points,
+    status: typeof payload.status === "string" ? payload.status : base.status,
+    teacher_notes:
+      typeof payload.teacher_notes === "string" || payload.teacher_notes === null
+        ? payload.teacher_notes
+        : base.teacher_notes,
+    answer: isRecord(payload.answer) || payload.answer === null ? payload.answer : base.answer,
+    explanation:
+      typeof payload.explanation === "string" || payload.explanation === null
+        ? payload.explanation
+        : base.explanation,
+    rubric: Array.isArray(payload.rubric) ? (payload.rubric as RubricRowModel[]) : base.rubric,
+    sample_solution:
+      typeof payload.sample_solution === "string" || payload.sample_solution === null
+        ? payload.sample_solution
+        : base.sample_solution,
+    exemplar_answer:
+      typeof payload.exemplar_answer === "string" || payload.exemplar_answer === null
+        ? payload.exemplar_answer
+        : base.exemplar_answer,
+    assets: Array.isArray(payload.assets) ? (payload.assets as AssetModel[]) : base.assets,
+  };
+}
+
 function getPaneMode(): PaneKind | null {
   const pane = new URLSearchParams(window.location.search).get("pane");
   return pane === "questions" || pane === "assets" || pane === "standards" ? pane : null;
@@ -146,6 +209,26 @@ function filterAssets(items: AssetListItemModel[], searchTerm: string): AssetLis
       .toLowerCase();
     return haystack.includes(needle);
   });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function extractQuestionJsonPayload(raw: string): Record<string, unknown> {
+  const parsed = JSON.parse(raw) as unknown;
+  const candidate =
+    isRecord(parsed) && isRecord(parsed.question)
+      ? parsed.question
+      : Array.isArray(parsed) && parsed.length === 1
+        ? parsed[0]
+        : parsed;
+
+  if (!isRecord(candidate)) {
+    throw new Error("Question JSON must be one object, a { question } wrapper, or a one-item array.");
+  }
+
+  return candidate;
 }
 
 interface QuestionPaneProps {
@@ -468,6 +551,7 @@ function App() {
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("idle");
   const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [jsonError, setJsonError] = useState(false);
+  const [jsonErrorMessage, setJsonErrorMessage] = useState("");
   const [assetInspections, setAssetInspections] = useState<AssetInspectionResponseModel[]>([]);
   const [bankAssets, setBankAssets] = useState<AssetListItemModel[]>([]);
   const [sourceStandardLists, setSourceStandardLists] = useState<SourceStandardListModel[]>([]);
@@ -479,6 +563,7 @@ function App() {
   const [questionPanePoppedOut, setQuestionPanePoppedOut] = useState(false);
   const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const [mathPreviewEnabled, setMathPreviewEnabled] = useState(false);
   const [assetSearch, setAssetSearch] = useState("");
   const [questionPaneSnapshot, setQuestionPaneSnapshot] = useState<QuestionPaneSnapshot>({
     hasBank: false,
@@ -593,6 +678,8 @@ function App() {
       isHydratingRef.current = true;
       setDraftQuestion(null);
       setRawJson("");
+      setJsonError(false);
+      setJsonErrorMessage("");
       draftDirtyRef.current = false;
       setAutosaveState("idle");
       isHydratingRef.current = false;
@@ -609,7 +696,8 @@ function App() {
       !draftQuestion ||
       !draftDirtyRef.current ||
       isHydratingRef.current ||
-      (editorMode === "json" && jsonError)
+      editorMode === "json" ||
+      jsonError
     ) {
       return;
     }
@@ -755,6 +843,7 @@ function App() {
       setRawJson(JSON.stringify(question, null, 2));
       setAutosaveState("idle");
       setJsonError(false);
+      setJsonErrorMessage("");
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -774,16 +863,28 @@ function App() {
     draftQuestionRef.current = question;
     setDraftQuestion(question);
     setRawJson(JSON.stringify(question, null, 2));
+    setJsonError(false);
+    setJsonErrorMessage("");
     isHydratingRef.current = false;
   }
 
-  function getPersistPayload(): QuestionModel | null {
+  function getJsonPayload(): Record<string, unknown> {
+    try {
+      return extractQuestionJsonPayload(rawJsonRef.current);
+    } catch (error) {
+      setJsonError(true);
+      setJsonErrorMessage((error as Error).message);
+      throw error;
+    }
+  }
+
+  function getPersistPayload(): QuestionModel | Record<string, unknown> | null {
     if (!selectedIdRef.current) return null;
     if (editorModeRef.current === "json") {
       if (jsonError) {
-        throw new Error("Raw JSON is invalid. Fix it before switching questions or saving the bank.");
+        throw new Error(jsonErrorMessage || "Raw JSON is invalid.");
       }
-      return JSON.parse(rawJsonRef.current) as QuestionModel;
+      return getJsonPayload();
     }
     return draftQuestionRef.current;
   }
@@ -830,7 +931,7 @@ function App() {
         await refreshQuestionList(savedQuestion.id);
         await refreshAssetList();
 
-        if (reason === "autosave") {
+        if (reason === "autosave" || reason === "manual") {
           setStatusMessage(
             `Saved ${savedQuestion.id} to the working copy. Save Bank writes the archive.`,
           );
@@ -948,9 +1049,95 @@ function App() {
     await runSave(destinationPath);
   }
 
+  async function handleSaveQuestion() {
+    if (!bank || !selectedIdRef.current) return;
+    const saved = await persistDraft("manual");
+    if (saved && !draftDirtyRef.current) {
+      setStatusMessage(
+        `Saved ${selectedIdRef.current} to the working copy. Save Bank writes the archive.`,
+      );
+    }
+  }
+
+  async function handleSaveQuestionAsNew() {
+    if (!bank || !draftQuestionRef.current) return;
+
+    setLoading(true);
+    try {
+      const payload =
+        editorModeRef.current === "json"
+          ? getJsonPayload()
+          : (draftQuestionRef.current as unknown as Record<string, unknown>);
+      const createdQuestion = await createQuestionFromJson(payload);
+
+      draftDirtyRef.current = false;
+      setWorkspaceDirty(true);
+      setAutosaveState("saved");
+      replaceDraftLocally(createdQuestion);
+      selectedIdRef.current = createdQuestion.id;
+      setSelectedId(createdQuestion.id);
+      await refreshQuestionList(createdQuestion.id);
+      await refreshAssetList();
+      setStatusMessage(
+        `Saved new question ${createdQuestion.id} to the working copy. Save Bank writes the archive.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setAutosaveState("error");
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRevertQuestion() {
+    const currentId = selectedIdRef.current;
+    if (!currentId) return;
+
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    await loadQuestion(currentId);
+    draftDirtyRef.current = false;
+    setAutosaveState("idle");
+    setStatusMessage(`Reverted ${currentId} to the working copy version.`);
+  }
+
+  function handleFormatRawJson() {
+    try {
+      const payload = extractQuestionJsonPayload(rawJsonRef.current);
+      const formatted = JSON.stringify(payload, null, 2);
+      setRawJson(formatted);
+      setJsonError(false);
+      setJsonErrorMessage("");
+      const previewQuestion = normalizeQuestionForView(payload);
+      draftQuestionRef.current = previewQuestion;
+      setDraftQuestion(previewQuestion);
+      markDraftDirty();
+      setErrorMessage("");
+    } catch (error) {
+      setJsonError(true);
+      setJsonErrorMessage((error as Error).message);
+      setErrorMessage((error as Error).message);
+    }
+  }
+
   async function handleSelectQuestion(nextId: string) {
     if (nextId === selectedIdRef.current) return;
-    if (!(await persistDraft("switch"))) return;
+    if (!(await persistDraft("switch"))) {
+      if (
+        editorModeRef.current !== "json" ||
+        !window.confirm("Discard unsaved JSON edits and switch questions?")
+      ) {
+        return;
+      }
+      draftDirtyRef.current = false;
+      setAutosaveState("idle");
+      setJsonError(false);
+      setJsonErrorMessage("");
+    }
     setSelectedId(nextId);
   }
 
@@ -1096,21 +1283,34 @@ function App() {
     markDraftDirty();
 
     try {
-      const parsed = JSON.parse(value) as QuestionModel;
+      const parsed = extractQuestionJsonPayload(value);
+      const previewQuestion = normalizeQuestionForView(parsed);
       setJsonError(false);
-      draftQuestionRef.current = parsed;
-      setDraftQuestion(parsed);
+      setJsonErrorMessage("");
+      draftQuestionRef.current = previewQuestion;
+      setDraftQuestion(previewQuestion);
       setErrorMessage("");
-    } catch {
+    } catch (error) {
       setJsonError(true);
-      setErrorMessage("Raw JSON is invalid. Fix it before switching questions or saving the bank.");
+      setJsonErrorMessage((error as Error).message);
+      setErrorMessage((error as Error).message);
     }
   }
 
-  function updateQuestionType(nextType: QuestionType) {
+  async function updateQuestionType(nextType: QuestionType) {
     const base = draftQuestionRef.current ?? emptyQuestion();
+    let nextId = base.id;
+    if (base.type !== nextType) {
+      try {
+        nextId = (await getNextQuestionId(nextType)).id;
+      } catch (error) {
+        setErrorMessage((error as Error).message);
+      }
+    }
+
     const next: QuestionModel = {
       ...base,
+      id: nextId,
       type: nextType,
       answer:
         nextType === "multiple_choice"
@@ -1786,45 +1986,107 @@ function App() {
 
         <main className="editor-pane">
           <div className={`editor-main ${editorShouldFill ? "full-width" : ""}`}>
-              {draftQuestion ? (
-            <>
-              <div className="editor-toolbar">
-                <div className="editor-mode-toggle">
-                  <button
-                    className={editorMode === "form" ? "active" : ""}
-                    onClick={() => setEditorMode("form")}
-                  >
-                    Form
-                  </button>
-                  <button
-                    className={editorMode === "json" ? "active" : ""}
-                    onClick={() => setEditorMode("json")}
-                  >
-                    Raw JSON
-                  </button>
+            {draftQuestion ? (
+              <>
+                <div className="editor-toolbar">
+                  <div className="editor-toolbar-primary">
+                    <div className="editor-mode-toggle" role="group" aria-label="Editor mode">
+                      <button
+                        type="button"
+                        aria-pressed={editorMode === "form"}
+                        className={editorMode === "form" ? "active" : ""}
+                        onClick={() => setEditorMode("form")}
+                      >
+                        Form
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={editorMode === "json"}
+                        className={editorMode === "json" ? "active" : ""}
+                        onClick={() => setEditorMode("json")}
+                      >
+                        Raw JSON
+                      </button>
+                    </div>
+                    <div className="editor-question-actions">
+                      {editorMode === "json" ? (
+                        <button type="button" onClick={handleFormatRawJson} disabled={loading}>
+                          Format JSON
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveQuestion()}
+                        disabled={loading || !bank || !selectedId || jsonError}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveQuestionAsNew()}
+                        disabled={loading || !bank || jsonError}
+                      >
+                        Save as New
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleRevertQuestion()}
+                        disabled={loading || !selectedId}
+                      >
+                        Revert
+                      </button>
+                      <button
+                        className="danger-button"
+                        onClick={() => void handleDeleteQuestion()}
+                        disabled={loading}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="editor-toolbar-meta">
+                    <span className="editor-note">
+                      {editorMode === "json"
+                        ? "Raw JSON edits wait for Save or Save as New. Save Bank writes the `.bok` archive."
+                        : "Form edits autosave to the working copy. Save Bank writes the `.bok` archive."}
+                    </span>
+                    <label className="editor-toggle">
+                      <input
+                        type="checkbox"
+                        checked={mathPreviewEnabled}
+                        onChange={(event) => setMathPreviewEnabled(event.target.checked)}
+                      />
+                      Math Preview
+                    </label>
+                  </div>
                 </div>
-                <div className="editor-toolbar-meta">
-                  <span className="editor-note">
-                    Question edits autosave to the working copy. Save Bank writes the `.bok` archive.
-                  </span>
-                  <button
-                    className="danger-button"
-                    onClick={() => void handleDeleteQuestion()}
-                    disabled={loading}
-                  >
-                    Delete Question
-                  </button>
-                </div>
-              </div>
 
-              {editorMode === "json" ? (
-                <textarea
-                  className="json-editor"
-                  value={rawJson}
-                  onChange={(event) => handleRawJsonChange(event.target.value)}
-                />
-              ) : (
-                <div className="editor-form">
+                <div className="editor-scroll">
+                  {editorMode === "json" ? (
+                    <div className="json-editor-shell">
+                      {jsonError ? (
+                        <div className="json-error-banner">
+                          {jsonErrorMessage || "Raw JSON is invalid."}
+                        </div>
+                      ) : null}
+                      <div
+                        className={`json-editor-layout ${mathPreviewEnabled ? "with-preview" : ""}`}
+                      >
+                        <textarea
+                          className="json-editor"
+                          value={rawJson}
+                          spellCheck={false}
+                          onChange={(event) => handleRawJsonChange(event.target.value)}
+                        />
+                        <QuestionMathSummaryPreview
+                          question={draftQuestion}
+                          previewEnabled={mathPreviewEnabled}
+                          invalid={jsonError}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="editor-form">
                   <section className="editor-grid">
                     <label>
                       ID
@@ -1837,7 +2099,9 @@ function App() {
                       Type
                       <select
                         value={draftQuestion.type}
-                        onChange={(event) => updateQuestionType(event.target.value as QuestionType)}
+                        onChange={(event) =>
+                          void updateQuestionType(event.target.value as QuestionType)
+                        }
                       >
                         <option value="multiple_choice">multiple_choice</option>
                         <option value="numeric_response">numeric_response</option>
@@ -1976,13 +2240,16 @@ function App() {
                     </section>
                   </details>
 
-                  <label>
-                    Prompt
+                  <MathPreviewField
+                    label="Prompt"
+                    value={draftQuestion.prompt}
+                    previewEnabled={mathPreviewEnabled}
+                  >
                     <textarea
                       value={draftQuestion.prompt}
                       onChange={(event) => updateDraft("prompt", event.target.value)}
                     />
-                  </label>
+                  </MathPreviewField>
 
                   <section className="asset-section">
                     <input
@@ -2122,15 +2389,19 @@ function App() {
                       {(((draftQuestion.answer as { choices?: string[] })?.choices ?? ["", ""]) as string[]).map(
                         (choice, index) => (
                           <div key={index} className="choice-row">
-                            <label>
-                              Choice {index + 1}
+                            <MathPreviewField
+                              label={`Choice ${index + 1}`}
+                              value={choice}
+                              previewEnabled={mathPreviewEnabled}
+                              className="choice-math-field"
+                            >
                               <input
                                 value={choice}
                                 onChange={(event) =>
                                   updateMultipleChoiceChoice(index, event.target.value)
                                 }
                               />
-                            </label>
+                            </MathPreviewField>
                             <button
                               type="button"
                               onClick={() => removeMultipleChoiceChoice(index)}
@@ -2161,13 +2432,16 @@ function App() {
                           }
                         />
                       </label>
-                      <label>
-                        Explanation
+                      <MathPreviewField
+                        label="Explanation"
+                        value={draftQuestion.explanation ?? ""}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <textarea
                           value={draftQuestion.explanation ?? ""}
                           onChange={(event) => updateDraft("explanation", event.target.value)}
                         />
-                      </label>
+                      </MathPreviewField>
                     </section>
                   ) : null}
 
@@ -2182,13 +2456,16 @@ function App() {
                           onChange={(event) => updateNumericAnswer("value", event.target.value)}
                         />
                       </label>
-                      <label>
-                        Unit
+                      <MathPreviewField
+                        label="Unit"
+                        value={String((draftQuestion.answer as Record<string, unknown>)?.unit ?? "")}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <input
                           value={String((draftQuestion.answer as Record<string, unknown>)?.unit ?? "")}
                           onChange={(event) => updateNumericAnswer("unit", event.target.value)}
                         />
-                      </label>
+                      </MathPreviewField>
                       <label>
                         Tolerance
                         <input
@@ -2202,71 +2479,93 @@ function App() {
                           }
                         />
                       </label>
-                      <label>
-                        Explanation
+                      <MathPreviewField
+                        label="Explanation"
+                        value={draftQuestion.explanation ?? ""}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <textarea
                           value={draftQuestion.explanation ?? ""}
                           onChange={(event) => updateDraft("explanation", event.target.value)}
                         />
-                      </label>
+                      </MathPreviewField>
                     </section>
                   ) : null}
 
                   {draftQuestion.type === "short_answer" ? (
                     <section className="question-specific">
                       <h2>Short Answer</h2>
-                      <label>
-                        Sample Solution
+                      <MathPreviewField
+                        label="Sample Solution"
+                        value={draftQuestion.sample_solution ?? ""}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <textarea
                           value={draftQuestion.sample_solution ?? ""}
                           onChange={(event) =>
                             updateDraft("sample_solution", event.target.value)
                           }
                         />
-                      </label>
+                      </MathPreviewField>
                     </section>
                   ) : null}
 
                   {draftQuestion.type === "free_response" ? (
                     <section className="question-specific">
                       <h2>Free Response</h2>
-                      <label>
-                        Sample Solution
+                      <MathPreviewField
+                        label="Sample Solution"
+                        value={draftQuestion.sample_solution ?? ""}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <textarea
                           value={draftQuestion.sample_solution ?? ""}
                           onChange={(event) =>
                             updateDraft("sample_solution", event.target.value)
                           }
                         />
-                      </label>
-                      <label>
-                        Exemplar Answer
+                      </MathPreviewField>
+                      <MathPreviewField
+                        label="Exemplar Answer"
+                        value={draftQuestion.exemplar_answer ?? ""}
+                        previewEnabled={mathPreviewEnabled}
+                      >
                         <textarea
                           value={draftQuestion.exemplar_answer ?? ""}
                           onChange={(event) =>
                             updateDraft("exemplar_answer", event.target.value)
                           }
                         />
-                      </label>
+                      </MathPreviewField>
                       <div className="rubric-list">
                         {draftQuestion.rubric.map((row, index) => (
                           <div key={index} className="rubric-row">
-                            <input
+                            <MathPreviewField
+                              label={`Criterion ${index + 1}`}
                               value={row.criterion}
-                              onChange={(event) =>
-                                updateRubricRow(index, "criterion", event.target.value)
-                              }
-                              placeholder="Criterion"
-                            />
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={row.points}
-                              onChange={(event) =>
-                                updateRubricRow(index, "points", event.target.value)
-                              }
-                              placeholder="Points"
-                            />
+                              previewEnabled={mathPreviewEnabled}
+                              className="rubric-criterion-field"
+                            >
+                              <input
+                                value={row.criterion}
+                                onChange={(event) =>
+                                  updateRubricRow(index, "criterion", event.target.value)
+                                }
+                                placeholder="Criterion"
+                              />
+                            </MathPreviewField>
+                            <label className="rubric-points-field">
+                              Points
+                              <input
+                                type="number"
+                                step="0.5"
+                                value={row.points}
+                                onChange={(event) =>
+                                  updateRubricRow(index, "points", event.target.value)
+                                }
+                                placeholder="Points"
+                              />
+                            </label>
                           </div>
                         ))}
                         <button
@@ -2282,9 +2581,10 @@ function App() {
                       </div>
                     </section>
                   ) : null}
+                    </div>
+                  )}
                 </div>
-              )}
-            </>
+              </>
           ) : (
             <div className="empty-state">
               <p>Open a bank and select a question to start editing.</p>

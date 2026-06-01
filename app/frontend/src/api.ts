@@ -160,7 +160,10 @@ export async function getQuestion(id: string): Promise<QuestionModel> {
   return handleResponse(await fetch(buildApiUrl(`/api/questions/${id}`)));
 }
 
-export async function updateQuestion(id: string, question: QuestionModel): Promise<QuestionModel> {
+export async function updateQuestion(
+  id: string,
+  question: QuestionModel | Record<string, unknown>,
+): Promise<QuestionModel> {
   return handleResponse(
     await fetch(buildApiUrl(`/api/questions/${id}`), {
       method: "PUT",
@@ -177,6 +180,24 @@ export async function createQuestion(templateQuestionId?: string): Promise<Quest
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ template_question_id: templateQuestionId || null }),
     }),
+  );
+}
+
+export async function createQuestionFromJson(
+  question: Record<string, unknown>,
+): Promise<QuestionModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/questions/from-json"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(question),
+    }),
+  );
+}
+
+export async function getNextQuestionId(questionType: string): Promise<{ id: string }> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/questions/next-id?type=${encodeURIComponent(questionType)}`)),
   );
 }
 

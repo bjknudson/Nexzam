@@ -26,6 +26,7 @@ from .models import (
     QuestionListItemModel,
     QuestionListResponseModel,
     QuestionModel,
+    QuestionType,
     SourceStandardListCollectionModel,
     SourceStandardListModel,
     StandardImportResponseModel,
@@ -45,6 +46,12 @@ class BankWorkspaceError(Exception):
 
 
 class BankWorkspaceService:
+    QUESTION_ID_PREFIX_BY_TYPE: dict[str, str] = {
+        "multiple_choice": "q_mc",
+        "numeric_response": "q_num",
+        "short_answer": "q_sa",
+        "free_response": "q_fr",
+    }
     SVG_PLACEHOLDER_PATTERN = re.compile(r"{{\s*([a-zA-Z0-9_.-]+)\s*}}")
     SVG_CALC_PATTERN = re.compile(r"{{\s*calc:\s*([^{}]+?)\s*}}")
     SVG_EXPR_VARIABLE_PATTERN = re.compile(r"\b([A-Za-z_][A-Za-z0-9_.-]*)\b")
@@ -407,6 +414,24 @@ class BankWorkspaceService:
         self._refresh_bank_index()
         return payload
 
+    def create_question_from_json(self, payload: dict[str, object]) -> QuestionModel:
+        _, workspace_path = self.ensure_open()
+        if not isinstance(payload, dict):
+            raise BankWorkspaceError("Question JSON must be an object.", status_code=400)
+
+        next_payload = dict(payload)
+        next_payload["id"] = self._next_question_id_for_type(next_payload.get("type"))
+        question = QuestionModel.model_validate(next_payload)
+
+        question_path = workspace_path / "questions" / f"{question.id}.json"
+        question_path.write_text(question.model_dump_json(indent=2) + "\n")
+        self._refresh_bank_index()
+        return question
+
+    def next_question_id(self, question_type: QuestionType) -> str:
+        self.ensure_open()
+        return self._next_question_id_for_type(question_type)
+
     def delete_question(self, question_id: str) -> None:
         question_path = self._question_path(question_id)
         if not question_path.exists():
@@ -646,7 +671,7 @@ class BankWorkspaceService:
 
     def _build_blank_question(self) -> QuestionModel:
         return QuestionModel(
-            id=self._next_blank_question_id(),
+            id=self._next_question_id_for_type("multiple_choice"),
             type="multiple_choice",
             topic="Unsorted",
             difficulty=1,
@@ -685,16 +710,6 @@ class BankWorkspaceService:
             deduped.append(reference)
         return deduped
 
-    def _next_blank_question_id(self) -> str:
-        _, workspace_path = self.ensure_open()
-        questions_dir = workspace_path / "questions"
-        counter = 1
-        while True:
-            candidate = f"q_new_{counter:04d}"
-            if not (questions_dir / f"{candidate}.json").exists():
-                return candidate
-            counter += 1
-
     def _next_duplicate_question_id(self, source_id: str) -> str:
         _, workspace_path = self.ensure_open()
         questions_dir = workspace_path / "questions"
@@ -705,6 +720,20 @@ class BankWorkspaceService:
             if not (questions_dir / f"{candidate}.json").exists():
                 return candidate
             counter += 1
+
+    def _next_question_id_for_type(self, question_type: object) -> str:
+        _, workspace_path = self.ensure_open()
+        questions_dir = workspace_path / "questions"
+        prefix = self.QUESTION_ID_PREFIX_BY_TYPE.get(str(question_type), "q")
+        pattern = re.compile(rf"^{re.escape(prefix)}_(\d+)$")
+        max_serial = 0
+
+        for question_path in questions_dir.glob("*.json"):
+            match = pattern.match(question_path.stem)
+            if match:
+                max_serial = max(max_serial, int(match.group(1)))
+
+        return f"{prefix}_{max_serial + 1:04d}"
 
     def _dedupe_asset_name(self, assets_dir: Path, filename: str) -> str:
         candidate = filename

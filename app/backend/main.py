@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 import zipfile
 
 from fastapi import FastAPI, File, Form, Query, UploadFile
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
@@ -12,8 +14,10 @@ from pydantic import ValidationError
 from .models import (
     AssetInspectionRequest,
     CreateQuestionRequest,
+    NextQuestionIdResponse,
     OpenBankRequest,
     QuestionModel,
+    QuestionType,
     SaveBankRequest,
     UpsertCourseRequest,
 )
@@ -44,12 +48,12 @@ def handle_workspace_error(_, exc: BankWorkspaceError):
 
 @app.exception_handler(ValidationError)
 def handle_validation_error(_, exc: ValidationError):
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content=jsonable_encoder({"detail": exc.errors()}))
 
 
 @app.exception_handler(RequestValidationError)
 def handle_request_validation_error(_, exc: RequestValidationError):
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content=jsonable_encoder({"detail": exc.errors()}))
 
 
 @app.get("/health")
@@ -93,6 +97,11 @@ def list_questions(
     question_type: str | None = Query(default=None, alias="type"),
 ):
     return service.list_questions(search=search, topic=topic, question_type=question_type)
+
+
+@app.get("/api/questions/next-id")
+def get_next_question_id(question_type: QuestionType = Query(..., alias="type")) -> NextQuestionIdResponse:
+    return NextQuestionIdResponse(id=service.next_question_id(question_type))
 
 
 @app.get("/api/standards/source-lists")
@@ -178,6 +187,11 @@ def update_question(question_id: str, payload: QuestionModel):
 @app.post("/api/questions")
 def create_question(request: CreateQuestionRequest):
     return service.create_question(template_question_id=request.template_question_id)
+
+
+@app.post("/api/questions/from-json")
+def create_question_from_json(payload: dict[str, Any]):
+    return service.create_question_from_json(payload)
 
 
 @app.delete("/api/questions/{question_id}", status_code=204)

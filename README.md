@@ -136,6 +136,12 @@ source .venv/bin/activate
 python3 -m pip install -r app/backend/requirements.txt
 ```
 
+For backend test development, install the dev requirements:
+
+```bash
+python3 -m pip install -r app/backend/requirements-dev.txt
+```
+
 Run the API from the repo root:
 
 ```bash
@@ -150,7 +156,9 @@ API endpoints included in this slice:
 - `GET /api/banks/current`
 - `POST /api/banks/save`
 - `GET /api/questions`
+- `GET /api/questions/next-id`
 - `POST /api/questions`
+- `POST /api/questions/from-json`
 - `GET /api/questions/{question_id}`
 - `PUT /api/questions/{question_id}`
 - `DELETE /api/questions/{question_id}`
@@ -165,6 +173,24 @@ API endpoints included in this slice:
 - `POST /api/assets/upload`
 - `POST /api/assets/inspect`
 - `GET /api/assets/file`
+
+## Testing
+
+Run the backend pytest suite from the repo root:
+
+```bash
+source .venv/bin/activate
+python3 -m pytest
+```
+
+Useful broader verification commands:
+
+```bash
+python3 -m compileall app/backend/main.py app/backend/models.py app/backend/service.py
+cd app/frontend && npm run build
+cd ../../src-tauri && cargo check
+cargo test wait_for_healthcheck
+```
 
 ## Milestone status
 

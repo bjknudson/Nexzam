@@ -225,6 +225,10 @@ class CreateQuestionRequest(BaseModel):
     template_question_id: str | None = None
 
 
+class NextQuestionIdResponse(BaseModel):
+    id: str
+
+
 class BankSummaryModel(BaseModel):
     source_path: str
     workspace_path: str
