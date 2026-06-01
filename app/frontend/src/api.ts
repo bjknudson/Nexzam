@@ -6,6 +6,9 @@ import type {
   BankSummaryModel,
   CourseListResponseModel,
   CourseModel,
+  QuestionImportListResponseModel,
+  QuestionImportPromoteResponseModel,
+  QuestionImportStageModel,
   QuestionListResponseModel,
   QuestionModel,
   StandardImportResponseModel,
@@ -154,6 +157,67 @@ export async function listQuestions(params: {
   if (params.topic) searchParams.set("topic", params.topic);
   if (params.type) searchParams.set("type", params.type);
   return handleResponse(await fetch(buildApiUrl(`/api/questions?${searchParams.toString()}`)));
+}
+
+export async function stageQuestionImport(file: File): Promise<QuestionImportStageModel> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return handleResponse(
+    await fetch(buildApiUrl("/api/question-imports/stage"), {
+      method: "POST",
+      body: formData,
+    }),
+  );
+}
+
+export async function listQuestionImports(): Promise<QuestionImportListResponseModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/question-imports")));
+}
+
+export async function getQuestionImport(importId: string): Promise<QuestionImportStageModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/question-imports/${encodeURIComponent(importId)}`)),
+  );
+}
+
+export async function updateQuestionImportRow(payload: {
+  importId: string;
+  rowId: string;
+  question: Record<string, unknown>;
+  selected?: boolean | null;
+}): Promise<QuestionImportStageModel> {
+  return handleResponse(
+    await fetch(
+      buildApiUrl(
+        `/api/question-imports/${encodeURIComponent(payload.importId)}/rows/${encodeURIComponent(payload.rowId)}`,
+      ),
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: payload.question,
+          selected: payload.selected ?? null,
+        }),
+      },
+    ),
+  );
+}
+
+export async function promoteQuestionImport(payload: {
+  importId: string;
+  row_ids?: string[] | null;
+  id_policy?: "auto" | "keep_imported";
+}): Promise<QuestionImportPromoteResponseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/question-imports/${encodeURIComponent(payload.importId)}/promote`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        row_ids: payload.row_ids ?? null,
+        id_policy: payload.id_policy ?? "auto",
+      }),
+    }),
+  );
 }
 
 export async function getQuestion(id: string): Promise<QuestionModel> {

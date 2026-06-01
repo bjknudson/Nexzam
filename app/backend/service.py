@@ -11,6 +11,8 @@ from mimetypes import guess_type
 from pathlib import Path
 import re
 
+from pydantic import ValidationError
+
 from .models import (
     AssetInspectionRequest,
     AssetInspectionResponseModel,
@@ -25,6 +27,11 @@ from .models import (
     ManifestModel,
     QuestionListItemModel,
     QuestionListResponseModel,
+    QuestionImportListResponseModel,
+    QuestionImportPromoteResponseModel,
+    QuestionImportRowModel,
+    QuestionImportStageModel,
+    QuestionImportValidationIssueModel,
     QuestionModel,
     QuestionType,
     SourceStandardListCollectionModel,
@@ -43,6 +50,13 @@ class BankWorkspaceError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+
+
+ParsedQuestionImportRow = tuple[
+    dict[str, object],
+    dict[str, object],
+    list[QuestionImportValidationIssueModel],
+]
 
 
 class BankWorkspaceService:
@@ -279,6 +293,166 @@ class BankWorkspaceService:
             source_list=source_list,
             imported_count=len(imported_standards),
             imported_path=imported_path,
+        )
+
+    def stage_question_import(self, *, filename: str, content: bytes) -> QuestionImportStageModel:
+        _, workspace_path = self.ensure_open()
+        safe_name = Path(filename or "").name
+        suffix = Path(safe_name).suffix.lower()
+        if suffix not in {".json", ".csv"}:
+            raise BankWorkspaceError(
+                "Question import staging supports JSON and CSV files.",
+                status_code=400,
+            )
+
+        try:
+            raw_text = content.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise BankWorkspaceError(f"Could not decode import file as UTF-8: {exc}", status_code=400)
+
+        if suffix == ".json":
+            imported_rows = [
+                (item, item, [])
+                for item in self._parse_json_question_import(raw_text)
+            ]
+        else:
+            imported_rows = self._parse_csv_question_import(raw_text)
+
+        import_id = self._build_question_import_id()
+        import_dir = workspace_path / "imports" / import_id
+        import_dir.mkdir(parents=True, exist_ok=False)
+
+        source_filename = safe_name or "questions.json"
+        source_file_path = import_dir / source_filename
+        source_file_path.write_bytes(content)
+        source_path = f"imports/{import_id}/{source_filename}"
+
+        stage = self._build_question_import_stage(
+            import_id=import_id,
+            source_filename=source_filename,
+            source_path=source_path,
+            imported_rows=imported_rows,
+        )
+        (import_dir / "stage.json").write_text(stage.model_dump_json(indent=2) + "\n")
+        return stage
+
+    def list_question_imports(self) -> QuestionImportListResponseModel:
+        _, workspace_path = self.ensure_open()
+        imports_dir = workspace_path / "imports"
+        stages = [
+            QuestionImportStageModel.model_validate_json(path.read_text())
+            for path in sorted(imports_dir.glob("*/stage.json"))
+        ]
+        return QuestionImportListResponseModel(items=stages)
+
+    def get_question_import(self, import_id: str) -> QuestionImportStageModel:
+        stage_path = self._question_import_stage_path(import_id)
+        if not stage_path.exists():
+            raise BankWorkspaceError(f"Question import not found: {import_id}", status_code=404)
+        return QuestionImportStageModel.model_validate_json(stage_path.read_text())
+
+    def update_question_import_row(
+        self,
+        import_id: str,
+        row_id: str,
+        *,
+        question: dict[str, object],
+        selected: bool | None = None,
+    ) -> QuestionImportStageModel:
+        if not isinstance(question, dict):
+            raise BankWorkspaceError("Staged question row updates require a question object.", status_code=400)
+
+        stage_path = self._question_import_stage_path(import_id)
+        if not stage_path.exists():
+            raise BankWorkspaceError(f"Question import not found: {import_id}", status_code=404)
+
+        stage = QuestionImportStageModel.model_validate_json(stage_path.read_text())
+        row = next((item for item in stage.rows if item.row_id == row_id), None)
+        if row is None:
+            raise BankWorkspaceError(f"Question import row not found: {row_id}", status_code=404)
+        if row.status == "promoted":
+            raise BankWorkspaceError("Promoted import rows cannot be edited.", status_code=409)
+
+        row.question = dict(question)
+        row.imported_id = self._normalize_optional_text(row.question.get("id"))
+        row.promoted_question_id = None
+        self._refresh_staged_row_validation(stage, row, selected)
+        stage_path.write_text(stage.model_dump_json(indent=2) + "\n")
+        return stage
+
+    def promote_question_import_rows(
+        self,
+        import_id: str,
+        *,
+        row_ids: list[str] | None = None,
+        id_policy: str = "auto",
+    ) -> QuestionImportPromoteResponseModel:
+        _, workspace_path = self.ensure_open()
+        if id_policy not in {"auto", "keep_imported"}:
+            raise BankWorkspaceError("Question import id_policy must be auto or keep_imported.", status_code=400)
+
+        stage_path = self._question_import_stage_path(import_id)
+        if not stage_path.exists():
+            raise BankWorkspaceError(f"Question import not found: {import_id}", status_code=404)
+
+        stage = QuestionImportStageModel.model_validate_json(stage_path.read_text())
+        requested_row_ids = set(row_ids) if row_ids is not None else None
+        rows_to_promote = [
+            row
+            for row in stage.rows
+            if row.status == "valid"
+            and (row.row_id in requested_row_ids if requested_row_ids is not None else row.selected)
+        ]
+
+        if requested_row_ids is not None:
+            known_row_ids = {row.row_id for row in stage.rows}
+            missing = sorted(requested_row_ids - known_row_ids)
+            if missing:
+                raise BankWorkspaceError(
+                    f"Question import rows not found: {', '.join(missing)}",
+                    status_code=404,
+                )
+
+            blocked = [
+                row.row_id
+                for row in stage.rows
+                if row.row_id in requested_row_ids and row.status != "valid"
+            ]
+            if blocked:
+                raise BankWorkspaceError(
+                    f"Only valid staged rows can be promoted: {', '.join(blocked)}",
+                    status_code=422,
+                )
+
+        promoted_question_ids: list[str] = []
+        questions_dir = workspace_path / "questions"
+        for row in rows_to_promote:
+            question_id = self._resolve_promoted_question_id(row, id_policy)
+            question_path = questions_dir / f"{question_id}.json"
+            if question_path.exists():
+                raise BankWorkspaceError(
+                    f"A question with id {question_id} already exists.",
+                    status_code=409,
+                )
+
+            payload = dict(row.question)
+            payload["id"] = question_id
+            question = QuestionModel.model_validate(payload)
+            question_path.write_text(question.model_dump_json(indent=2) + "\n")
+            row.status = "promoted"
+            row.selected = False
+            row.promoted_question_id = question.id
+            promoted_question_ids.append(question.id)
+
+        stage_path.write_text(stage.model_dump_json(indent=2) + "\n")
+        if promoted_question_ids:
+            self._refresh_bank_index()
+
+        return QuestionImportPromoteResponseModel(
+            import_id=stage.id,
+            promoted_count=len(promoted_question_ids),
+            promoted_question_ids=promoted_question_ids,
+            stage=stage,
         )
 
     def attach_standard_to_course(self, course_id: str, standard_id: str) -> CourseModel:
@@ -758,6 +932,414 @@ class BankWorkspaceService:
         target_path = imports_dir / target_name
         target_path.write_bytes(content)
         return f"imports/{target_name}"
+
+    def _build_question_import_id(self) -> str:
+        return f"question-import-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+
+    def _question_import_stage_path(self, import_id: str) -> Path:
+        _, workspace_path = self.ensure_open()
+        safe_id = Path(import_id).name
+        if safe_id != import_id or not safe_id or safe_id in {".", ".."}:
+            raise BankWorkspaceError("Invalid question import id.", status_code=400)
+        return workspace_path / "imports" / safe_id / "stage.json"
+
+    def _parse_json_question_import(self, raw_text: str) -> list[dict[str, object]]:
+        try:
+            payload = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            raise BankWorkspaceError(f"Invalid question import JSON: {exc}", status_code=400)
+
+        if isinstance(payload, list):
+            items = payload
+        elif isinstance(payload, dict):
+            if isinstance(payload.get("question"), dict):
+                items = [payload["question"]]
+            elif "questions" in payload:
+                items = payload["questions"]
+            elif "items" in payload:
+                items = payload["items"]
+            else:
+                items = [payload]
+        else:
+            raise BankWorkspaceError("Question import JSON must be an object or array.", status_code=400)
+
+        if not isinstance(items, list):
+            raise BankWorkspaceError("Question import JSON items must be an array.", status_code=400)
+
+        normalized_items = []
+        for item in items:
+            if not isinstance(item, dict):
+                raise BankWorkspaceError("Each imported question must be an object.", status_code=400)
+            normalized_items.append(item)
+        return normalized_items
+
+    def _parse_csv_question_import(self, raw_text: str) -> list[ParsedQuestionImportRow]:
+        reader = csv.DictReader(raw_text.splitlines())
+        if reader.fieldnames is None:
+            raise BankWorkspaceError("Question import CSV is missing a header row.", status_code=400)
+
+        rows: list[ParsedQuestionImportRow] = []
+        for row in reader:
+            if not any((value or "").strip() for value in row.values()):
+                continue
+
+            source = {
+                str(key): value or ""
+                for key, value in row.items()
+                if key is not None
+            }
+            question, issues = self._normalize_csv_question_row(source)
+            rows.append((source, question, issues))
+
+        return rows
+
+    def _normalize_csv_question_row(
+        self,
+        row: dict[str, object],
+    ) -> tuple[dict[str, object], list[QuestionImportValidationIssueModel]]:
+        question: dict[str, object] = {}
+        issues: list[QuestionImportValidationIssueModel] = []
+
+        for field_name in [
+            "id",
+            "type",
+            "topic",
+            "prompt",
+            "subtopic",
+            "status",
+            "teacher_notes",
+            "explanation",
+            "sample_solution",
+            "exemplar_answer",
+        ]:
+            value = self._normalize_optional_text(row.get(field_name))
+            if value is not None:
+                question[field_name] = value
+
+        difficulty = self._normalize_optional_text(row.get("difficulty"))
+        if difficulty is not None:
+            try:
+                question["difficulty"] = int(difficulty)
+            except ValueError:
+                question["difficulty"] = difficulty
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_number",
+                        message="difficulty must be an integer.",
+                        location=["difficulty"],
+                    )
+                )
+
+        estimated_time_sec = self._normalize_optional_text(row.get("estimated_time_sec"))
+        if estimated_time_sec is not None:
+            try:
+                question["estimated_time_sec"] = int(estimated_time_sec)
+            except ValueError:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_number",
+                        message="estimated_time_sec must be an integer.",
+                        location=["estimated_time_sec"],
+                    )
+                )
+
+        points = self._normalize_optional_text(row.get("points"))
+        if points is not None:
+            try:
+                question["points"] = float(points)
+            except ValueError:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_number",
+                        message="points must be a number.",
+                        location=["points"],
+                    )
+                )
+
+        tags = self._normalize_optional_text(row.get("tags"))
+        if tags is not None:
+            question["tags"] = self._normalize_tags(tags)
+
+        standards = self._normalize_optional_text(row.get("standards"))
+        if standards is not None:
+            question["standards"] = self._parse_csv_standard_refs(standards, issues)
+
+        for column_name, question_field in [
+            ("answer_json", "answer"),
+            ("rubric_json", "rubric"),
+            ("assets_json", "assets"),
+        ]:
+            raw_json = self._normalize_optional_text(row.get(column_name))
+            if raw_json is None:
+                continue
+            try:
+                question[question_field] = json.loads(raw_json)
+            except json.JSONDecodeError as exc:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_json",
+                        message=f"{column_name} is not valid JSON: {exc}",
+                        location=[column_name],
+                    )
+                )
+
+        return question, issues
+
+    def _parse_csv_standard_refs(
+        self,
+        raw_value: str,
+        issues: list[QuestionImportValidationIssueModel],
+    ) -> list[dict[str, str]]:
+        stripped = raw_value.strip()
+        if stripped.startswith("["):
+            try:
+                payload = json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_json",
+                        message=f"standards is not valid JSON: {exc}",
+                        location=["standards"],
+                    )
+                )
+                return []
+
+            if not isinstance(payload, list):
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="malformed_standards",
+                        message="standards JSON must be an array.",
+                        location=["standards"],
+                    )
+                )
+                return []
+
+            refs: list[dict[str, str]] = []
+            for index, item in enumerate(payload):
+                if isinstance(item, str):
+                    refs.append({"standard_id": item})
+                elif isinstance(item, dict) and isinstance(item.get("standard_id"), str):
+                    refs.append({"standard_id": item["standard_id"]})
+                else:
+                    issues.append(
+                        QuestionImportValidationIssueModel(
+                            code="malformed_standards",
+                            message="standards entries must be ids or standard reference objects.",
+                            location=["standards", index],
+                        )
+                    )
+            return refs
+
+        return [
+            {"standard_id": standard_id}
+            for standard_id in self._normalize_tags(raw_value)
+        ]
+
+    def _build_question_import_stage(
+        self,
+        *,
+        import_id: str,
+        source_filename: str,
+        source_path: str,
+        imported_rows: list[ParsedQuestionImportRow],
+    ) -> QuestionImportStageModel:
+        existing_question_ids = {question.id for question in self._load_questions()}
+        existing_standard_ids = {standard.id for standard in self._read_standard_records().items}
+        reserved_ids = set(existing_question_ids)
+        imported_id_counts: dict[str, int] = {}
+        for _, question, _ in imported_rows:
+            imported_id = self._normalize_optional_text(question.get("id"))
+            if imported_id:
+                imported_id_counts[imported_id] = imported_id_counts.get(imported_id, 0) + 1
+
+        rows: list[QuestionImportRowModel] = []
+        for index, (source, question, parse_issues) in enumerate(imported_rows, start=1):
+            row_id = f"row-{index:04d}"
+            imported_id = self._normalize_optional_text(question.get("id"))
+            question_type = self._normalize_optional_text(question.get("type"))
+            proposed_id = (
+                self._next_question_id_for_type_with_reserved(question_type, reserved_ids)
+                if question_type in self.QUESTION_ID_PREFIX_BY_TYPE
+                else None
+            )
+            if proposed_id:
+                reserved_ids.add(proposed_id)
+
+            issues = self._validate_staged_question(
+                source=question,
+                proposed_id=proposed_id,
+                existing_standard_ids=existing_standard_ids,
+            )
+            issues = [*parse_issues, *issues]
+            if imported_id in existing_question_ids:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="duplicate_existing_id",
+                        message=f"Imported id {imported_id} already exists in this bank.",
+                        location=["id"],
+                    )
+                )
+            if imported_id and imported_id_counts.get(imported_id, 0) > 1:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="duplicate_import_id",
+                        message=f"Imported id {imported_id} appears more than once in this import.",
+                        location=["id"],
+                    )
+                )
+
+            status = "invalid" if issues else "valid"
+            rows.append(
+                QuestionImportRowModel(
+                    row_id=row_id,
+                    source_index=index,
+                    source=dict(source),
+                    question=dict(question),
+                    proposed_id=proposed_id,
+                    imported_id=imported_id,
+                    status=status,
+                    selected=status == "valid",
+                    issues=issues,
+                )
+            )
+
+        return QuestionImportStageModel(
+            id=import_id,
+            source_filename=source_filename,
+            source_path=source_path,
+            created_at=datetime.now(UTC),
+            rows=rows,
+        )
+
+    def _validate_staged_question(
+        self,
+        *,
+        source: dict[str, object],
+        proposed_id: str | None,
+        existing_standard_ids: set[str],
+    ) -> list[QuestionImportValidationIssueModel]:
+        payload = dict(source)
+        if not self._normalize_optional_text(payload.get("id")) and proposed_id:
+            payload["id"] = proposed_id
+
+        issues: list[QuestionImportValidationIssueModel] = []
+        try:
+            question = QuestionModel.model_validate(payload)
+        except ValidationError as exc:
+            for error in exc.errors():
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code=str(error.get("type") or "validation_error"),
+                        message=str(error.get("msg") or "Question validation failed."),
+                        location=list(error.get("loc") or []),
+                    )
+                )
+            return issues
+
+        for index, reference in enumerate(question.standards):
+            if reference.standard_id not in existing_standard_ids:
+                issues.append(
+                    QuestionImportValidationIssueModel(
+                        code="unknown_standard",
+                        message=f"Unknown standard reference: {reference.standard_id}",
+                        location=["standards", index, "standard_id"],
+                    )
+                )
+
+        return issues
+
+    def _refresh_staged_row_validation(
+        self,
+        stage: QuestionImportStageModel,
+        row: QuestionImportRowModel,
+        selected: bool | None,
+    ) -> None:
+        existing_question_ids = {question.id for question in self._load_questions()}
+        existing_standard_ids = {standard.id for standard in self._read_standard_records().items}
+        reserved_ids = set(existing_question_ids)
+
+        for other_row in stage.rows:
+            if other_row.row_id == row.row_id:
+                continue
+            if other_row.proposed_id:
+                reserved_ids.add(other_row.proposed_id)
+            if other_row.promoted_question_id:
+                reserved_ids.add(other_row.promoted_question_id)
+
+        question_type = self._normalize_optional_text(row.question.get("type"))
+        row.proposed_id = (
+            self._next_question_id_for_type_with_reserved(question_type, reserved_ids)
+            if question_type in self.QUESTION_ID_PREFIX_BY_TYPE
+            else None
+        )
+
+        issues = self._validate_staged_question(
+            source=row.question,
+            proposed_id=row.proposed_id,
+            existing_standard_ids=existing_standard_ids,
+        )
+
+        if row.imported_id in existing_question_ids:
+            issues.append(
+                QuestionImportValidationIssueModel(
+                    code="duplicate_existing_id",
+                    message=f"Imported id {row.imported_id} already exists in this bank.",
+                    location=["id"],
+                )
+            )
+
+        duplicate_row_ids = [
+            other_row.row_id
+            for other_row in stage.rows
+            if other_row.row_id != row.row_id
+            and other_row.imported_id
+            and other_row.imported_id == row.imported_id
+        ]
+        if row.imported_id and duplicate_row_ids:
+            issues.append(
+                QuestionImportValidationIssueModel(
+                    code="duplicate_import_id",
+                    message=f"Imported id {row.imported_id} appears more than once in this import.",
+                    location=["id"],
+                )
+            )
+
+        row.issues = issues
+        row.status = "invalid" if issues else "valid"
+        row.selected = selected if selected is not None else row.status == "valid"
+
+    def _resolve_promoted_question_id(self, row: QuestionImportRowModel, id_policy: str) -> str:
+        if id_policy == "keep_imported" and row.imported_id:
+            return row.imported_id
+
+        if not row.proposed_id:
+            raise BankWorkspaceError(
+                f"Staged row {row.row_id} does not have a proposed question id.",
+                status_code=422,
+            )
+        return row.proposed_id
+
+    def _next_question_id_for_type_with_reserved(
+        self,
+        question_type: object,
+        reserved_ids: set[str],
+    ) -> str:
+        _, workspace_path = self.ensure_open()
+        prefix = self.QUESTION_ID_PREFIX_BY_TYPE.get(str(question_type), "q")
+        pattern = re.compile(rf"^{re.escape(prefix)}_(\d+)$")
+        max_serial = 0
+
+        for question_path in (workspace_path / "questions").glob("*.json"):
+            match = pattern.match(question_path.stem)
+            if match:
+                max_serial = max(max_serial, int(match.group(1)))
+
+        for question_id in reserved_ids:
+            match = pattern.match(question_id)
+            if match:
+                max_serial = max(max_serial, int(match.group(1)))
+
+        return f"{prefix}_{max_serial + 1:04d}"
 
     def _parse_json_standard_import(
         self, raw_text: str

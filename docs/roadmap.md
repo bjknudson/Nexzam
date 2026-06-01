@@ -36,9 +36,26 @@
 
 ## Phase 3 — Import
 
-- JSON import.
-- CSV staging + validation flow.
-- Promote staged items to real questions.
+- Question import workspace entry point from the main editor.
+- JSON question import staging.
+  - Accept one question object, `{ "question": ... }`, an array of questions, `{ "questions": [...] }`, or `{ "items": [...] }`.
+  - Validate each staged item with the existing question schema before promotion.
+- CSV question import staging.
+  - Required columns: `type`, `topic`, `difficulty`, `prompt`.
+  - Optional columns: `id`, `tags`, `status`, `points`, `estimated_time_sec`, `standards`, `teacher_notes`, `explanation`, `sample_solution`, `answer_json`, `rubric_json`, `assets_json`.
+- Row-level validation results for staged imports.
+  - Keep invalid rows visible and editable instead of dropping them.
+  - Show schema errors, duplicate id conflicts, unsupported question types, malformed JSON fields, and unknown standard references.
+- Proposed id handling for staged rows.
+  - Default to type-based Nexzam ids on promotion.
+  - Allow keeping imported ids only when they are valid and unique.
+  - Never silently rename persisted or imported ids.
+- Staging review table with filters for all, valid, invalid, selected, and promoted rows.
+- Staged row detail panel with editable raw JSON for correction before promotion.
+- Promote selected valid staged rows to real `questions/*.json` files.
+- Refresh `bank.json`, question browser filters, and the selected question after promotion.
+- Preserve original import files under `imports/` for portability and auditability.
+- Backend test coverage for JSON staging, CSV staging, validation failures, promotion, id policy, index refresh, and repack persistence.
 
 ## Phase 4 — Print Prep
 

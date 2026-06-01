@@ -35,6 +35,7 @@ import {
   MathPreviewField,
   QuestionMathSummaryPreview,
 } from "./MathPreview";
+import QuestionImportWorkspace from "./QuestionImportWorkspace";
 import StandardsWorkspace from "./StandardsWorkspace";
 import type {
   AssetInspectionResponseModel,
@@ -562,6 +563,7 @@ function App() {
   const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
   const [questionPanePoppedOut, setQuestionPanePoppedOut] = useState(false);
   const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
+  const [questionImportOpen, setQuestionImportOpen] = useState(false);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [mathPreviewEnabled, setMathPreviewEnabled] = useState(false);
   const [assetSearch, setAssetSearch] = useState("");
@@ -957,6 +959,7 @@ function App() {
       const summary = await openBank(path);
       setBank(summary);
       setSelectedId(null);
+      setQuestionImportOpen(false);
       setWorkspaceDirty(false);
       setAutosaveState("idle");
       setStatusMessage(`Opened ${summary.manifest.title}`);
@@ -985,6 +988,7 @@ function App() {
       const summary = await openDemoBank();
       setBank(summary);
       setSelectedId(null);
+      setQuestionImportOpen(false);
       setWorkspaceDirty(false);
       setAutosaveState("idle");
       setStatusMessage(`Opened demo bank from ${summary.source_path}`);
@@ -1047,6 +1051,11 @@ function App() {
     }
 
     await runSave(destinationPath);
+  }
+
+  function handleQuestionImportWorkspaceChanged(message: string) {
+    setWorkspaceDirty(true);
+    setStatusMessage(`${message} Save Bank writes the archive.`);
   }
 
   async function handleSaveQuestion() {
@@ -1901,6 +1910,13 @@ function App() {
           <button onClick={() => void handleOpenStandardsWorkspace()} disabled={loading || !bank}>
             Manage Standards
           </button>
+          <button
+            type="button"
+            onClick={() => setQuestionImportOpen((current) => !current)}
+            disabled={loading || !bank}
+          >
+            Import Questions
+          </button>
           <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
             Save Bank
           </button>
@@ -1951,6 +1967,13 @@ function App() {
           </button>
         </div>
       </details>
+
+      <QuestionImportWorkspace
+        open={questionImportOpen}
+        hasBank={!!bank}
+        onClose={() => setQuestionImportOpen(false)}
+        onWorkspaceChanged={handleQuestionImportWorkspaceChanged}
+      />
 
       <div className="workspace">
         {!questionPanePoppedOut ? (

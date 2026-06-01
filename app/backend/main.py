@@ -16,6 +16,8 @@ from .models import (
     CreateQuestionRequest,
     NextQuestionIdResponse,
     OpenBankRequest,
+    QuestionImportPromoteRequest,
+    QuestionImportRowUpdateRequest,
     QuestionModel,
     QuestionType,
     SaveBankRequest,
@@ -166,6 +168,47 @@ async def import_standards(
         subject=subject,
         version=version,
         description=description,
+    )
+
+
+@app.post("/api/question-imports/stage")
+async def stage_question_import(file: UploadFile = File(...)):
+    return service.stage_question_import(
+        filename=file.filename or "",
+        content=await file.read(),
+    )
+
+
+@app.get("/api/question-imports")
+def list_question_imports():
+    return service.list_question_imports()
+
+
+@app.get("/api/question-imports/{import_id}")
+def get_question_import(import_id: str):
+    return service.get_question_import(import_id)
+
+
+@app.put("/api/question-imports/{import_id}/rows/{row_id}")
+def update_question_import_row(
+    import_id: str,
+    row_id: str,
+    request: QuestionImportRowUpdateRequest,
+):
+    return service.update_question_import_row(
+        import_id,
+        row_id,
+        question=request.question,
+        selected=request.selected,
+    )
+
+
+@app.post("/api/question-imports/{import_id}/promote")
+def promote_question_import(import_id: str, request: QuestionImportPromoteRequest):
+    return service.promote_question_import_rows(
+        import_id,
+        row_ids=request.row_ids,
+        id_policy=request.id_policy,
     )
 
 

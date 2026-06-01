@@ -110,6 +110,54 @@ class StandardImportResponseModel(BaseModel):
     imported_path: str | None = None
 
 
+class QuestionImportValidationIssueModel(BaseModel):
+    code: str
+    message: str
+    location: list[str | int] = Field(default_factory=list)
+
+
+class QuestionImportRowModel(BaseModel):
+    row_id: str
+    source_index: int
+    source: dict[str, Any] = Field(default_factory=dict)
+    question: dict[str, Any] = Field(default_factory=dict)
+    proposed_id: str | None = None
+    imported_id: str | None = None
+    promoted_question_id: str | None = None
+    status: Literal["valid", "invalid", "promoted"]
+    selected: bool = False
+    issues: list[QuestionImportValidationIssueModel] = Field(default_factory=list)
+
+
+class QuestionImportStageModel(BaseModel):
+    id: str
+    source_filename: str
+    source_path: str
+    created_at: datetime
+    rows: list[QuestionImportRowModel] = Field(default_factory=list)
+
+
+class QuestionImportListResponseModel(BaseModel):
+    items: list[QuestionImportStageModel] = Field(default_factory=list)
+
+
+class QuestionImportPromoteRequest(BaseModel):
+    row_ids: list[str] | None = None
+    id_policy: Literal["auto", "keep_imported"] = "auto"
+
+
+class QuestionImportRowUpdateRequest(BaseModel):
+    question: dict[str, Any]
+    selected: bool | None = None
+
+
+class QuestionImportPromoteResponseModel(BaseModel):
+    import_id: str
+    promoted_count: int
+    promoted_question_ids: list[str] = Field(default_factory=list)
+    stage: QuestionImportStageModel
+
+
 class UpsertCourseRequest(BaseModel):
     title: str
     description: str | None = None

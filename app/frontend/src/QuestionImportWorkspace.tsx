@@ -1,0 +1,359 @@
+import { useEffect, useRef, useState } from "react";
+
+import {
+  listQuestionImports,
+  stageQuestionImport,
+  updateQuestionImportRow,
+} from "./api";
+import type { QuestionImportRowModel, QuestionImportStageModel } from "./types";
+
+type RowFilter = "all" | "valid" | "invalid" | "selected" | "promoted";
+
+interface QuestionImportWorkspaceProps {
+  open: boolean;
+  hasBank: boolean;
+  onClose: () => void;
+  onWorkspaceChanged: (message: string) => void;
+}
+
+function countRows(stage: QuestionImportStageModel, status: "valid" | "invalid" | "promoted") {
+  return stage.rows.filter((row) => row.status === status).length;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function getRowLabel(row: QuestionImportRowModel) {
+  return [
+    row.row_id,
+    String(row.question.type ?? "unknown"),
+    String(row.question.topic ?? "missing topic"),
+    row.proposed_id ?? row.imported_id ?? "no id",
+    row.status,
+  ].join(" ");
+}
+
+export default function QuestionImportWorkspace({
+  open,
+  hasBank,
+  onClose,
+  onWorkspaceChanged,
+}: QuestionImportWorkspaceProps) {
+  const [imports, setImports] = useState<QuestionImportStageModel[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [selectedImportId, setSelectedImportId] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [rowFilter, setRowFilter] = useState<RowFilter>("all");
+  const [rowSearch, setRowSearch] = useState("");
+  const [rowJson, setRowJson] = useState("");
+  const [rowJsonError, setRowJsonError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const selectedImport = imports.find((item) => item.id === selectedImportId) ?? imports[0] ?? null;
+  const selectedRow = selectedImport?.rows.find((row) => row.row_id === selectedRowId) ?? null;
+  const filteredRows = (selectedImport?.rows ?? []).filter((row) => {
+    if (rowFilter === "valid" && row.status !== "valid") return false;
+    if (rowFilter === "invalid" && row.status !== "invalid") return false;
+    if (rowFilter === "promoted" && row.status !== "promoted") return false;
+    if (rowFilter === "selected" && !row.selected) return false;
+
+    const needle = rowSearch.trim().toLowerCase();
+    return !needle || getRowLabel(row).toLowerCase().includes(needle);
+  });
+
+  async function refreshImports() {
+    if (!open || !hasBank) return;
+
+    setBusy(true);
+    try {
+      const response = await listQuestionImports();
+      setImports(response.items);
+      if (!selectedImportId && response.items.length > 0) {
+        setSelectedImportId(response.items[0].id);
+      }
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshImports();
+  }, [open, hasBank]);
+
+  useEffect(() => {
+    if (!selectedImport) {
+      setSelectedImportId(null);
+      setSelectedRowId(null);
+      return;
+    }
+
+    if (!selectedImportId) {
+      setSelectedImportId(selectedImport.id);
+    }
+
+    if (!selectedRowId || !selectedImport.rows.some((row) => row.row_id === selectedRowId)) {
+      setSelectedRowId(selectedImport.rows[0]?.row_id ?? null);
+    }
+  }, [selectedImport, selectedImportId, selectedRowId]);
+
+  useEffect(() => {
+    if (!selectedRow) {
+      setRowJson("");
+      setRowJsonError("");
+      return;
+    }
+
+    setRowJson(JSON.stringify(selectedRow.question, null, 2));
+    setRowJsonError("");
+  }, [selectedRow]);
+
+  async function handleStageImport() {
+    if (!importFile) {
+      setErrorMessage("Choose a JSON or CSV file.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const stage = await stageQuestionImport(importFile);
+      setImports((current) => [stage, ...current.filter((item) => item.id !== stage.id)]);
+      setSelectedImportId(stage.id);
+      setSelectedRowId(stage.rows[0]?.row_id ?? null);
+      setImportFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      const validCount = countRows(stage, "valid");
+      const invalidCount = countRows(stage, "invalid");
+      const message = `Staged ${stage.rows.length} rows from ${stage.source_filename}. ${validCount} valid, ${invalidCount} invalid.`;
+      setStatusMessage(message);
+      setErrorMessage("");
+      onWorkspaceChanged(message);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveRowJson() {
+    if (!selectedImport || !selectedRow) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rowJson);
+    } catch (error) {
+      setRowJsonError((error as Error).message);
+      return;
+    }
+
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      setRowJsonError("Staged row JSON must be one question object.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const updatedStage = await updateQuestionImportRow({
+        importId: selectedImport.id,
+        rowId: selectedRow.row_id,
+        question: parsed as Record<string, unknown>,
+      });
+      setImports((current) =>
+        current.map((stage) => (stage.id === updatedStage.id ? updatedStage : stage)),
+      );
+      const updatedRow = updatedStage.rows.find((row) => row.row_id === selectedRow.row_id);
+      setRowJson(JSON.stringify(updatedRow?.question ?? parsed, null, 2));
+      const message = `Updated ${selectedRow.row_id} in ${updatedStage.source_filename}.`;
+      setStatusMessage(message);
+      setErrorMessage("");
+      setRowJsonError("");
+      onWorkspaceChanged(message);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <section className="question-import-workspace">
+      <header className="question-import-header">
+        <div>
+          <h2>Question Imports</h2>
+          <div className="question-import-summary">
+            <span className="status-pill">{imports.length} staged imports</span>
+            <span className="status-pill">
+              {imports.reduce((total, item) => total + item.rows.length, 0)} staged rows
+            </span>
+          </div>
+        </div>
+        <div className="question-import-actions">
+          <button type="button" onClick={() => void refreshImports()} disabled={busy || !hasBank}>
+            Refresh
+          </button>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </header>
+
+      <div className="question-import-stage-panel">
+        <label>
+          Import File
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.csv,application/json,text/csv"
+            disabled={busy || !hasBank}
+            onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <button type="button" onClick={() => void handleStageImport()} disabled={busy || !hasBank}>
+          {busy ? "Working..." : "Stage Import"}
+        </button>
+      </div>
+
+      {statusMessage ? <div className="question-import-status">{statusMessage}</div> : null}
+      {errorMessage ? <div className="json-error-banner">{errorMessage}</div> : null}
+
+      <div className="question-import-list">
+        {imports.map((stage) => {
+          const validCount = countRows(stage, "valid");
+          const invalidCount = countRows(stage, "invalid");
+          const promotedCount = countRows(stage, "promoted");
+
+          return (
+            <article
+              key={stage.id}
+              className={`question-import-card ${selectedImport?.id === stage.id ? "selected" : ""}`}
+            >
+              <div className="question-import-card-header">
+                <div>
+                  <strong>{stage.source_filename}</strong>
+                  <span>{formatDate(stage.created_at)}</span>
+                </div>
+                <span>{stage.rows.length} rows</span>
+              </div>
+
+              <div className="question-import-badges">
+                <span className="status-pill saved">{validCount} valid</span>
+                <span className={`status-pill ${invalidCount > 0 ? "error" : ""}`}>
+                  {invalidCount} invalid
+                </span>
+                <span className="status-pill">{promotedCount} promoted</span>
+              </div>
+
+              <button type="button" onClick={() => setSelectedImportId(stage.id)}>
+                Review Rows
+              </button>
+            </article>
+          );
+        })}
+      </div>
+
+      {selectedImport ? (
+        <div className="question-import-review">
+          <section className="question-import-table-panel">
+            <div className="question-import-review-header">
+              <div>
+                <h3>{selectedImport.source_filename}</h3>
+                <span>{filteredRows.length} visible rows</span>
+              </div>
+              <div className="question-import-filter-row">
+                <select
+                  value={rowFilter}
+                  onChange={(event) => setRowFilter(event.target.value as RowFilter)}
+                >
+                  <option value="all">All rows</option>
+                  <option value="valid">Valid</option>
+                  <option value="invalid">Invalid</option>
+                  <option value="selected">Selected</option>
+                  <option value="promoted">Promoted</option>
+                </select>
+                <input
+                  value={rowSearch}
+                  onChange={(event) => setRowSearch(event.target.value)}
+                  placeholder="Search staged rows"
+                />
+              </div>
+            </div>
+
+            <div className="question-import-row-list">
+              {filteredRows.map((row) => (
+                <button
+                  key={row.row_id}
+                  type="button"
+                  className={`question-import-row ${row.status} ${
+                    selectedRowId === row.row_id ? "selected" : ""
+                  }`}
+                  onClick={() => setSelectedRowId(row.row_id)}
+                >
+                  <span>{row.row_id}</span>
+                  <span>{String(row.question.type ?? "unknown")}</span>
+                  <span>{String(row.question.topic ?? "missing topic")}</span>
+                  <span>{row.proposed_id ?? row.imported_id ?? "no id"}</span>
+                  <span>{row.selected ? "selected" : row.status}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="question-import-detail-panel">
+            {selectedRow ? (
+              <>
+                <div className="question-import-review-header">
+                  <div>
+                    <h3>{selectedRow.row_id}</h3>
+                    <span>{selectedRow.status}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleSaveRowJson()}
+                    disabled={busy || selectedRow.status === "promoted"}
+                  >
+                    Save Row JSON
+                  </button>
+                </div>
+
+                {selectedRow.issues.length > 0 ? (
+                  <div className="question-import-issues">
+                    {selectedRow.issues.map((issue, index) => (
+                      <div key={`${issue.code}-${index}`}>
+                        <strong>{issue.code}</strong>
+                        <span>{issue.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {rowJsonError ? <div className="json-error-banner">{rowJsonError}</div> : null}
+                <textarea
+                  className="question-import-json-editor"
+                  value={rowJson}
+                  spellCheck={false}
+                  disabled={selectedRow.status === "promoted"}
+                  onChange={(event) => setRowJson(event.target.value)}
+                />
+              </>
+            ) : (
+              <div className="question-import-empty">Select a staged row to review.</div>
+            )}
+          </section>
+        </div>
+      ) : null}
+    </section>
+  );
+}

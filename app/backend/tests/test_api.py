@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -76,3 +77,134 @@ def test_api_rejects_invalid_question_json(client: TestClient, demo_bok: Path) -
 
     assert update_response.status_code == 422
     assert "short_answer questions need a sample_solution" in str(update_response.json()["detail"])
+
+
+def test_api_stages_question_json_import(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    question_response = client.get("/api/questions/q_num_0001")
+    payload = question_response.json()
+    payload.pop("id")
+    payload["prompt"] = "Question import JSON can be staged before promotion."
+
+    stage_response = client.post(
+        "/api/question-imports/stage",
+        files={
+            "file": (
+                "questions.json",
+                json.dumps({"questions": [payload]}),
+                "application/json",
+            )
+        },
+    )
+
+    assert stage_response.status_code == 200
+    stage = stage_response.json()
+    assert stage["rows"][0]["status"] == "valid"
+    assert stage["rows"][0]["proposed_id"] == "q_num_0002"
+
+    list_response = client.get("/api/question-imports")
+    assert list_response.status_code == 200
+    assert [item["id"] for item in list_response.json()["items"]] == [stage["id"]]
+
+
+def test_api_stages_question_csv_import(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    csv_content = "\n".join(
+        [
+            "id,type,topic,difficulty,prompt,sample_solution",
+            ",short_answer,Waves,2,Define amplitude.,Amplitude is maximum displacement.",
+        ]
+    )
+
+    stage_response = client.post(
+        "/api/question-imports/stage",
+        files={
+            "file": (
+                "questions.csv",
+                csv_content,
+                "text/csv",
+            )
+        },
+    )
+
+    assert stage_response.status_code == 200
+    stage = stage_response.json()
+    assert stage["source_filename"] == "questions.csv"
+    assert stage["rows"][0]["status"] == "valid"
+    assert stage["rows"][0]["proposed_id"] == "q_sa_0002"
+
+
+def test_api_promotes_staged_question_import(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    question_response = client.get("/api/questions/q_sa_0001")
+    payload = question_response.json()
+    payload.pop("id")
+    payload["prompt"] = "API promotion writes staged rows to questions."
+
+    stage_response = client.post(
+        "/api/question-imports/stage",
+        files={
+            "file": (
+                "questions.json",
+                json.dumps([payload]),
+                "application/json",
+            )
+        },
+    )
+    assert stage_response.status_code == 200
+    stage = stage_response.json()
+
+    promote_response = client.post(
+        f"/api/question-imports/{stage['id']}/promote",
+        json={"row_ids": [stage["rows"][0]["row_id"]], "id_policy": "auto"},
+    )
+
+    assert promote_response.status_code == 200
+    promoted = promote_response.json()
+    assert promoted["promoted_question_ids"] == ["q_sa_0002"]
+    assert promoted["stage"]["rows"][0]["status"] == "promoted"
+
+    question_after_response = client.get("/api/questions/q_sa_0002")
+    assert question_after_response.status_code == 200
+    assert question_after_response.json()["prompt"] == "API promotion writes staged rows to questions."
+
+
+def test_api_updates_staged_question_import_row(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    question_response = client.get("/api/questions/q_sa_0001")
+    payload = question_response.json()
+    payload.pop("id")
+    payload["sample_solution"] = ""
+
+    stage_response = client.post(
+        "/api/question-imports/stage",
+        files={
+            "file": (
+                "invalid.json",
+                json.dumps([payload]),
+                "application/json",
+            )
+        },
+    )
+    stage = stage_response.json()
+    assert stage["rows"][0]["status"] == "invalid"
+
+    payload["sample_solution"] = "Ohm's law is V = IR."
+    update_response = client.put(
+        f"/api/question-imports/{stage['id']}/rows/{stage['rows'][0]['row_id']}",
+        json={"question": payload},
+    )
+
+    assert update_response.status_code == 200
+    updated_stage = update_response.json()
+    assert updated_stage["rows"][0]["status"] == "valid"
+    assert updated_stage["rows"][0]["selected"] is True
+    assert updated_stage["rows"][0]["issues"] == []

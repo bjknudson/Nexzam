@@ -145,6 +145,44 @@ export interface QuestionListResponseModel {
   available_types: string[];
 }
 
+export interface QuestionImportValidationIssueModel {
+  code: string;
+  message: string;
+  location: Array<string | number>;
+}
+
+export interface QuestionImportRowModel {
+  row_id: string;
+  source_index: number;
+  source: Record<string, unknown>;
+  question: Record<string, unknown>;
+  proposed_id?: string | null;
+  imported_id?: string | null;
+  promoted_question_id?: string | null;
+  status: "valid" | "invalid" | "promoted";
+  selected: boolean;
+  issues: QuestionImportValidationIssueModel[];
+}
+
+export interface QuestionImportStageModel {
+  id: string;
+  source_filename: string;
+  source_path: string;
+  created_at: string;
+  rows: QuestionImportRowModel[];
+}
+
+export interface QuestionImportListResponseModel {
+  items: QuestionImportStageModel[];
+}
+
+export interface QuestionImportPromoteResponseModel {
+  import_id: string;
+  promoted_count: number;
+  promoted_question_ids: string[];
+  stage: QuestionImportStageModel;
+}
+
 export interface DesktopContext {
   isDesktop: boolean;
   backendBaseUrl: string | null;
