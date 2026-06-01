@@ -66,14 +66,18 @@ This repo now includes a first working vertical slice for:
 - unpacking it to a managed working directory
 - browsing and filtering questions
 - editing one question in form mode or raw JSON mode
+- saving raw JSON edits explicitly, formatting JSON, reverting edits, and saving pasted JSON as a new question
+- assigning new question ids by question type and next serial number
+- previewing LaTeX/math with KaTeX without changing stored question JSON
 - attaching multiple SVG/image assets to a question
 - previewing attached SVGs with live placeholder controls
 - browsing bank-wide assets with previews and usage counts
-- saving question edits back to disk
+- saving form edits back to the unpacked working copy
 - repacking the bank into `.bok`
 - launching the backend automatically from the Tauri shell
 - using native desktop open/save dialogs for `.bok` files
 - showing working-copy vs archive-save state in the UI
+- running backend workflow tests with pytest
 
 ## Updated repo layout
 
@@ -85,14 +89,18 @@ nexzam/
 │   ├── backend/
 │   │   ├── main.py
 │   │   ├── models.py
+│   │   ├── requirements-dev.txt
 │   │   ├── requirements.txt
-│   │   └── service.py
+│   │   ├── service.py
+│   │   └── tests/
 │   └── frontend/
 │       ├── package.json
 │       ├── src/
 │       │   ├── App.tsx
+│       │   ├── MathPreview.tsx
 │       │   ├── api.ts
 │       │   ├── main.tsx
+│       │   ├── react-katex.d.ts
 │       │   ├── styles.css
 │       │   └── types.ts
 │       └── vite.config.ts
@@ -151,12 +159,13 @@ python3 -m uvicorn app.backend.main:app --reload
 API endpoints included in this slice:
 
 - `GET /health`
+- `GET /api/health`
 - `POST /api/banks/open`
 - `POST /api/banks/open-demo`
 - `GET /api/banks/current`
 - `POST /api/banks/save`
 - `GET /api/questions`
-- `GET /api/questions/next-id`
+- `GET /api/questions/next-id?type={question_type}`
 - `POST /api/questions`
 - `POST /api/questions/from-json`
 - `GET /api/questions/{question_id}`
@@ -194,9 +203,11 @@ cargo test wait_for_healthcheck
 
 ## Milestone status
 
-- `Milestone 2` mostly complete: desktop backend supervision, native `.bok` open/save, and working-copy vs archive status are in place.
-- `Milestone 3` mostly complete: create, duplicate, and delete question are implemented. Bank metadata editing is still pending.
-- `Milestone 4` in progress: question asset attach, SVG preview, live variable controls, and bank-wide asset browsing are implemented. Dedicated bank asset maintenance and SVG editing are the next layer.
+- `Phase 2` complete for the current browser/editor scope.
+- `Milestone 2` complete: desktop-native open/edit/save `.bok` flow is in place.
+- `Milestone 3` complete for authoring basics: form editing, raw JSON editing, explicit question saves, Save as New, Revert, JSON formatting, type-based new ids, and backend workflow tests are in place.
+- `Milestone 4` complete for asset management basics: question asset attach/copy, SVG/image preview, live SVG variable controls, bank-wide asset browsing, usage visibility, and SVG token replacement preview are implemented.
+- Next planning track: JSON/CSV question import staging, print-prep test drafts, then later native SVG authoring.
 
 ## Frontend setup
 
@@ -288,14 +299,15 @@ What the desktop shell now does:
 2. Launch either the browser dev flow or the Tauri shell.
 3. Click `Open Bank` to choose a `.bok`, or `Open Demo Bank`.
 4. Select a question and edit it in form mode or raw JSON mode.
-5. Question edits autosave to the unpacked working copy.
-6. Click `Save Bank` to write the `.bok` archive, or `Save As` to write a new archive path.
+5. Form edits autosave to the unpacked working copy.
+6. Raw JSON edits use explicit `Save`, `Save as New`, `Revert`, and `Format JSON` actions.
+7. Click `Save Bank` to write the `.bok` archive, or `Save As` to write a new archive path.
 
 ## Save model
 
 Nexzam now distinguishes two save layers:
 
-- `Working copy`: unpacked files in the managed workspace. Question edits autosave here.
+- `Working copy`: unpacked files in the managed workspace. Form edits autosave here; raw JSON edits save here only when explicitly requested.
 - `Archive`: the `.bok` zip file on disk. `Save Bank` writes this layer.
 
 The top bar shows:
@@ -309,7 +321,10 @@ The top bar shows:
 
 Verified locally in this repo:
 
-- `python3 -m compileall app/backend`
+- `python3 -m pytest`
+- `python3 -m compileall app/backend/main.py app/backend/models.py app/backend/service.py`
+- `npx tsc -p tsconfig.json --noEmit` in `app/frontend`
+- `npm run build` in `app/frontend`
 - `cargo check` in `src-tauri`
 - `cargo test wait_for_healthcheck` in `src-tauri`
 
