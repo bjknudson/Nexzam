@@ -60,6 +60,7 @@
 ## Phase 4 — Print Prep
 
 - Test draft model.
+- Question type instruction defaults for test building, e.g. `multiple_choice`: "Select the best answer." and multiple-correct choice variants: "Select the two choices." Prepared tests should expose these instructions for each section.
 - Manual question selection.
 - HTML-to-PDF output.
 

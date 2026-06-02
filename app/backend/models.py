@@ -114,6 +114,7 @@ class QuestionImportValidationIssueModel(BaseModel):
     code: str
     message: str
     location: list[str | int] = Field(default_factory=list)
+    severity: Literal["error", "warning"] = "error"
 
 
 class QuestionImportRowModel(BaseModel):
@@ -244,8 +245,27 @@ class QuestionModel(BaseModel):
             choices = answer.get("choices")
             if not isinstance(choices, list) or len(choices) < 2:
                 raise ValueError("multiple_choice questions need at least two choices")
-            if not isinstance(answer.get("correct_choice_index"), int):
-                raise ValueError("multiple_choice questions need a correct_choice_index")
+            correct_indices = answer.get("correct_choice_indices")
+            correct_index = answer.get("correct_choice_index")
+            if correct_indices is not None:
+                if (
+                    not isinstance(correct_indices, list)
+                    or len(correct_indices) < 2
+                    or not all(type(index) is int for index in correct_indices)
+                ):
+                    raise ValueError(
+                        "multiple_choice correct_choice_indices must contain at least two indices"
+                    )
+                if len(set(correct_indices)) != len(correct_indices):
+                    raise ValueError("multiple_choice correct_choice_indices must be unique")
+                if any(index < 0 or index >= len(choices) for index in correct_indices):
+                    raise ValueError("multiple_choice correct_choice_indices must reference choices")
+            elif type(correct_index) is not int:
+                raise ValueError(
+                    "multiple_choice questions need a correct_choice_index or correct_choice_indices"
+                )
+            elif correct_index < 0 or correct_index >= len(choices):
+                raise ValueError("multiple_choice correct_choice_index must reference a choice")
         elif self.type == "numeric_response":
             answer = self.answer or {}
             if "value" not in answer:

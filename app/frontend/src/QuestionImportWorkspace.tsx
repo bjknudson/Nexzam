@@ -10,6 +10,64 @@ import type { QuestionImportRowModel, QuestionImportStageModel } from "./types";
 
 type RowFilter = "all" | "valid" | "invalid" | "selected" | "promoted";
 
+const QUESTION_IMPORT_JSON_TEMPLATE = JSON.stringify(
+  [
+    {
+      id: "q_mc_example_001",
+      type: "multiple_choice",
+      topic: "Algebra",
+      difficulty: 1,
+      prompt: "Which expression is equivalent to $2(x + 3)$?",
+      subtopic: "Distributive property",
+      tags: ["algebra", "expressions"],
+      standards: [{ standard_id: "STANDARD-ID-1" }],
+      estimated_time_sec: 45,
+      points: 1,
+      status: "draft",
+      teacher_notes: "Replace the example standard id or remove standards if not needed.",
+      answer: {
+        choices: ["2x + 3", "2x + 6", "x + 6", "2x - 6"],
+        correct_choice_index: 1,
+      },
+      explanation: "Distribute 2 to both terms inside the parentheses.",
+      rubric: [],
+      sample_solution: null,
+      exemplar_answer: null,
+      assets: [],
+    },
+    {
+      id: "q_ms_example_001",
+      type: "multiple_choice",
+      topic: "Algebra",
+      difficulty: 2,
+      prompt: "Which two expressions are equivalent to $x + x + 4$?",
+      tags: ["algebra", "equivalent expressions"],
+      standards: [],
+      estimated_time_sec: 60,
+      points: 1,
+      status: "draft",
+      teacher_notes: null,
+      answer: {
+        choices: ["2x + 4", "x + 4", "4 + 2x", "2x"],
+        correct_choice_indices: [0, 2],
+      },
+      explanation: "Combining like terms gives $2x + 4$, and addition is commutative.",
+      rubric: [],
+      sample_solution: null,
+      exemplar_answer: null,
+      assets: [],
+    },
+  ],
+  null,
+  2,
+);
+
+const QUESTION_IMPORT_CSV_TEMPLATE = [
+  "id,type,topic,difficulty,prompt,tags,standards,estimated_time_sec,points,status,teacher_notes,explanation,sample_solution,answer_json,rubric_json,assets_json",
+  'q_mc_example_001,multiple_choice,Algebra,1,"Which expression is equivalent to $2(x + 3)$?","algebra;expressions",STANDARD-ID-1,45,1,draft,"Replace or remove the example standard id.","Distribute 2 to both terms.",,"{""choices"":[""2x + 3"",""2x + 6"",""x + 6"",""2x - 6""],""correct_choice_index"":1}",[],[]',
+  'q_num_example_001,numeric_response,Geometry,1,"What is the area of a rectangle with width 3 and height 4?",area,,45,1,draft,,,"12 square units","{""value"":12,""unit"":""square units"",""tolerance"":0}",[],[]',
+].join("\n");
+
 interface QuestionImportWorkspaceProps {
   open: boolean;
   hasBank: boolean;
@@ -36,6 +94,18 @@ function getRowLabel(row: QuestionImportRowModel) {
     row.proposed_id ?? row.imported_id ?? "no id",
     row.status,
   ].join(" ");
+}
+
+function downloadTemplateFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export default function QuestionImportWorkspace({
@@ -277,6 +347,32 @@ export default function QuestionImportWorkspace({
             onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
           />
         </label>
+        <div className="question-import-template-actions">
+          <button
+            type="button"
+            onClick={() =>
+              downloadTemplateFile(
+                "nexzam-question-import-template.json",
+                `${QUESTION_IMPORT_JSON_TEMPLATE}\n`,
+                "application/json",
+              )
+            }
+          >
+            Download JSON Template
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              downloadTemplateFile(
+                "nexzam-question-import-template.csv",
+                `${QUESTION_IMPORT_CSV_TEMPLATE}\n`,
+                "text/csv",
+              )
+            }
+          >
+            Download CSV Template
+          </button>
+        </div>
         <button type="button" onClick={() => void handleStageImport()} disabled={busy || !hasBank}>
           {busy ? "Working..." : "Stage Import"}
         </button>
@@ -410,8 +506,13 @@ export default function QuestionImportWorkspace({
                 {selectedRow.issues.length > 0 ? (
                   <div className="question-import-issues">
                     {selectedRow.issues.map((issue, index) => (
-                      <div key={`${issue.code}-${index}`}>
-                        <strong>{issue.code}</strong>
+                      <div
+                        key={`${issue.code}-${index}`}
+                        className={issue.severity === "warning" ? "warning" : ""}
+                      >
+                        <strong>
+                          {issue.severity === "warning" ? "warning" : "error"}: {issue.code}
+                        </strong>
                         <span>{issue.message}</span>
                       </div>
                     ))}

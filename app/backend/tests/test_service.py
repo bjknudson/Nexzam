@@ -190,8 +190,56 @@ def test_stage_question_import_reports_duplicate_existing_ids(
         content=json.dumps(source).encode("utf-8"),
     )
 
-    assert stage.rows[0].status == "invalid"
-    assert any(issue.code == "duplicate_existing_id" for issue in stage.rows[0].issues)
+    assert stage.rows[0].status == "valid"
+    assert stage.rows[0].selected is True
+    assert any(
+        issue.code == "duplicate_existing_id" and issue.severity == "warning"
+        for issue in stage.rows[0].issues
+    )
+
+
+def test_stage_question_import_warns_for_unknown_standard_without_blocking_auto_id(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    source = bank_service.get_question("q_mc_0001").model_dump()
+    source["id"] = "external_mc_001"
+    source["standards"] = [{"standard_id": "EXTERNAL-STANDARD-001"}]
+
+    stage = bank_service.stage_question_import(
+        filename="external-standard.json",
+        content=json.dumps(source).encode("utf-8"),
+    )
+
+    row = stage.rows[0]
+    assert row.status == "valid"
+    assert row.selected is True
+    assert any(
+        issue.code == "unknown_standard" and issue.severity == "warning"
+        for issue in row.issues
+    )
+
+
+def test_stage_question_import_accepts_multiple_correct_choice_indices(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    source = bank_service.get_question("q_mc_0001").model_dump()
+    source.pop("id")
+    source["answer"] = {
+        "choices": ["2x + 4", "x + 4", "4 + 2x", "2x"],
+        "correct_choice_indices": [0, 2],
+    }
+
+    stage = bank_service.stage_question_import(
+        filename="multi-correct.json",
+        content=json.dumps(source).encode("utf-8"),
+    )
+
+    assert stage.rows[0].status == "valid"
+    assert stage.rows[0].issues == []
 
 
 def test_stage_question_import_accepts_csv_rows(
@@ -321,6 +369,38 @@ def test_promote_question_import_rows_can_keep_unique_imported_ids(
 
     assert response.promoted_question_ids == ["custom_short_answer_001"]
     assert bank_service.get_question("custom_short_answer_001").prompt == "Promoted with imported id."
+
+
+def test_promote_question_import_rows_rejects_duplicate_keep_imported_ids_before_writing(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    first = bank_service.get_question("q_sa_0001").model_dump()
+    second = bank_service.get_question("q_sa_0001").model_dump()
+    first["id"] = "duplicate_imported_short_answer"
+    second["id"] = "duplicate_imported_short_answer"
+    first["prompt"] = "First duplicate imported id."
+    second["prompt"] = "Second duplicate imported id."
+
+    stage = bank_service.stage_question_import(
+        filename="duplicate-imported-ids.json",
+        content=json.dumps([first, second]).encode("utf-8"),
+    )
+
+    assert [row.status for row in stage.rows] == ["valid", "valid"]
+    assert all(
+        any(issue.code == "duplicate_import_id" and issue.severity == "warning" for issue in row.issues)
+        for row in stage.rows
+    )
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.promote_question_import_rows(stage.id, id_policy="keep_imported")
+
+    assert exc_info.value.status_code == 422
+    assert "Imported ids must be unique" in exc_info.value.message
+    with pytest.raises(BankWorkspaceError):
+        bank_service.get_question("duplicate_imported_short_answer")
 
 
 def test_promote_question_import_rows_rejects_invalid_rows(

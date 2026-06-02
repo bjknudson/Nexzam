@@ -149,6 +149,7 @@ export interface QuestionImportValidationIssueModel {
   code: string;
   message: string;
   location: Array<string | number>;
+  severity?: "error" | "warning";
 }
 
 export interface QuestionImportRowModel {

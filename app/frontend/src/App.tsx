@@ -141,8 +141,57 @@ const QUESTION_TYPES: QuestionType[] = [
   "free_response",
 ];
 
+type MultipleChoiceAnswer = {
+  choices?: string[];
+  correct_choice_index?: number;
+  correct_choice_indices?: number[];
+} & Record<string, unknown>;
+
 function isQuestionType(value: unknown): value is QuestionType {
   return typeof value === "string" && QUESTION_TYPES.includes(value as QuestionType);
+}
+
+function getCorrectChoiceIndices(answer: MultipleChoiceAnswer, choiceCount: number) {
+  const indices = Array.isArray(answer.correct_choice_indices)
+    ? answer.correct_choice_indices
+    : typeof answer.correct_choice_index === "number"
+      ? [answer.correct_choice_index]
+      : [];
+
+  return Array.from(
+    new Set(
+      indices.filter((index) => Number.isInteger(index) && index >= 0 && index < choiceCount),
+    ),
+  ).sort((left, right) => left - right);
+}
+
+function buildMultipleChoiceAnswer(
+  answer: MultipleChoiceAnswer,
+  choices: string[],
+  correctChoiceIndices: number[],
+) {
+  const nextAnswer: MultipleChoiceAnswer = {
+    ...answer,
+    choices,
+  };
+  const normalizedIndices = Array.from(
+    new Set(
+      correctChoiceIndices.filter(
+        (index) => Number.isInteger(index) && index >= 0 && index < choices.length,
+      ),
+    ),
+  ).sort((left, right) => left - right);
+
+  delete nextAnswer.correct_choice_index;
+  delete nextAnswer.correct_choice_indices;
+
+  if (normalizedIndices.length === 1) {
+    nextAnswer.correct_choice_index = normalizedIndices[0];
+  } else {
+    nextAnswer.correct_choice_indices = normalizedIndices;
+  }
+
+  return nextAnswer;
 }
 
 function normalizeQuestionForView(payload: Record<string, unknown>): QuestionModel {
@@ -1389,56 +1438,52 @@ function App() {
   }
 
   function updateMultipleChoiceChoice(index: number, value: string) {
-    const answer = (draftQuestionRef.current?.answer as {
-      choices?: string[];
-      correct_choice_index?: number;
-    }) ?? { choices: ["", ""], correct_choice_index: 0 };
+    const answer =
+      (draftQuestionRef.current?.answer as MultipleChoiceAnswer | null) ??
+      { choices: ["", ""], correct_choice_index: 0 };
     const choices = [...(answer.choices ?? ["", ""])];
     choices[index] = value;
-    updateDraft("answer", {
-      ...answer,
-      choices,
-      correct_choice_index: answer.correct_choice_index ?? 0,
-    });
+    updateDraft("answer", buildMultipleChoiceAnswer(answer, choices, getCorrectChoiceIndices(answer, choices.length)));
   }
 
   function addMultipleChoiceChoice() {
-    const answer = (draftQuestionRef.current?.answer as {
-      choices?: string[];
-      correct_choice_index?: number;
-    }) ?? { choices: ["", ""], correct_choice_index: 0 };
+    const answer =
+      (draftQuestionRef.current?.answer as MultipleChoiceAnswer | null) ??
+      { choices: ["", ""], correct_choice_index: 0 };
     const choices = [...(answer.choices ?? ["", ""]), ""];
-    updateDraft("answer", {
-      ...answer,
-      choices,
-      correct_choice_index: answer.correct_choice_index ?? 0,
-    });
+    updateDraft("answer", buildMultipleChoiceAnswer(answer, choices, getCorrectChoiceIndices(answer, choices.length)));
   }
 
   function removeMultipleChoiceChoice(index: number) {
-    const answer = (draftQuestionRef.current?.answer as {
-      choices?: string[];
-      correct_choice_index?: number;
-    }) ?? { choices: ["", ""], correct_choice_index: 0 };
+    const answer =
+      (draftQuestionRef.current?.answer as MultipleChoiceAnswer | null) ??
+      { choices: ["", ""], correct_choice_index: 0 };
     const existingChoices = [...(answer.choices ?? ["", ""])];
     if (existingChoices.length <= 2) {
       return;
     }
 
     const choices = existingChoices.filter((_, choiceIndex) => choiceIndex !== index);
-    const currentCorrectIndex = answer.correct_choice_index ?? 0;
-    const nextCorrectIndex =
-      currentCorrectIndex === index
-        ? Math.max(0, Math.min(index, choices.length - 1))
-        : currentCorrectIndex > index
-          ? currentCorrectIndex - 1
-          : currentCorrectIndex;
+    let nextCorrectIndices = getCorrectChoiceIndices(answer, existingChoices.length)
+      .filter((choiceIndex) => choiceIndex !== index)
+      .map((choiceIndex) => (choiceIndex > index ? choiceIndex - 1 : choiceIndex));
+    if (nextCorrectIndices.length === 0 && choices.length > 0) {
+      nextCorrectIndices = [Math.max(0, Math.min(index, choices.length - 1))];
+    }
 
-    updateDraft("answer", {
-      ...answer,
-      choices,
-      correct_choice_index: nextCorrectIndex,
-    });
+    updateDraft("answer", buildMultipleChoiceAnswer(answer, choices, nextCorrectIndices));
+  }
+
+  function updateMultipleChoiceCorrectChoice(index: number, checked: boolean) {
+    const answer =
+      (draftQuestionRef.current?.answer as MultipleChoiceAnswer | null) ??
+      { choices: ["", ""], correct_choice_index: 0 };
+    const choices = [...(answer.choices ?? ["", ""])];
+    const currentCorrectIndices = getCorrectChoiceIndices(answer, choices.length);
+    const nextCorrectIndices = checked
+      ? [...currentCorrectIndices, index]
+      : currentCorrectIndices.filter((choiceIndex) => choiceIndex !== index);
+    updateDraft("answer", buildMultipleChoiceAnswer(answer, choices, nextCorrectIndices));
   }
 
   function updateNumericAnswer(field: "value" | "unit" | "tolerance", value: string) {
@@ -2467,63 +2512,69 @@ function App() {
 
                   {draftQuestion.type === "multiple_choice" ? (
                     <section className="question-specific">
-                      <div className="question-section-header">
-                        <h2>Multiple Choice</h2>
-                        <button type="button" onClick={() => addMultipleChoiceChoice()}>
-                          Add Choice
-                        </button>
-                      </div>
-                      {(((draftQuestion.answer as { choices?: string[] })?.choices ?? ["", ""]) as string[]).map(
-                        (choice, index) => (
-                          <div key={index} className="choice-row">
-                            <MathPreviewField
-                              label={`Choice ${index + 1}`}
-                              value={choice}
-                              previewEnabled={mathPreviewEnabled}
-                              preferWholeExpression
-                              className="choice-math-field"
-                            >
-                              <input
-                                value={choice}
-                                onChange={(event) =>
-                                  updateMultipleChoiceChoice(index, event.target.value)
-                                }
-                              />
-                            </MathPreviewField>
-                            <button
-                              type="button"
-                              onClick={() => removeMultipleChoiceChoice(index)}
-                              disabled={
-                                (((draftQuestion.answer as { choices?: string[] })?.choices ?? ["", ""]) as string[])
-                                  .length <= 2
-                              }
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ),
-                      )}
-                      <label>
-                        Correct Choice Index
-                        <input
-                          type="number"
-                          min={0}
-                          value={
-                            ((draftQuestion.answer as { correct_choice_index?: number })
-                              ?.correct_choice_index ?? 0)
-                          }
-                          onChange={(event) =>
-                            updateDraft("answer", {
-                              ...(draftQuestion.answer as Record<string, unknown>),
-                              correct_choice_index: Number(event.target.value),
-                            })
-                          }
-                        />
-                      </label>
+                      {(() => {
+                        const answer =
+                          (draftQuestion.answer as MultipleChoiceAnswer | null) ??
+                          { choices: ["", ""], correct_choice_index: 0 };
+                        const choices = answer.choices ?? ["", ""];
+                        const correctChoiceIndices = getCorrectChoiceIndices(answer, choices.length);
+
+                        return (
+                          <>
+                            <div className="question-section-header">
+                              <div>
+                                <h2>Multiple Choice</h2>
+                                <span className="status-pill">
+                                  {correctChoiceIndices.length} correct
+                                </span>
+                              </div>
+                              <button type="button" onClick={() => addMultipleChoiceChoice()}>
+                                Add Choice
+                              </button>
+                            </div>
+                            {choices.map((choice, index) => (
+                              <div key={index} className="choice-row">
+                                <label className="choice-correct-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={correctChoiceIndices.includes(index)}
+                                    onChange={(event) =>
+                                      updateMultipleChoiceCorrectChoice(index, event.target.checked)
+                                    }
+                                  />
+                                  <span>Correct</span>
+                                </label>
+                                <MathPreviewField
+                                  label={`Choice ${index + 1}`}
+                                  value={choice}
+                                  previewEnabled={mathPreviewEnabled}
+                                  preferWholeExpression
+                                  className="choice-math-field"
+                                >
+                                  <input
+                                    value={choice}
+                                    onChange={(event) =>
+                                      updateMultipleChoiceChoice(index, event.target.value)
+                                    }
+                                  />
+                                </MathPreviewField>
+                                <button
+                                  type="button"
+                                  onClick={() => removeMultipleChoiceChoice(index)}
+                                  disabled={choices.length <= 2}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </>
+                        );
+                      })()}
                       <MathPreviewField
                         label="Explanation"
                         value={draftQuestion.explanation ?? ""}
                         previewEnabled={mathPreviewEnabled}
+                        className="longform-math-field"
                       >
                         <textarea
                           value={draftQuestion.explanation ?? ""}
@@ -2571,6 +2622,7 @@ function App() {
                         label="Explanation"
                         value={draftQuestion.explanation ?? ""}
                         previewEnabled={mathPreviewEnabled}
+                        className="longform-math-field"
                       >
                         <textarea
                           value={draftQuestion.explanation ?? ""}

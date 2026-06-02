@@ -15,6 +15,7 @@ interface MathPreviewFieldProps {
   children: ReactNode;
   className?: string;
   preferWholeExpression?: boolean;
+  showPreviewLabel?: boolean;
 }
 
 interface MathPreviewSection {
@@ -71,7 +72,7 @@ export function MathTextPreview({
     const renderError = () => <span className="math-render-error">{text || "Invalid math"}</span>;
     return (
       <div className={["math-text-preview", className].filter(Boolean).join(" ")}>
-        <InlineMath math={text.trim()} renderError={renderError} />
+        <InlineMath math={prepareMathForKatex(text.trim())} renderError={renderError} />
       </div>
     );
   }
@@ -90,9 +91,9 @@ export function MathTextPreview({
         );
 
         return token.kind === "block" ? (
-          <BlockMath key={index} math={token.value} renderError={renderError} />
+          <BlockMath key={index} math={prepareMathForKatex(token.value)} renderError={renderError} />
         ) : (
-          <InlineMath key={index} math={token.value} renderError={renderError} />
+          <InlineMath key={index} math={prepareMathForKatex(token.value)} renderError={renderError} />
         );
       })}
     </div>
@@ -106,8 +107,10 @@ export function MathPreviewField({
   children,
   className,
   preferWholeExpression = false,
+  showPreviewLabel,
 }: MathPreviewFieldProps) {
   const showPreview = previewEnabled && hasMathMarkup(value);
+  const shouldShowPreviewLabel = showPreviewLabel ?? label === "Prompt";
 
   return (
     <div
@@ -125,7 +128,7 @@ export function MathPreviewField({
       </label>
       {showPreview ? (
         <aside className="math-preview-panel">
-          <span className="math-preview-label">Preview</span>
+          {shouldShowPreviewLabel ? <span className="math-preview-label">Preview</span> : null}
           <MathTextPreview text={value} preferWholeExpression={preferWholeExpression} />
         </aside>
       ) : null}
@@ -268,6 +271,12 @@ function isLikelyWholeMathExpression(text: string): boolean {
   ) ?? [];
 
   return proseWords.length <= latexWords.length + 2;
+}
+
+function prepareMathForKatex(math: string): string {
+  return math.replace(/(^|[^\\])([#%&$])/g, (_match, prefix: string, character: string) => {
+    return `${prefix}\\${character}`;
+  });
 }
 
 function findDelimitedMath(

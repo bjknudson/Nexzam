@@ -424,6 +424,9 @@ class BankWorkspaceService:
                     status_code=422,
                 )
 
+        if id_policy == "keep_imported":
+            self._validate_keep_imported_question_ids(rows_to_promote)
+
         promoted_question_ids: list[str] = []
         questions_dir = workspace_path / "questions"
         for row in rows_to_promote:
@@ -454,6 +457,41 @@ class BankWorkspaceService:
             promoted_question_ids=promoted_question_ids,
             stage=stage,
         )
+
+    def _validate_keep_imported_question_ids(self, rows: list[QuestionImportRowModel]) -> None:
+        existing_question_ids = {question.id for question in self._load_questions()}
+        imported_ids: dict[str, list[str]] = {}
+        missing_row_ids: list[str] = []
+
+        for row in rows:
+            if not row.imported_id:
+                missing_row_ids.append(row.row_id)
+                continue
+            imported_ids.setdefault(row.imported_id, []).append(row.row_id)
+
+        if missing_row_ids:
+            raise BankWorkspaceError(
+                f"Keep Imported IDs requires imported ids for: {', '.join(missing_row_ids)}",
+                status_code=422,
+            )
+
+        existing_conflicts = sorted(
+            imported_id for imported_id in imported_ids if imported_id in existing_question_ids
+        )
+        if existing_conflicts:
+            raise BankWorkspaceError(
+                f"Imported ids already exist in this bank: {', '.join(existing_conflicts)}",
+                status_code=409,
+            )
+
+        duplicate_imported_ids = sorted(
+            imported_id for imported_id, row_ids in imported_ids.items() if len(row_ids) > 1
+        )
+        if duplicate_imported_ids:
+            raise BankWorkspaceError(
+                f"Imported ids must be unique to keep them: {', '.join(duplicate_imported_ids)}",
+                status_code=422,
+            )
 
     def attach_standard_to_course(self, course_id: str, standard_id: str) -> CourseModel:
         course = self._require_course(course_id)
@@ -1177,6 +1215,7 @@ class BankWorkspaceService:
                         code="duplicate_existing_id",
                         message=f"Imported id {imported_id} already exists in this bank.",
                         location=["id"],
+                        severity="warning",
                     )
                 )
             if imported_id and imported_id_counts.get(imported_id, 0) > 1:
@@ -1185,10 +1224,11 @@ class BankWorkspaceService:
                         code="duplicate_import_id",
                         message=f"Imported id {imported_id} appears more than once in this import.",
                         location=["id"],
+                        severity="warning",
                     )
                 )
 
-            status = "invalid" if issues else "valid"
+            status = "invalid" if self._has_error_issues(issues) else "valid"
             rows.append(
                 QuestionImportRowModel(
                     row_id=row_id,
@@ -1243,10 +1283,15 @@ class BankWorkspaceService:
                         code="unknown_standard",
                         message=f"Unknown standard reference: {reference.standard_id}",
                         location=["standards", index, "standard_id"],
+                        severity="warning",
                     )
                 )
 
         return issues
+
+    @staticmethod
+    def _has_error_issues(issues: list[QuestionImportValidationIssueModel]) -> bool:
+        return any(issue.severity == "error" for issue in issues)
 
     def _refresh_staged_row_validation(
         self,
@@ -1285,6 +1330,7 @@ class BankWorkspaceService:
                     code="duplicate_existing_id",
                     message=f"Imported id {row.imported_id} already exists in this bank.",
                     location=["id"],
+                    severity="warning",
                 )
             )
 
@@ -1301,11 +1347,12 @@ class BankWorkspaceService:
                     code="duplicate_import_id",
                     message=f"Imported id {row.imported_id} appears more than once in this import.",
                     location=["id"],
+                    severity="warning",
                 )
             )
 
         row.issues = issues
-        row.status = "invalid" if issues else "valid"
+        row.status = "invalid" if self._has_error_issues(issues) else "valid"
         row.selected = selected if selected is not None else row.status == "valid"
 
     def _resolve_promoted_question_id(self, row: QuestionImportRowModel, id_policy: str) -> str:
