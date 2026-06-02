@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   listQuestionImports,
+  promoteQuestionImport,
   stageQuestionImport,
   updateQuestionImportRow,
 } from "./api";
@@ -13,7 +14,7 @@ interface QuestionImportWorkspaceProps {
   open: boolean;
   hasBank: boolean;
   onClose: () => void;
-  onWorkspaceChanged: (message: string) => void;
+  onWorkspaceChanged: (message: string, promotedQuestionIds?: string[]) => void;
 }
 
 function countRows(stage: QuestionImportStageModel, status: "valid" | "invalid" | "promoted") {
@@ -54,10 +55,14 @@ export default function QuestionImportWorkspace({
   const [rowSearch, setRowSearch] = useState("");
   const [rowJson, setRowJson] = useState("");
   const [rowJsonError, setRowJsonError] = useState("");
+  const [idPolicy, setIdPolicy] = useState<"auto" | "keep_imported">("auto");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedImport = imports.find((item) => item.id === selectedImportId) ?? imports[0] ?? null;
   const selectedRow = selectedImport?.rows.find((row) => row.row_id === selectedRowId) ?? null;
+  const selectedValidRows = (selectedImport?.rows ?? []).filter(
+    (row) => row.status === "valid" && row.selected,
+  );
   const filteredRows = (selectedImport?.rows ?? []).filter((row) => {
     if (rowFilter === "valid" && row.status !== "valid") return false;
     if (rowFilter === "invalid" && row.status !== "invalid") return false;
@@ -186,6 +191,57 @@ export default function QuestionImportWorkspace({
     }
   }
 
+  async function handleToggleRowSelected(row: QuestionImportRowModel) {
+    if (!selectedImport || row.status === "promoted") return;
+
+    setBusy(true);
+    try {
+      const updatedStage = await updateQuestionImportRow({
+        importId: selectedImport.id,
+        rowId: row.row_id,
+        question: row.question,
+        selected: !row.selected,
+      });
+      setImports((current) =>
+        current.map((stage) => (stage.id === updatedStage.id ? updatedStage : stage)),
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePromoteSelectedRows() {
+    if (!selectedImport) return;
+    if (selectedValidRows.length === 0) {
+      setErrorMessage("Select at least one valid staged row to promote.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await promoteQuestionImport({
+        importId: selectedImport.id,
+        row_ids: selectedValidRows.map((row) => row.row_id),
+        id_policy: idPolicy,
+      });
+      setImports((current) =>
+        current.map((stage) => (stage.id === response.stage.id ? response.stage : stage)),
+      );
+      setSelectedRowId(response.stage.rows.find((row) => row.status === "valid")?.row_id ?? null);
+      const message = `Promoted ${response.promoted_count} questions from ${response.stage.source_filename}.`;
+      setStatusMessage(message);
+      setErrorMessage("");
+      onWorkspaceChanged(message, response.promoted_question_ids);
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -274,6 +330,15 @@ export default function QuestionImportWorkspace({
               </div>
               <div className="question-import-filter-row">
                 <select
+                  value={idPolicy}
+                  onChange={(event) =>
+                    setIdPolicy(event.target.value as "auto" | "keep_imported")
+                  }
+                >
+                  <option value="auto">Auto IDs</option>
+                  <option value="keep_imported">Keep Imported IDs</option>
+                </select>
+                <select
                   value={rowFilter}
                   onChange={(event) => setRowFilter(event.target.value as RowFilter)}
                 >
@@ -288,25 +353,39 @@ export default function QuestionImportWorkspace({
                   onChange={(event) => setRowSearch(event.target.value)}
                   placeholder="Search staged rows"
                 />
+                <button
+                  type="button"
+                  onClick={() => void handlePromoteSelectedRows()}
+                  disabled={busy || selectedValidRows.length === 0}
+                >
+                  Promote Selected
+                </button>
               </div>
             </div>
 
             <div className="question-import-row-list">
               {filteredRows.map((row) => (
-                <button
+                <div
                   key={row.row_id}
-                  type="button"
                   className={`question-import-row ${row.status} ${
                     selectedRowId === row.row_id ? "selected" : ""
                   }`}
-                  onClick={() => setSelectedRowId(row.row_id)}
                 >
-                  <span>{row.row_id}</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleToggleRowSelected(row)}
+                    disabled={busy || row.status !== "valid"}
+                  >
+                    {row.selected ? "Selected" : "Select"}
+                  </button>
+                  <button type="button" onClick={() => setSelectedRowId(row.row_id)}>
+                    {row.row_id}
+                  </button>
                   <span>{String(row.question.type ?? "unknown")}</span>
                   <span>{String(row.question.topic ?? "missing topic")}</span>
                   <span>{row.proposed_id ?? row.imported_id ?? "no id"}</span>
-                  <span>{row.selected ? "selected" : row.status}</span>
-                </button>
+                  <span>{row.status}</span>
+                </div>
               ))}
             </div>
           </section>

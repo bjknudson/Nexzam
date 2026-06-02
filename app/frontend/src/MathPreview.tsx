@@ -14,22 +14,27 @@ interface MathPreviewFieldProps {
   previewEnabled: boolean;
   children: ReactNode;
   className?: string;
+  preferWholeExpression?: boolean;
 }
 
 interface MathPreviewSection {
   label: string;
   text: string;
+  preferWholeExpression?: boolean;
 }
 
 const COMMAND_PATTERN =
-  /\\(?:frac|sqrt|sum|int|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|leq|geq|neq|sin|cos|tan)\b/;
+  /\\(?:frac|sqrt|sum|int|lim|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|div|pm|leq|geq|neq|approx|implies|sin|cos|tan|left|right)\b/;
 const NOTATION_PATTERN = /(^|[\s([{=+\-*/])(?:[A-Za-z]\w*)\s*(?:\^\{?[-+]?\w+\}?|_\{?[-+]?\w+\}?)/;
 const CURRENCY_PATTERN = /^\s*\$?\d+(?:\.\d{1,2})?\s*$/;
 const BARE_MATH_PATTERN =
-  /\\(?:frac|sqrt)(?:\{[^{}]*\}){1,2}[A-Za-z0-9_^{}+\-*/=().\\]*|\\(?:sum|int|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|leq|geq|neq|sin|cos|tan)\b[A-Za-z0-9_^{}+\-*/=().\\]*|[A-Za-z]\w*\s*(?:\^\{?[-+]?\w+\}?|_\{?[-+]?\w+\}?)/g;
+  /\\(?:frac|sqrt)(?:\{[^{}]*\}){1,2}[A-Za-z0-9_^{}+\-*/=().\\]*|\\(?:sum|int|lim|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|div|pm|leq|geq|neq|approx|implies|sin|cos|tan|left|right)\b[A-Za-z0-9_^{}+\-*/=().\\]*|[A-Za-z]\w*\s*(?:\^\{?[-+]?\w+\}?|_\{?[-+]?\w+\}?)/g;
+const JSON_LATEX_ESCAPE_PATTERN =
+  /(^|[^\\])\\(frac|sqrt|sum|int|lim|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|div|pm|leq|geq|neq|approx|implies|sin|cos|tan|left|right|\(|\)|\[|\])/g;
 
-export function hasMathMarkup(text: string | null | undefined): boolean {
-  const value = text ?? "";
+export function hasMathMarkup(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const value = text;
   if (!value.trim()) return false;
 
   if (findDelimitedMath(value, 0)) return true;
@@ -37,7 +42,40 @@ export function hasMathMarkup(text: string | null | undefined): boolean {
   return NOTATION_PATTERN.test(value);
 }
 
-export function MathTextPreview({ text, className }: { text: string; className?: string }) {
+export function looksLikeUnescapedLatexInJson(rawText: string): boolean {
+  JSON_LATEX_ESCAPE_PATTERN.lastIndex = 0;
+  return JSON_LATEX_ESCAPE_PATTERN.test(rawText);
+}
+
+export function escapeLikelyLatexBackslashesInJson(rawText: string): string {
+  JSON_LATEX_ESCAPE_PATTERN.lastIndex = 0;
+  return rawText.replace(JSON_LATEX_ESCAPE_PATTERN, (_match, prefix: string, command: string) => {
+    return `${prefix}\\\\${command}`;
+  });
+}
+
+export function MathTextPreview({
+  text,
+  className,
+  preferWholeExpression = false,
+}: {
+  text: string;
+  className?: string;
+  preferWholeExpression?: boolean;
+}) {
+  if (
+    preferWholeExpression &&
+    !findDelimitedMath(text, 0) &&
+    isLikelyWholeMathExpression(text)
+  ) {
+    const renderError = () => <span className="math-render-error">{text || "Invalid math"}</span>;
+    return (
+      <div className={["math-text-preview", className].filter(Boolean).join(" ")}>
+        <InlineMath math={text.trim()} renderError={renderError} />
+      </div>
+    );
+  }
+
   const tokens = tokenizeMathText(text);
 
   return (
@@ -67,6 +105,7 @@ export function MathPreviewField({
   previewEnabled,
   children,
   className,
+  preferWholeExpression = false,
 }: MathPreviewFieldProps) {
   const showPreview = previewEnabled && hasMathMarkup(value);
 
@@ -87,7 +126,7 @@ export function MathPreviewField({
       {showPreview ? (
         <aside className="math-preview-panel">
           <span className="math-preview-label">Preview</span>
-          <MathTextPreview text={value} />
+          <MathTextPreview text={value} preferWholeExpression={preferWholeExpression} />
         </aside>
       ) : null}
     </div>
@@ -122,7 +161,10 @@ export function QuestionMathSummaryPreview({
         sections.map((section) => (
           <article key={section.label} className="math-preview-summary-item">
             <span className="math-preview-label">{section.label}</span>
-            <MathTextPreview text={section.text} />
+            <MathTextPreview
+              text={section.text}
+              preferWholeExpression={section.preferWholeExpression}
+            />
           </article>
         ))
       ) : (
@@ -149,7 +191,9 @@ function getQuestionMathPreviewSections(question: QuestionModel): MathPreviewSec
 
   const answer = question.answer ?? {};
   if (Array.isArray(answer.choices)) {
-    answer.choices.forEach((choice, index) => addSection(sections, `Choice ${index + 1}`, choice));
+    answer.choices.forEach((choice, index) =>
+      addSection(sections, `Choice ${index + 1}`, choice, true),
+    );
   }
 
   for (const [key, value] of Object.entries(answer)) {
@@ -168,9 +212,14 @@ function getQuestionMathPreviewSections(question: QuestionModel): MathPreviewSec
   return sections;
 }
 
-function addSection(sections: MathPreviewSection[], label: string, value: unknown) {
+function addSection(
+  sections: MathPreviewSection[],
+  label: string,
+  value: unknown,
+  preferWholeExpression = false,
+) {
   if (typeof value !== "string" || !hasMathMarkup(value)) return;
-  sections.push({ label, text: value });
+  sections.push({ label, text: value, preferWholeExpression });
 }
 
 function formatAnswerLabel(key: string): string {
@@ -200,6 +249,25 @@ function tokenizeMathText(text: string): MathToken[] {
   }
 
   return tokens.length > 0 ? tokens : [{ kind: "text", value: text }];
+}
+
+function isLikelyWholeMathExpression(text: string): boolean {
+  const value = text.trim();
+  if (!value || CURRENCY_PATTERN.test(value) || !hasMathMarkup(value)) return false;
+  if (/\n/.test(value)) return false;
+
+  const hasMathCommand = COMMAND_PATTERN.test(value);
+  const hasEquationSyntax = /[=^_]|\\(?:frac|sqrt|left|right|sin|cos|tan|pi|theta|alpha|beta|Delta)\b/.test(
+    value,
+  );
+  if (!hasMathCommand && !hasEquationSyntax) return false;
+
+  const proseWords = value.match(/[A-Za-z]{4,}/g) ?? [];
+  const latexWords = value.match(
+    /\\(?:frac|sqrt|sum|int|lim|theta|pi|alpha|beta|gamma|delta|Delta|lambda|mu|sigma|omega|cdot|times|div|pm|leq|geq|neq|approx|implies|sin|cos|tan|left|right)\b/g,
+  ) ?? [];
+
+  return proseWords.length <= latexWords.length + 2;
 }
 
 function findDelimitedMath(

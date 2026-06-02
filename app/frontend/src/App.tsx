@@ -32,6 +32,8 @@ import {
   watchPaneWindowClose,
 } from "./desktop";
 import {
+  escapeLikelyLatexBackslashesInJson,
+  looksLikeUnescapedLatexInJson,
   MathPreviewField,
   QuestionMathSummaryPreview,
 } from "./MathPreview";
@@ -1053,9 +1055,30 @@ function App() {
     await runSave(destinationPath);
   }
 
-  function handleQuestionImportWorkspaceChanged(message: string) {
+  async function handleQuestionImportWorkspaceChanged(
+    message: string,
+    promotedQuestionIds: string[] = [],
+  ) {
     setWorkspaceDirty(true);
     setStatusMessage(`${message} Save Bank writes the archive.`);
+    if (promotedQuestionIds.length === 0) return;
+
+    const firstPromotedId = promotedQuestionIds[0];
+    setSearch("");
+    setTopicFilter("");
+    setTypeFilter("");
+
+    try {
+      const response = await listQuestions({});
+      setQuestionItems(response.items);
+      setAvailableTopics(response.available_topics);
+      setAvailableTypes(response.available_types);
+      selectedIdRef.current = firstPromotedId;
+      setSelectedId(firstPromotedId);
+      await refreshAssetList();
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    }
   }
 
   async function handleSaveQuestion() {
@@ -1125,6 +1148,30 @@ function App() {
       draftQuestionRef.current = previewQuestion;
       setDraftQuestion(previewQuestion);
       markDraftDirty();
+      setErrorMessage("");
+    } catch (error) {
+      setJsonError(true);
+      setJsonErrorMessage((error as Error).message);
+      setErrorMessage((error as Error).message);
+    }
+  }
+
+  function handleEscapeLatexBackslashesInRawJson() {
+    const repaired = escapeLikelyLatexBackslashesInJson(rawJsonRef.current);
+    setRawJson(repaired);
+    rawJsonRef.current = repaired;
+    markDraftDirty();
+
+    try {
+      const payload = extractQuestionJsonPayload(repaired);
+      const formatted = JSON.stringify(payload, null, 2);
+      setRawJson(formatted);
+      rawJsonRef.current = formatted;
+      setJsonError(false);
+      setJsonErrorMessage("");
+      const previewQuestion = normalizeQuestionForView(payload);
+      draftQuestionRef.current = previewQuestion;
+      setDraftQuestion(previewQuestion);
       setErrorMessage("");
     } catch (error) {
       setJsonError(true);
@@ -1908,7 +1955,7 @@ function App() {
             Open Demo Bank
           </button>
           <button onClick={() => void handleOpenStandardsWorkspace()} disabled={loading || !bank}>
-            Manage Standards
+            Standards
           </button>
           <button
             type="button"
@@ -1972,7 +2019,9 @@ function App() {
         open={questionImportOpen}
         hasBank={!!bank}
         onClose={() => setQuestionImportOpen(false)}
-        onWorkspaceChanged={handleQuestionImportWorkspaceChanged}
+        onWorkspaceChanged={(message, promotedQuestionIds) =>
+          void handleQuestionImportWorkspaceChanged(message, promotedQuestionIds)
+        }
       />
 
       <div className="workspace">
@@ -2089,7 +2138,22 @@ function App() {
                     <div className="json-editor-shell">
                       {jsonError ? (
                         <div className="json-error-banner">
-                          {jsonErrorMessage || "Raw JSON is invalid."}
+                          <span>{jsonErrorMessage || "Raw JSON is invalid."}</span>
+                          {looksLikeUnescapedLatexInJson(rawJson) ? (
+                            <div className="json-latex-helper">
+                              <span>
+                                This looks like LaTeX pasted into raw JSON with unescaped
+                                backslashes. In raw JSON, write \\frac instead of \frac. Form view
+                                handles this automatically.
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleEscapeLatexBackslashesInRawJson}
+                              >
+                                Try escaping LaTeX backslashes
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                       <div
@@ -2416,6 +2480,7 @@ function App() {
                               label={`Choice ${index + 1}`}
                               value={choice}
                               previewEnabled={mathPreviewEnabled}
+                              preferWholeExpression
                               className="choice-math-field"
                             >
                               <input

@@ -34,7 +34,7 @@
 - Phase 2 evaluation: complete for the current browser/editor scope. Remaining work should move into Phase 3 import, Phase 4 print prep, or a later SVG authoring milestone rather than expanding Phase 2.
 - Next planning track: JSON/CSV import staging, followed by print-prep test drafts and later native SVG authoring with simple shapes, style controls, placeholders, and reusable teaching elements.
 
-## Phase 3 — Import
+## Phase 3 — Import — Complete
 
 - Question import workspace entry point from the main editor.
 - JSON question import staging.
