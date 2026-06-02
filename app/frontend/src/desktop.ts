@@ -3,7 +3,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 
 import type { DesktopContext } from "./types";
 
-type PaneKind = "questions" | "assets" | "standards";
+type PaneKind = "questions" | "assets" | "standards" | "test-preview";
 
 interface OpenPaneWindowOptions {
   mode?: string;
@@ -12,9 +12,7 @@ interface OpenPaneWindowOptions {
 }
 
 function getPaneWindowLabel(pane: PaneKind, mode?: string): string {
-  return pane === "standards" && mode
-    ? `nexzam-${pane}-${mode}-pane`
-    : `nexzam-${pane}-pane`;
+  return mode ? `nexzam-${pane}-${mode}-pane` : `nexzam-${pane}-pane`;
 }
 
 export function isDesktopShell(): boolean {

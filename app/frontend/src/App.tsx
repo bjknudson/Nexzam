@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  addQuestionToTest,
   createQuestion,
   createQuestionFromJson,
+  createTestDraft,
   deleteQuestion,
   getCurrentBank,
   getAssetFileUrl,
@@ -14,12 +16,14 @@ import {
   listStandards,
   listAssets,
   listQuestions,
+  listTestDrafts,
   openBank,
   openDemoBank,
   saveBank,
   setApiBaseUrl,
   uploadAsset,
   updateQuestion,
+  updateTestDraft as updateTestDraftApi,
 } from "./api";
 import {
   closeCurrentPaneWindow,
@@ -39,6 +43,8 @@ import {
 } from "./MathPreview";
 import QuestionImportWorkspace from "./QuestionImportWorkspace";
 import StandardsWorkspace from "./StandardsWorkspace";
+import TestBuilderPane from "./TestBuilderPane";
+import TestPrintPreview from "./TestPrintPreview";
 import type {
   AssetInspectionResponseModel,
   AssetListItemModel,
@@ -53,12 +59,14 @@ import type {
   SourceStandardListModel,
   StandardRecordModel,
   StandardReferenceModel,
+  TestDraftDetailModel,
+  TestDraftModel,
 } from "./types";
 
 type EditorMode = "form" | "json";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 type PersistReason = "autosave" | "manual" | "switch" | "save-bank" | "open-bank";
-type PaneKind = "questions" | "assets" | "standards";
+type PaneKind = "questions" | "assets" | "standards" | "test-preview";
 
 interface QuestionPaneSnapshot {
   hasBank: boolean;
@@ -242,7 +250,9 @@ function normalizeQuestionForView(payload: Record<string, unknown>): QuestionMod
 
 function getPaneMode(): PaneKind | null {
   const pane = new URLSearchParams(window.location.search).get("pane");
-  return pane === "questions" || pane === "assets" || pane === "standards" ? pane : null;
+  return pane === "questions" || pane === "assets" || pane === "standards" || pane === "test-preview"
+    ? pane
+    : null;
 }
 
 function filterAssets(items: AssetListItemModel[], searchTerm: string): AssetListItemModel[] {
@@ -615,6 +625,9 @@ function App() {
   const [questionPanePoppedOut, setQuestionPanePoppedOut] = useState(false);
   const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
   const [questionImportOpen, setQuestionImportOpen] = useState(false);
+  const [testBuilderOpen, setTestBuilderOpen] = useState(false);
+  const [testDrafts, setTestDrafts] = useState<TestDraftDetailModel[]>([]);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [mathPreviewEnabled, setMathPreviewEnabled] = useState(false);
   const [assetSearch, setAssetSearch] = useState("");
@@ -832,12 +845,15 @@ function App() {
       setWorkspaceDirty(false);
       await refreshAssetList();
       await refreshStandardsData();
+      await refreshTestDrafts();
     } catch {
       setBank(null);
       setBankAssets([]);
       setSourceStandardLists([]);
       setStandardRecords([]);
       setCourses([]);
+      setTestDrafts([]);
+      setSelectedTestId(null);
     }
   }
 
@@ -884,6 +900,23 @@ function App() {
       }
     } catch (error) {
       setErrorMessage((error as Error).message);
+    }
+  }
+
+  async function refreshTestDrafts(preferredId?: string | null) {
+    try {
+      const response = await listTestDrafts();
+      setTestDrafts(response.items);
+      const nextId = preferredId ?? selectedTestId;
+      if (nextId && response.items.some((item) => item.test.id === nextId)) {
+        setSelectedTestId(nextId);
+      } else {
+        setSelectedTestId(response.items[0]?.test.id ?? null);
+      }
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+      setTestDrafts([]);
+      setSelectedTestId(null);
     }
   }
 
@@ -1016,6 +1049,7 @@ function App() {
       setStatusMessage(`Opened ${summary.manifest.title}`);
       await refreshAssetList();
       await refreshStandardsData();
+      await refreshTestDrafts();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -1045,6 +1079,7 @@ function App() {
       setStatusMessage(`Opened demo bank from ${summary.source_path}`);
       await refreshAssetList();
       await refreshStandardsData();
+      await refreshTestDrafts();
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -1076,6 +1111,7 @@ function App() {
       setWorkspaceDirty(false);
       await refreshAssetList();
       await refreshStandardsData();
+      await refreshTestDrafts(selectedTestId);
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -1127,6 +1163,75 @@ function App() {
       await refreshAssetList();
     } catch (error) {
       setErrorMessage((error as Error).message);
+    }
+  }
+
+  function replaceTestDraft(detail: TestDraftDetailModel) {
+    setTestDrafts((current) => {
+      const existingIndex = current.findIndex((item) => item.test.id === detail.test.id);
+      if (existingIndex === -1) {
+        return [...current, detail].sort((left, right) =>
+          left.test.id.localeCompare(right.test.id),
+        );
+      }
+      return current.map((item, index) => (index === existingIndex ? detail : item));
+    });
+    setSelectedTestId(detail.test.id);
+  }
+
+  async function handleCreateTestDraft() {
+    if (!bank) return;
+
+    setLoading(true);
+    try {
+      const detail = await createTestDraft({
+        title: `${bank.manifest.title} Test`,
+        version: "A",
+      });
+      replaceTestDraft(detail);
+      setWorkspaceDirty(true);
+      setStatusMessage(`Created ${detail.test.id} in the working copy.`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddSelectedQuestionToTest() {
+    if (!selectedTestId || !selectedId) return;
+
+    setLoading(true);
+    try {
+      const detail = await addQuestionToTest({
+        testId: selectedTestId,
+        question_id: selectedId,
+      });
+      replaceTestDraft(detail);
+      setWorkspaceDirty(true);
+      setStatusMessage(`Added ${selectedId} to ${detail.test.id}.`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUpdateTestDraft(test: TestDraftModel) {
+    setLoading(true);
+    try {
+      const previousId = selectedTestId ?? test.id;
+      const detail = await updateTestDraftApi(previousId, test);
+      replaceTestDraft(detail);
+      setWorkspaceDirty(true);
+      setStatusMessage(`Saved ${detail.test.id} to the working copy.`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -1588,6 +1693,21 @@ function App() {
     }
   }
 
+  async function handleOpenTestPrintPreview() {
+    const selectedTest = testDrafts.find((item) => item.test.id === selectedTestId) ?? testDrafts[0];
+    if (!selectedTest) return;
+
+    try {
+      await openPaneWindow("test-preview", "Printable Test Preview", {
+        mode: selectedTest.test.id,
+        width: 1180,
+        height: 920,
+      });
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    }
+  }
+
   async function handleDockPane(pane: PaneKind) {
     if (isMainWindow) {
       if (pane === "questions") {
@@ -1862,6 +1982,8 @@ function App() {
           ? "Assets - Nexzam"
           : paneMode === "standards"
             ? "Standards - Nexzam"
+            : paneMode === "test-preview"
+              ? "Printable Test Preview - Nexzam"
           : "Nexzam";
   }, [paneMode]);
 
@@ -1984,6 +2106,18 @@ function App() {
     );
   }
 
+  if (paneMode === "test-preview") {
+    const testId = new URLSearchParams(window.location.search).get("mode");
+    return (
+      <TestPrintPreview
+        testId={testId}
+        onClose={() => {
+          void closeCurrentPaneWindow();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -2008,6 +2142,13 @@ function App() {
             disabled={loading || !bank}
           >
             Import Questions
+          </button>
+          <button
+            type="button"
+            onClick={() => setTestBuilderOpen((current) => !current)}
+            disabled={loading || !bank}
+          >
+            Test Builder
           </button>
           <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
             Save Bank
@@ -2067,6 +2208,22 @@ function App() {
         onWorkspaceChanged={(message, promotedQuestionIds) =>
           void handleQuestionImportWorkspaceChanged(message, promotedQuestionIds)
         }
+      />
+
+      <TestBuilderPane
+        open={testBuilderOpen}
+        hasBank={!!bank}
+        loading={loading}
+        selectedQuestionId={selectedId}
+        selectedTestId={selectedTestId}
+        tests={testDrafts}
+        onOpen={() => setTestBuilderOpen(true)}
+        onClose={() => setTestBuilderOpen(false)}
+        onCreateTest={() => void handleCreateTestDraft()}
+        onSelectTest={setSelectedTestId}
+        onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
+        onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
+        onUpdateTest={(test) => void handleUpdateTestDraft(test)}
       />
 
       <div className="workspace">

@@ -8,6 +8,7 @@
 - `standards/source_lists.json`: complete imported source standard sets.
 - `standards/records.json`: explicit standard records referenced by courses and questions.
 - `courses/courses.json`: course-specific standard curation as references.
+- `tests/tests.json`: additive test draft collection for print-prep workflows.
 - `assets/*`: copied image/SVG assets.
 - `imports/*`: imported source files and staging references.
 - `meta/*`: audit and maintenance metadata.
@@ -158,6 +159,65 @@ Question standards should be stored as references:
     "standard_id": "PHY-KIN-01"
   }
 ]
+```
+
+## Test drafts (Phase 4 draft)
+
+Test drafts are stored separately from question records so questions remain the reusable source of truth:
+
+```json
+{
+  "items": [
+    {
+      "id": "test_0001",
+      "title": "Unit 1 Mechanics",
+      "version": "A",
+      "items": [
+        {
+          "question_id": "q_mc_0001",
+          "experimental": false,
+          "response_space_lines": null,
+          "teacher_notes": null
+        }
+      ],
+      "print_settings": {
+        "cover_sheet_enabled": true,
+        "cover_sheet_template": null,
+        "typeface": "system",
+        "font_size_pt": 11,
+        "margin_in": 0.75,
+        "page_size": "letter",
+        "columns": 1,
+        "name_field_enabled": true,
+        "page_numbers_enabled": true,
+        "default_response_space_lines": 0
+      },
+      "performance_runs": []
+    }
+  ]
+}
+```
+
+Performance runs are kept on the test draft as local post-use records:
+
+```json
+{
+  "id": "run_20260601_a",
+  "administered_at": "2026-06-01T17:00:00Z",
+  "cohort_label": "Period 2",
+  "notes": "First use after review lesson.",
+  "item_results": [
+    {
+      "question_id": "q_mc_0001",
+      "attempts": 28,
+      "correct": 19,
+      "average_score": null,
+      "observed_difficulty": 3.4,
+      "tricky": true,
+      "notes": "Many students missed the sign convention."
+    }
+  ]
+}
 ```
 
 ## Validation principles

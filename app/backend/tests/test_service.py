@@ -453,6 +453,63 @@ def test_promoted_question_import_rows_are_saved_in_repacked_bank(
     assert promoted_question["prompt"] == "Promoted imports persist into the archive."
 
 
+def test_create_test_draft_and_add_questions_builds_summary(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    detail = bank_service.create_test_draft("Unit 1 Mechanics", "A")
+    detail = bank_service.add_question_to_test(detail.test.id, "q_mc_0001")
+    detail = bank_service.add_question_to_test(detail.test.id, "q_sa_0001", experimental=True)
+
+    assert detail.test.id == "test_0001"
+    assert detail.test.title == "Unit 1 Mechanics"
+    assert [item.question_id for item in detail.test.items] == ["q_mc_0001", "q_sa_0001"]
+    assert detail.test.items[1].experimental is True
+    assert [question.id for question in detail.questions] == ["q_mc_0001", "q_sa_0001"]
+    assert detail.summary.question_type_counts == {
+        "multiple_choice": 1,
+        "short_answer": 1,
+    }
+    assert detail.summary.difficulty_counts == {"2": 2}
+    assert detail.summary.average_difficulty == 2
+    assert detail.summary.total_time_estimate_sec == 180
+    assert detail.summary.standard_ids == ["PHY-ELE-01", "PHY-KIN-01"]
+
+    listed = bank_service.list_test_drafts()
+    assert [item.test.id for item in listed.items] == ["test_0001"]
+
+
+def test_test_drafts_are_saved_in_repacked_bank(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+    tmp_path: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    detail = bank_service.create_test_draft("Printable Practice Test", "B")
+    bank_service.add_question_to_test(detail.test.id, "q_num_0001")
+
+    destination = tmp_path / "saved-test-bank.bok"
+    bank_service.save_bank(str(destination))
+
+    with zipfile.ZipFile(destination) as archive:
+        names = set(archive.namelist())
+        tests = json.loads(archive.read("tests/tests.json"))
+
+    assert "tests/tests.json" in names
+    assert tests["items"][0]["title"] == "Printable Practice Test"
+    assert tests["items"][0]["version"] == "B"
+    assert tests["items"][0]["items"] == [
+        {
+            "question_id": "q_num_0001",
+            "experimental": False,
+            "response_space_lines": None,
+            "teacher_notes": None,
+        }
+    ]
+
+
 def test_next_question_id_uses_type_prefix_and_serial(
     bank_service: BankWorkspaceService,
     demo_bok: Path,

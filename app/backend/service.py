@@ -42,6 +42,13 @@ from .models import (
     StandardRecordModel,
     StandardReferenceModel,
     StandardSearchResponseModel,
+    TestDraftCollectionModel,
+    TestDraftDetailModel,
+    TestDraftListResponseModel,
+    TestDraftModel,
+    TestDraftSummaryModel,
+    TestItemModel,
+    TestStandardBalanceModel,
 )
 
 
@@ -458,6 +465,67 @@ class BankWorkspaceService:
             stage=stage,
         )
 
+    def list_test_drafts(self) -> TestDraftListResponseModel:
+        tests = self._read_tests()
+        questions_by_id = {question.id: question for question in self._load_questions()}
+        return TestDraftListResponseModel(
+            items=[self._build_test_detail(test, questions_by_id) for test in tests.items]
+        )
+
+    def get_test_draft(self, test_id: str) -> TestDraftDetailModel:
+        tests = self._read_tests()
+        test = next((item for item in tests.items if item.id == test_id), None)
+        if test is None:
+            raise BankWorkspaceError(f"Test draft not found: {test_id}", status_code=404)
+        questions_by_id = {question.id: question for question in self._load_questions()}
+        return self._build_test_detail(test, questions_by_id)
+
+    def create_test_draft(self, title: str, version: str = "A") -> TestDraftDetailModel:
+        tests = self._read_tests()
+        test = TestDraftModel(
+            id=self._next_test_draft_id(),
+            title=title,
+            version=version,
+        )
+        tests.items.append(test)
+        self._write_tests(tests)
+        return self.get_test_draft(test.id)
+
+    def update_test_draft(self, test_id: str, payload: TestDraftModel) -> TestDraftDetailModel:
+        tests = self._read_tests()
+        existing_index = next((index for index, item in enumerate(tests.items) if item.id == test_id), None)
+        if existing_index is None:
+            raise BankWorkspaceError(f"Test draft not found: {test_id}", status_code=404)
+
+        if payload.id != test_id and any(item.id == payload.id for item in tests.items):
+            raise BankWorkspaceError(
+                f"A test draft with id {payload.id} already exists.",
+                status_code=409,
+            )
+
+        self._validate_test_question_references(payload)
+        tests.items[existing_index] = payload
+        tests.items.sort(key=lambda item: item.id)
+        self._write_tests(tests)
+        return self.get_test_draft(payload.id)
+
+    def add_question_to_test(
+        self,
+        test_id: str,
+        question_id: str,
+        *,
+        experimental: bool = False,
+    ) -> TestDraftDetailModel:
+        tests = self._read_tests()
+        test = next((item for item in tests.items if item.id == test_id), None)
+        if test is None:
+            raise BankWorkspaceError(f"Test draft not found: {test_id}", status_code=404)
+        self.get_question(question_id)
+
+        test.items.append(TestItemModel(question_id=question_id, experimental=experimental))
+        self._write_tests(tests)
+        return self.get_test_draft(test.id)
+
     def _validate_keep_imported_question_ids(self, rows: list[QuestionImportRowModel]) -> None:
         existing_question_ids = {question.id for question in self._load_questions()}
         imported_ids: dict[str, list[str]] = {}
@@ -767,6 +835,106 @@ class BankWorkspaceService:
         _, workspace_path = self.ensure_open()
         (workspace_path / "courses" / "courses.json").write_text(payload.model_dump_json(indent=2) + "\n")
 
+    def _read_tests(self) -> TestDraftCollectionModel:
+        _, workspace_path = self.ensure_open()
+        return TestDraftCollectionModel.model_validate_json(
+            (workspace_path / "tests" / "tests.json").read_text()
+        )
+
+    def _write_tests(self, payload: TestDraftCollectionModel) -> None:
+        _, workspace_path = self.ensure_open()
+        (workspace_path / "tests" / "tests.json").write_text(payload.model_dump_json(indent=2) + "\n")
+
+    def _build_test_detail(
+        self,
+        test: TestDraftModel,
+        questions_by_id: dict[str, QuestionModel],
+    ) -> TestDraftDetailModel:
+        questions = [
+            questions_by_id[item.question_id]
+            for item in test.items
+            if item.question_id in questions_by_id
+        ]
+        return TestDraftDetailModel(
+            test=test,
+            summary=self._build_test_summary(test, questions_by_id),
+            questions=questions,
+        )
+
+    def _build_test_summary(
+        self,
+        test: TestDraftModel,
+        questions_by_id: dict[str, QuestionModel],
+    ) -> TestDraftSummaryModel:
+        question_type_counts: dict[str, int] = {}
+        difficulty_counts: dict[str, int] = {}
+        standard_ids: set[str] = set()
+        total_time_estimate_sec = 0
+        difficulties: list[int] = []
+        standard_difficulties: dict[str, list[int]] = {}
+        standard_times: dict[str, int] = {}
+        standard_difficulty_counts: dict[str, dict[str, int]] = {}
+
+        for item in test.items:
+            question = questions_by_id.get(item.question_id)
+            if question is None:
+                continue
+
+            question_type_counts[question.type] = question_type_counts.get(question.type, 0) + 1
+            difficulty_key = str(question.difficulty)
+            difficulty_counts[difficulty_key] = difficulty_counts.get(difficulty_key, 0) + 1
+            difficulties.append(question.difficulty)
+            total_time_estimate_sec += question.estimated_time_sec or 0
+
+            for reference in question.standards:
+                standard_ids.add(reference.standard_id)
+                standard_difficulties.setdefault(reference.standard_id, []).append(question.difficulty)
+                standard_times[reference.standard_id] = (
+                    standard_times.get(reference.standard_id, 0) + (question.estimated_time_sec or 0)
+                )
+                counts = standard_difficulty_counts.setdefault(reference.standard_id, {})
+                counts[difficulty_key] = counts.get(difficulty_key, 0) + 1
+
+        standard_balance = [
+            TestStandardBalanceModel(
+                standard_id=standard_id,
+                question_count=len(standard_difficulties[standard_id]),
+                average_difficulty=round(
+                    sum(standard_difficulties[standard_id])
+                    / len(standard_difficulties[standard_id]),
+                    2,
+                ),
+                total_time_estimate_sec=standard_times.get(standard_id, 0),
+                difficulty_counts=standard_difficulty_counts.get(standard_id, {}),
+            )
+            for standard_id in sorted(standard_ids)
+        ]
+
+        return TestDraftSummaryModel(
+            id=test.id,
+            title=test.title,
+            version=test.version,
+            standard_ids=sorted(standard_ids),
+            question_type_counts=dict(sorted(question_type_counts.items())),
+            difficulty_counts=dict(sorted(difficulty_counts.items())),
+            average_difficulty=round(sum(difficulties) / len(difficulties), 2)
+            if difficulties
+            else None,
+            total_time_estimate_sec=total_time_estimate_sec,
+            standard_balance=standard_balance,
+        )
+
+    def _validate_test_question_references(self, test: TestDraftModel) -> None:
+        question_ids = {question.id for question in self._load_questions()}
+        missing_ids = sorted(
+            {item.question_id for item in test.items if item.question_id not in question_ids}
+        )
+        if missing_ids:
+            raise BankWorkspaceError(
+                f"Test draft references unknown questions: {', '.join(missing_ids)}",
+                status_code=422,
+            )
+
     def _load_questions(self) -> list[QuestionModel]:
         _, workspace_path = self.ensure_open()
         questions_dir = workspace_path / "questions"
@@ -827,6 +995,9 @@ class BankWorkspaceService:
         courses = CourseCollectionModel.model_validate_json(
             (workspace_path / "courses" / "courses.json").read_text()
         )
+        TestDraftCollectionModel.model_validate_json(
+            (workspace_path / "tests" / "tests.json").read_text()
+        )
 
         standards_by_id = {item.id for item in standards.items}
         for path in sorted((workspace_path / "questions").glob("*.json")):
@@ -865,9 +1036,11 @@ class BankWorkspaceService:
         standards_dir = workspace_path / "standards"
         courses_dir = workspace_path / "courses"
         imports_dir = workspace_path / "imports"
+        tests_dir = workspace_path / "tests"
         standards_dir.mkdir(parents=True, exist_ok=True)
         courses_dir.mkdir(parents=True, exist_ok=True)
         imports_dir.mkdir(parents=True, exist_ok=True)
+        tests_dir.mkdir(parents=True, exist_ok=True)
 
         source_lists_path = standards_dir / "source_lists.json"
         if not source_lists_path.exists():
@@ -880,6 +1053,10 @@ class BankWorkspaceService:
         courses_path = courses_dir / "courses.json"
         if not courses_path.exists():
             courses_path.write_text(CourseCollectionModel().model_dump_json(indent=2) + "\n")
+
+        tests_path = tests_dir / "tests.json"
+        if not tests_path.exists():
+            tests_path.write_text(TestDraftCollectionModel().model_dump_json(indent=2) + "\n")
 
     def _build_blank_question(self) -> QuestionModel:
         return QuestionModel(
@@ -946,6 +1123,18 @@ class BankWorkspaceService:
                 max_serial = max(max_serial, int(match.group(1)))
 
         return f"{prefix}_{max_serial + 1:04d}"
+
+    def _next_test_draft_id(self) -> str:
+        tests = self._read_tests()
+        pattern = re.compile(r"^test_(\d+)$")
+        max_serial = 0
+
+        for test in tests.items:
+            match = pattern.match(test.id)
+            if match:
+                max_serial = max(max_serial, int(match.group(1)))
+
+        return f"test_{max_serial + 1:04d}"
 
     def _dedupe_asset_name(self, assets_dir: Path, filename: str) -> str:
         candidate = filename

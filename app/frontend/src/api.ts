@@ -15,6 +15,9 @@ import type {
   StandardListResponseModel,
   StandardReferenceModel,
   StandardSearchResponseModel,
+  TestDraftDetailModel,
+  TestDraftListResponseModel,
+  TestDraftModel,
 } from "./types";
 
 let apiBaseUrl = "";
@@ -215,6 +218,56 @@ export async function promoteQuestionImport(payload: {
       body: JSON.stringify({
         row_ids: payload.row_ids ?? null,
         id_policy: payload.id_policy ?? "auto",
+      }),
+    }),
+  );
+}
+
+export async function listTestDrafts(): Promise<TestDraftListResponseModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/tests")));
+}
+
+export async function createTestDraft(payload: {
+  title: string;
+  version?: string;
+}): Promise<TestDraftDetailModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/tests"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: payload.title,
+        version: payload.version || "A",
+      }),
+    }),
+  );
+}
+
+export async function updateTestDraft(
+  testId: string,
+  test: TestDraftModel,
+): Promise<TestDraftDetailModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/tests/${encodeURIComponent(testId)}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(test),
+    }),
+  );
+}
+
+export async function addQuestionToTest(payload: {
+  testId: string;
+  question_id: string;
+  experimental?: boolean;
+}): Promise<TestDraftDetailModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/tests/${encodeURIComponent(payload.testId)}/items`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        question_id: payload.question_id,
+        experimental: payload.experimental ?? false,
       }),
     }),
   );

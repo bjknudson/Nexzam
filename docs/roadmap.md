@@ -60,9 +60,45 @@
 ## Phase 4 — Print Prep
 
 - Test draft model.
-- Question type instruction defaults for test building, e.g. `multiple_choice`: "Select the best answer." and multiple-correct choice variants: "Select the two choices." Prepared tests should expose these instructions for each section.
-- Manual question selection.
-- HTML-to-PDF output.
+  - Store test drafts in `tests/tests.json` as additive package data.
+  - A test draft has `id`, `title`, `version`, ordered question items, print settings, and performance runs.
+  - Test items reference bank question ids and can be marked experimental for SAT-style field testing.
+  - Preserve question JSON as source-of-truth; do not copy full question bodies into tests unless needed for export snapshots.
+- Test summary and balance reporting.
+  - Include title, version, standards list, counts by question type, counts by difficulty, average difficulty, and total estimated time.
+  - Include standard-by-difficulty and standard-by-time balance data.
+  - Treat summary as derived from referenced questions so bank edits remain visible in draft tests.
+- Manual test building.
+  - Add selected bank questions to a draft test.
+  - Reorder, remove, and mark items experimental.
+  - Provide easy swap affordances for similar questions by standard, topic, type, and difficulty.
+- Question type instruction defaults.
+  - `multiple_choice`: "Select the best answer."
+  - Multiple-correct choice variants: "Select the two choices." or count-aware text.
+  - `numeric_response`, `short_answer`, and `free_response` defaults should be editable per output section.
+- Page settings.
+  - Save local reusable defaults for typeface, margins, font size, page size, columns, name field, page numbers, response space, and optional cover sheet.
+  - Support 1, 2, and 3 column layouts and common page sizes such as Letter, Legal, and A4.
+- Printable output builder.
+  - Open from the test edit panel as a dedicated preview/editing space.
+  - Allow item reorder by controls first; drag ordering can follow once the preview surface is stable.
+  - Support automatic organization by standard and increasing difficulty.
+  - Use KaTeX previews in the print surface and HTML-to-PDF for the initial export path.
+- Performance capture after use.
+  - Record administrations with cohort/date notes, attempts, correctness or average score, observed difficulty, tricky flag, and notes.
+  - Compare observed performance against item difficulty and standard clusters.
+  - Surface standard-level difficulty patterns so teachers can distinguish weak prep/standard coverage from bad questions.
+- Digital exports.
+  - Keep printable test as the primary output.
+  - Add platform export adapters later from the same test draft object.
+
+### Phase 4 starting slice
+
+- Added additive `tests/tests.json` support file creation for opened banks.
+- Added backend test draft models, summaries, and create/list/update/add-question endpoints.
+- Added a React Test Builder panel for creating draft tests, adding the selected question, reviewing balance, editing basic print settings from a collapsed Page Settings submenu, and reordering/removing items.
+- Added a printable preview window with cover sheet/name-field support, page size, margins, columns, font size, multiple-choice choices, response lines, and browser print output.
+- Remaining Phase 4 work: richer instruction sections, cover sheet templates, local saved page-setting presets, HTML-to-PDF export, performance-entry UI, swap suggestions, and digital export adapters.
 
 ## Phase 5 — Builder
 

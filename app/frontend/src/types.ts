@@ -184,6 +184,83 @@ export interface QuestionImportPromoteResponseModel {
   stage: QuestionImportStageModel;
 }
 
+export interface TestItemModel {
+  question_id: string;
+  experimental: boolean;
+  response_space_lines?: number | null;
+  teacher_notes?: string | null;
+}
+
+export interface TestPrintSettingsModel {
+  cover_sheet_enabled: boolean;
+  cover_sheet_template?: string | null;
+  typeface: string;
+  font_size_pt: number;
+  margin_in: number;
+  page_size: "letter" | "legal" | "a4";
+  columns: 1 | 2 | 3;
+  name_field_enabled: boolean;
+  page_numbers_enabled: boolean;
+  default_response_space_lines: number;
+}
+
+export interface TestPerformanceItemModel {
+  question_id: string;
+  attempts: number;
+  correct?: number | null;
+  average_score?: number | null;
+  observed_difficulty?: number | null;
+  tricky: boolean;
+  notes?: string | null;
+}
+
+export interface TestPerformanceRunModel {
+  id: string;
+  administered_at: string;
+  cohort_label?: string | null;
+  notes?: string | null;
+  item_results: TestPerformanceItemModel[];
+}
+
+export interface TestDraftModel {
+  id: string;
+  title: string;
+  version: string;
+  items: TestItemModel[];
+  print_settings: TestPrintSettingsModel;
+  performance_runs: TestPerformanceRunModel[];
+}
+
+export interface TestStandardBalanceModel {
+  standard_id: string;
+  question_count: number;
+  average_difficulty?: number | null;
+  total_time_estimate_sec: number;
+  difficulty_counts: Record<string, number>;
+}
+
+export interface TestDraftSummaryModel {
+  id: string;
+  title: string;
+  version: string;
+  standard_ids: string[];
+  question_type_counts: Record<string, number>;
+  difficulty_counts: Record<string, number>;
+  average_difficulty?: number | null;
+  total_time_estimate_sec: number;
+  standard_balance: TestStandardBalanceModel[];
+}
+
+export interface TestDraftDetailModel {
+  test: TestDraftModel;
+  summary: TestDraftSummaryModel;
+  questions: QuestionModel[];
+}
+
+export interface TestDraftListResponseModel {
+  items: TestDraftDetailModel[];
+}
+
 export interface DesktopContext {
   isDesktop: boolean;
   backendBaseUrl: string | null;

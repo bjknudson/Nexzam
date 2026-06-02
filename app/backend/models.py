@@ -159,6 +159,105 @@ class QuestionImportPromoteResponseModel(BaseModel):
     stage: QuestionImportStageModel
 
 
+class TestItemModel(BaseModel):
+    question_id: str
+    experimental: bool = False
+    response_space_lines: int | None = None
+    teacher_notes: str | None = None
+
+
+class TestPrintSettingsModel(BaseModel):
+    cover_sheet_enabled: bool = True
+    cover_sheet_template: str | None = None
+    typeface: str = "system"
+    font_size_pt: int = 11
+    margin_in: float = 0.75
+    page_size: Literal["letter", "legal", "a4"] = "letter"
+    columns: Literal[1, 2, 3] = 1
+    name_field_enabled: bool = True
+    page_numbers_enabled: bool = True
+    default_response_space_lines: int = 0
+
+
+class TestPerformanceItemModel(BaseModel):
+    question_id: str
+    attempts: int = 0
+    correct: int | None = None
+    average_score: float | None = None
+    observed_difficulty: float | None = None
+    tricky: bool = False
+    notes: str | None = None
+
+
+class TestPerformanceRunModel(BaseModel):
+    id: str
+    administered_at: datetime
+    cohort_label: str | None = None
+    notes: str | None = None
+    item_results: list[TestPerformanceItemModel] = Field(default_factory=list)
+
+
+class TestDraftModel(BaseModel):
+    id: str
+    title: str
+    version: str = "A"
+    items: list[TestItemModel] = Field(default_factory=list)
+    print_settings: TestPrintSettingsModel = Field(default_factory=TestPrintSettingsModel)
+    performance_runs: list[TestPerformanceRunModel] = Field(default_factory=list)
+
+    @field_validator("id", "title", "version")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("field must not be empty")
+        return text
+
+
+class TestDraftCollectionModel(BaseModel):
+    items: list[TestDraftModel] = Field(default_factory=list)
+
+
+class CreateTestDraftRequest(BaseModel):
+    title: str
+    version: str = "A"
+
+
+class AddQuestionToTestRequest(BaseModel):
+    question_id: str
+    experimental: bool = False
+
+
+class TestStandardBalanceModel(BaseModel):
+    standard_id: str
+    question_count: int
+    average_difficulty: float | None = None
+    total_time_estimate_sec: int
+    difficulty_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class TestDraftSummaryModel(BaseModel):
+    id: str
+    title: str
+    version: str
+    standard_ids: list[str] = Field(default_factory=list)
+    question_type_counts: dict[str, int] = Field(default_factory=dict)
+    difficulty_counts: dict[str, int] = Field(default_factory=dict)
+    average_difficulty: float | None = None
+    total_time_estimate_sec: int = 0
+    standard_balance: list[TestStandardBalanceModel] = Field(default_factory=list)
+
+
+class TestDraftDetailModel(BaseModel):
+    test: TestDraftModel
+    summary: TestDraftSummaryModel
+    questions: list["QuestionModel"] = Field(default_factory=list)
+
+
+class TestDraftListResponseModel(BaseModel):
+    items: list[TestDraftDetailModel] = Field(default_factory=list)
+
+
 class UpsertCourseRequest(BaseModel):
     title: str
     description: str | None = None

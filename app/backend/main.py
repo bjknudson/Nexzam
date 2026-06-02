@@ -13,7 +13,9 @@ from pydantic import ValidationError
 
 from .models import (
     AssetInspectionRequest,
+    AddQuestionToTestRequest,
     CreateQuestionRequest,
+    CreateTestDraftRequest,
     NextQuestionIdResponse,
     OpenBankRequest,
     QuestionImportPromoteRequest,
@@ -21,6 +23,7 @@ from .models import (
     QuestionModel,
     QuestionType,
     SaveBankRequest,
+    TestDraftModel,
     UpsertCourseRequest,
 )
 from .service import BankWorkspaceError, BankWorkspaceService
@@ -209,6 +212,35 @@ def promote_question_import(import_id: str, request: QuestionImportPromoteReques
         import_id,
         row_ids=request.row_ids,
         id_policy=request.id_policy,
+    )
+
+
+@app.get("/api/tests")
+def list_test_drafts():
+    return service.list_test_drafts()
+
+
+@app.post("/api/tests")
+def create_test_draft(request: CreateTestDraftRequest):
+    return service.create_test_draft(title=request.title, version=request.version)
+
+
+@app.get("/api/tests/{test_id}")
+def get_test_draft(test_id: str):
+    return service.get_test_draft(test_id)
+
+
+@app.put("/api/tests/{test_id}")
+def update_test_draft(test_id: str, payload: TestDraftModel):
+    return service.update_test_draft(test_id, payload)
+
+
+@app.post("/api/tests/{test_id}/items")
+def add_question_to_test(test_id: str, request: AddQuestionToTestRequest):
+    return service.add_question_to_test(
+        test_id,
+        request.question_id,
+        experimental=request.experimental,
     )
 
 
