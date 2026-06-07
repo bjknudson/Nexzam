@@ -178,11 +178,35 @@ Test drafts are stored separately from question records so questions remain the 
           "experimental": false,
           "response_space_lines": null,
           "teacher_notes": null
+        },
+        {
+          "item_type": "section",
+          "section_id": "section_1",
+          "question_type": "multiple_choice",
+          "title": "Multiple Choice",
+          "instructions": "Select the best answer.",
+          "header_template": "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+          "topic": "Linear motion",
+          "standards": ["PHY-KIN-01"],
+          "suggested_time_mode": "calculated",
+          "suggested_time_sec": null
         }
       ],
       "print_settings": {
         "cover_sheet_enabled": true,
         "cover_sheet_template": null,
+        "page_header": {
+          "template": "{{title}}\nVersion {{version}}    {{date}}",
+          "alignment": "center",
+          "horizontal_line": true,
+          "spacing_after_lines": 1
+        },
+        "name_field": {
+          "template": "Name: ______________________________",
+          "alignment": "left",
+          "horizontal_line": false,
+          "spacing_after_lines": 1
+        },
         "typeface": "system",
         "font_size_pt": 11,
         "margin_in": 0.75,
@@ -190,13 +214,38 @@ Test drafts are stored separately from question records so questions remain the 
         "columns": 1,
         "name_field_enabled": true,
         "page_numbers_enabled": true,
-        "default_response_space_lines": 0
+        "default_response_space_lines": 0,
+        "instruction_section_options": {
+          "show_topic": false,
+          "show_standards": false,
+          "show_suggested_time": true,
+          "alignment": "left",
+          "horizontal_line": true,
+          "spacing_after_lines": 1
+        },
+        "instruction_sections": [
+          {
+            "question_type": "multiple_choice",
+            "title": "Multiple Choice",
+            "instructions": "Select the best answer.",
+            "header_template": "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+            "show_topic": false,
+            "show_standards": false,
+            "show_suggested_time": true,
+            "suggested_time_mode": "calculated",
+            "suggested_time_sec": null
+          }
+        ]
       },
       "performance_runs": []
     }
   ]
 }
 ```
+
+Test items can be question references or explicit section headers. Older question-only test items remain valid without `item_type`; section items use `item_type: "section"` and can be reordered with questions. If a manual section is linked to a `question_type`, the printable preview can reuse that style's default instructions and suppress the immediately repeated automatic style header.
+
+Template blocks use plain text with placeholders. Current placeholders include `{{title}}`, `{{version}}`, `{{date}}`, `{{section_title}}`, `{{instructions}}`, `{{topic}}`, `{{standards}}`, and `{{time}}`.
 
 Performance runs are kept on the test draft as local post-use records:
 
@@ -223,5 +272,6 @@ Performance runs are kept on the test draft as local post-use records:
 ## Validation principles
 
 - Validate on open/import/save.
+- If a question or course references a standard id that is missing from `standards/records.json`, create a placeholder standard record in the unpacked working copy under `unresolved-question-standards` with `placeholder` and `needs-review` tags. This keeps the bank open and makes the issue visible without dropping the reference.
 - Keep persisted field names stable.
 - Prefer additive schema evolution.

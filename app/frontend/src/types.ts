@@ -137,6 +137,7 @@ export interface QuestionListItemModel {
   difficulty: number;
   status: string;
   prompt: string;
+  choice_preview: string[];
 }
 
 export interface QuestionListResponseModel {
@@ -185,15 +186,55 @@ export interface QuestionImportPromoteResponseModel {
 }
 
 export interface TestItemModel {
-  question_id: string;
-  experimental: boolean;
+  item_type?: "question" | "section";
+  question_id?: string | null;
+  experimental?: boolean;
   response_space_lines?: number | null;
   teacher_notes?: string | null;
+  section_id?: string | null;
+  question_type?: QuestionType | null;
+  title?: string | null;
+  instructions?: string | null;
+  header_template?: string | null;
+  topic?: string | null;
+  standards?: string[];
+  suggested_time_mode?: "calculated" | "override";
+  suggested_time_sec?: number | null;
+}
+
+export interface TestInstructionSectionModel {
+  question_type: QuestionType;
+  title: string;
+  instructions: string;
+  header_template?: string | null;
+  show_topic: boolean;
+  show_standards: boolean;
+  show_suggested_time: boolean;
+  suggested_time_mode: "calculated" | "override";
+  suggested_time_sec?: number | null;
+}
+
+export interface TestTemplateBlockModel {
+  template: string;
+  alignment: "left" | "center" | "right";
+  horizontal_line: boolean;
+  spacing_after_lines: number;
+}
+
+export interface TestInstructionSectionOptionsModel {
+  show_topic: boolean;
+  show_standards: boolean;
+  show_suggested_time: boolean;
+  alignment: "left" | "center" | "right";
+  horizontal_line: boolean;
+  spacing_after_lines: number;
 }
 
 export interface TestPrintSettingsModel {
   cover_sheet_enabled: boolean;
   cover_sheet_template?: string | null;
+  page_header: TestTemplateBlockModel;
+  name_field: TestTemplateBlockModel;
   typeface: string;
   font_size_pt: number;
   margin_in: number;
@@ -202,6 +243,8 @@ export interface TestPrintSettingsModel {
   name_field_enabled: boolean;
   page_numbers_enabled: boolean;
   default_response_space_lines: number;
+  instruction_section_options: TestInstructionSectionOptionsModel;
+  instruction_sections: TestInstructionSectionModel[];
 }
 
 export interface TestPerformanceItemModel {

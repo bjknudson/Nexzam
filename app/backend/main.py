@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from .models import (
     AssetInspectionRequest,
     AddQuestionToTestRequest,
+    CreateStandardPlaceholdersRequest,
     CreateQuestionRequest,
     CreateTestDraftRequest,
     NextQuestionIdResponse,
@@ -23,6 +24,7 @@ from .models import (
     QuestionModel,
     QuestionType,
     SaveBankRequest,
+    StandardRecordModel,
     TestDraftModel,
     UpsertCourseRequest,
 )
@@ -172,6 +174,16 @@ async def import_standards(
         version=version,
         description=description,
     )
+
+
+@app.put("/api/standards/{standard_id}")
+def update_standard_record(standard_id: str, payload: StandardRecordModel):
+    return service.update_standard_record(standard_id, payload)
+
+
+@app.post("/api/standards/placeholders")
+def create_standard_placeholders(request: CreateStandardPlaceholdersRequest):
+    return service.create_standard_placeholders(request.standard_ids)
 
 
 @app.post("/api/question-imports/stage")

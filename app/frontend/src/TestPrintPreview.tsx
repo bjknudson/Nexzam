@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 import { listTestDrafts } from "./api";
 import { MathTextPreview } from "./MathPreview";
-import type { QuestionModel, TestDraftDetailModel, TestPrintSettingsModel } from "./types";
+import type {
+  QuestionModel,
+  QuestionType,
+  TestDraftDetailModel,
+  TestInstructionSectionOptionsModel,
+  TestInstructionSectionModel,
+  TestItemModel,
+  TestPrintSettingsModel,
+  TestTemplateBlockModel,
+} from "./types";
 
 interface TestPrintPreviewProps {
   testId: string | null;
@@ -20,23 +29,6 @@ function formatDate(value = new Date()) {
   });
 }
 
-function getQuestionInstruction(question: QuestionModel) {
-  if (question.type === "multiple_choice") {
-    const answer = question.answer ?? {};
-    const correctIndices = Array.isArray(answer.correct_choice_indices)
-      ? answer.correct_choice_indices
-      : [];
-    if (correctIndices.length > 1) {
-      return `Select the ${correctIndices.length} choices.`;
-    }
-    return "Select the best answer.";
-  }
-
-  if (question.type === "numeric_response") return "Enter a numeric answer.";
-  if (question.type === "short_answer") return "Write a concise response.";
-  return "Show your work and justify your answer.";
-}
-
 function getPageSizeLabel(settings: TestPrintSettingsModel) {
   if (settings.page_size === "a4") return "A4";
   return settings.page_size === "legal" ? "Legal" : "Letter";
@@ -51,10 +43,308 @@ function getChoices(question: QuestionModel): string[] {
   return Array.isArray(choices) ? choices.map(String) : [];
 }
 
+function isQuestionItem(item: TestItemModel) {
+  return (item.item_type ?? "question") === "question";
+}
+
+function isSectionItem(item: TestItemModel) {
+  return item.item_type === "section";
+}
+
+const DEFAULT_INSTRUCTION_SECTIONS: Record<QuestionType, TestInstructionSectionModel> = {
+  multiple_choice: {
+    question_type: "multiple_choice",
+    title: "Multiple Choice",
+    instructions: "Select the best answer.",
+    header_template: "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+    show_topic: false,
+    show_standards: false,
+    show_suggested_time: true,
+    suggested_time_mode: "calculated",
+    suggested_time_sec: null,
+  },
+  numeric_response: {
+    question_type: "numeric_response",
+    title: "Numeric Response",
+    instructions: "Enter a numeric answer.",
+    header_template: "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+    show_topic: false,
+    show_standards: false,
+    show_suggested_time: true,
+    suggested_time_mode: "calculated",
+    suggested_time_sec: null,
+  },
+  short_answer: {
+    question_type: "short_answer",
+    title: "Short Answer",
+    instructions: "Write a concise response.",
+    header_template: "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+    show_topic: false,
+    show_standards: false,
+    show_suggested_time: true,
+    suggested_time_mode: "calculated",
+    suggested_time_sec: null,
+  },
+  free_response: {
+    question_type: "free_response",
+    title: "Free Response",
+    instructions: "Show your work and justify your answer.",
+    header_template: "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+    show_topic: false,
+    show_standards: false,
+    show_suggested_time: true,
+    suggested_time_mode: "calculated",
+    suggested_time_sec: null,
+  },
+};
+
+const DEFAULT_PAGE_HEADER: TestTemplateBlockModel = {
+  template: "{{title}}\nVersion {{version}}    {{date}}",
+  alignment: "center",
+  horizontal_line: true,
+  spacing_after_lines: 1,
+};
+
+const DEFAULT_NAME_FIELD: TestTemplateBlockModel = {
+  template: "Name: ______________________________",
+  alignment: "left",
+  horizontal_line: false,
+  spacing_after_lines: 1,
+};
+
+const DEFAULT_INSTRUCTION_OPTIONS: TestInstructionSectionOptionsModel = {
+  show_topic: false,
+  show_standards: false,
+  show_suggested_time: true,
+  alignment: "left",
+  horizontal_line: true,
+  spacing_after_lines: 1,
+};
+
+function getInstructionSection(
+  settings: TestPrintSettingsModel,
+  questionType: QuestionType,
+): TestInstructionSectionModel {
+  const section = settings.instruction_sections?.find((item) => item.question_type === questionType);
+  return {
+    ...DEFAULT_INSTRUCTION_SECTIONS[questionType],
+    ...section,
+  };
+}
+
+function getPageHeader(settings: TestPrintSettingsModel): TestTemplateBlockModel {
+  return { ...DEFAULT_PAGE_HEADER, ...settings.page_header };
+}
+
+function getNameField(settings: TestPrintSettingsModel): TestTemplateBlockModel {
+  return { ...DEFAULT_NAME_FIELD, ...settings.name_field };
+}
+
+function getInstructionOptions(
+  settings: TestPrintSettingsModel,
+): TestInstructionSectionOptionsModel {
+  return {
+    ...DEFAULT_INSTRUCTION_OPTIONS,
+    ...settings.instruction_section_options,
+  };
+}
+
+function getCorrectChoiceCount(question: QuestionModel) {
+  const answer = question.answer ?? {};
+  return Array.isArray(answer.correct_choice_indices) ? answer.correct_choice_indices.length : 1;
+}
+
+function getSectionInstruction(section: TestInstructionSectionModel, question: QuestionModel) {
+  if (
+    section.question_type === "multiple_choice" &&
+    section.instructions === DEFAULT_INSTRUCTION_SECTIONS.multiple_choice.instructions
+  ) {
+    const correctCount = getCorrectChoiceCount(question);
+    if (correctCount > 1) {
+      return `Select the ${correctCount} choices.`;
+    }
+  }
+
+  return section.instructions;
+}
+
+function getSectionRun(
+  test: TestDraftDetailModel,
+  startIndex: number,
+  questionsById: Record<string, QuestionModel>,
+) {
+  const firstItem = test.test.items[startIndex];
+  const firstQuestion =
+    firstItem && isQuestionItem(firstItem) && firstItem.question_id
+      ? questionsById[firstItem.question_id]
+      : null;
+  if (!firstQuestion) return [];
+
+  const run = [];
+  for (let index = startIndex; index < test.test.items.length; index += 1) {
+    const item = test.test.items[index];
+    if (isSectionItem(item)) break;
+    const question = item.question_id ? questionsById[item.question_id] : null;
+    if (!question || question.type !== firstQuestion.type) break;
+    run.push(question);
+  }
+  return run;
+}
+
+function getManualSectionRun(
+  test: TestDraftDetailModel,
+  startIndex: number,
+  questionsById: Record<string, QuestionModel>,
+) {
+  const run = [];
+  for (let index = startIndex + 1; index < test.test.items.length; index += 1) {
+    const item = test.test.items[index];
+    if (isSectionItem(item)) break;
+    if (!item.question_id) continue;
+    const question = questionsById[item.question_id];
+    if (question) run.push(question);
+  }
+  return run;
+}
+
+function formatSectionTime(seconds: number) {
+  if (seconds <= 0) return "0 min";
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} min`;
+}
+
+function getSectionMetadata(
+  section: TestInstructionSectionModel,
+  options: TestInstructionSectionOptionsModel,
+  run: QuestionModel[],
+): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  if (options.show_topic) {
+    const topics = Array.from(new Set(run.map((question) => question.topic).filter(Boolean)));
+    if (topics.length > 0) {
+      metadata.topic = `Topic: ${topics.join(", ")}`;
+    }
+  }
+
+  if (options.show_standards) {
+    const standards = Array.from(
+      new Set(
+        run.flatMap((question) =>
+          question.standards.map((reference) => reference.standard_id),
+        ),
+      ),
+    );
+    if (standards.length > 0) {
+      metadata.standards = `Standards: ${standards.join(", ")}`;
+    }
+  }
+
+  if (options.show_suggested_time) {
+    const seconds =
+      section.suggested_time_mode === "override"
+        ? section.suggested_time_sec
+        : run.reduce((total, question) => total + (question.estimated_time_sec ?? 0), 0);
+    if ((seconds ?? 0) > 0) {
+      metadata.time = `Suggested time: ${formatSectionTime(seconds ?? 0)}`;
+    }
+  }
+
+  return metadata;
+}
+
+function getManualSectionMetadata(
+  item: TestItemModel,
+  options: TestInstructionSectionOptionsModel,
+  run: QuestionModel[],
+): Record<string, string> {
+  const metadata: Record<string, string> = {};
+  if (options.show_topic) {
+    const topic = item.topic?.trim();
+    if (topic) {
+      metadata.topic = `Topic: ${topic}`;
+    } else {
+      const topics = Array.from(new Set(run.map((question) => question.topic).filter(Boolean)));
+      if (topics.length > 0) {
+        metadata.topic = `Topic: ${topics.join(", ")}`;
+      }
+    }
+  }
+
+  if (options.show_standards) {
+    const itemStandards = item.standards ?? [];
+    if (itemStandards.length > 0) {
+      metadata.standards = `Standards: ${itemStandards.join(", ")}`;
+    } else {
+      const standards = Array.from(
+        new Set(
+          run.flatMap((question) =>
+            question.standards.map((reference) => reference.standard_id),
+          ),
+        ),
+      );
+      if (standards.length > 0) {
+        metadata.standards = `Standards: ${standards.join(", ")}`;
+      }
+    }
+  }
+
+  if (options.show_suggested_time) {
+    const seconds =
+      item.suggested_time_mode === "override"
+        ? item.suggested_time_sec
+        : run.reduce((total, question) => total + (question.estimated_time_sec ?? 0), 0);
+    if ((seconds ?? 0) > 0) {
+      metadata.time = `Suggested time: ${formatSectionTime(seconds ?? 0)}`;
+    }
+  }
+
+  return metadata;
+}
+
+function applyTemplate(template: string, values: Record<string, string>) {
+  return template
+    .replace(/\{\{title\}\}/g, values.title ?? "")
+    .replace(/\{\{version\}\}/g, values.version ?? "")
+    .replace(/\{\{date\}\}/g, values.date ?? "")
+    .replace(/\{\{section_title\}\}/g, values.section_title ?? "")
+    .replace(/\{\{instructions\}\}/g, values.instructions ?? "")
+    .replace(/\{\{topic\}\}/g, values.topic ?? "")
+    .replace(/\{\{standards\}\}/g, values.standards ?? "")
+    .replace(/\{\{time\}\}/g, values.time ?? "")
+    .split("\n")
+    .map((line: string) => line.trim())
+    .filter(Boolean);
+}
+
+function TemplateBlock({
+  block,
+  values,
+  className,
+}: {
+  block: TestTemplateBlockModel;
+  values: Record<string, string>;
+  className: string;
+}) {
+  const lines = applyTemplate(block.template, values);
+  if (lines.length === 0) return null;
+
+  return (
+    <section
+      className={`${className} align-${block.alignment} ${block.horizontal_line ? "with-line" : ""}`}
+      style={{ marginBottom: `${Math.max(0, block.spacing_after_lines) * 0.12}in` }}
+    >
+      {lines.map((line: string, index: number) => (
+        <MathTextPreview key={`${line}-${index}`} text={line} />
+      ))}
+    </section>
+  );
+}
+
 function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
   const [tests, setTests] = useState<TestDraftDetailModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const previewViewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,12 +399,27 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
   }
 
   const settings = selectedTest.test.print_settings;
+  const pageHeader = getPageHeader(settings);
+  const nameField = getNameField(settings);
+  const instructionOptions = getInstructionOptions(settings);
+  const headerValues = {
+    title: selectedTest.test.title,
+    version: selectedTest.test.version,
+    date: formatDate(),
+  };
   const pageSizeForPrint = settings.page_size === "a4" ? "A4" : settings.page_size;
   const printStyle = {
     "--print-font-size": `${settings.font_size_pt}pt`,
     "--print-margin": `${settings.margin_in}in`,
     "--print-columns": settings.columns,
   } as CSSProperties;
+  const scrollPreviewPage = (direction: -1 | 1) => {
+    const viewport = previewViewportRef.current;
+    if (!viewport) return;
+    const page = viewport.querySelector<HTMLElement>(".print-page");
+    const distance = page ? page.getBoundingClientRect().height + 24 : viewport.clientHeight * 0.85;
+    viewport.scrollBy({ top: direction * distance, behavior: "smooth" });
+  };
 
   return (
     <div className="print-preview-shell" style={printStyle}>
@@ -128,6 +433,12 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
           </span>
         </div>
         <div className="print-preview-actions">
+          <button type="button" onClick={() => scrollPreviewPage(-1)}>
+            Previous Page
+          </button>
+          <button type="button" onClick={() => scrollPreviewPage(1)}>
+            Next Page
+          </button>
           <button type="button" onClick={() => window.print()}>
             Print
           </button>
@@ -137,71 +448,183 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
         </div>
       </div>
 
-      <main className={`print-page page-${settings.page_size}`}>
-        {settings.cover_sheet_enabled ? (
-          <section className="print-cover-sheet">
-            <h1>{selectedTest.test.title}</h1>
-            <div className="print-cover-meta">
-              <span>Version {selectedTest.test.version}</span>
-              <span>{formatDate()}</span>
-            </div>
-            {settings.name_field_enabled ? (
-              <div className="print-name-line">
-                <span>Name</span>
-                <i />
-              </div>
-            ) : null}
-          </section>
-        ) : settings.name_field_enabled ? (
-          <section className="print-name-line compact">
-            <span>Name</span>
-            <i />
-          </section>
-        ) : null}
+      <div ref={previewViewportRef} className="print-preview-viewport">
+        <main className={`print-page page-${settings.page_size}`}>
+          {settings.cover_sheet_enabled ? (
+            <section className="print-cover-sheet">
+              <TemplateBlock
+                block={pageHeader}
+                values={headerValues}
+                className="print-page-header-template"
+              />
+              {settings.name_field_enabled ? (
+                <TemplateBlock
+                  block={nameField}
+                  values={headerValues}
+                  className="print-name-template"
+                />
+              ) : null}
+            </section>
+          ) : (
+            <>
+              <TemplateBlock
+                block={pageHeader}
+                values={headerValues}
+                className="print-page-header-template compact"
+              />
+              {settings.name_field_enabled ? (
+                <TemplateBlock
+                  block={nameField}
+                  values={headerValues}
+                  className="print-name-template compact"
+                />
+              ) : null}
+            </>
+          )}
 
-        <section className="print-question-flow">
-          {selectedTest.test.items.map((item, index) => {
-            const question = questionsById[item.question_id];
-            const choices = question ? getChoices(question) : [];
-            const responseLines =
-              item.response_space_lines ?? settings.default_response_space_lines;
+          <section className="print-question-flow">
+            {(() => {
+              let questionNumber = 0;
+              let previousQuestionType: QuestionType | null = null;
+              let manualSectionQuestionType: QuestionType | null = null;
+              let suppressAutoAfterManualSection = false;
 
-            return (
-              <article key={`${item.question_id}-${index}`} className="print-question-item">
-                <div className="print-question-header">
-                  <strong>{index + 1}.</strong>
-                  {question ? <span>{getQuestionInstruction(question)}</span> : null}
-                </div>
+              return selectedTest.test.items.map((item, index) => {
+                if (isSectionItem(item)) {
+                  const sectionRun = getManualSectionRun(selectedTest, index, questionsById);
+                  const linkedSection = item.question_type
+                    ? getInstructionSection(settings, item.question_type)
+                    : null;
+                  const firstQuestion = sectionRun[0] ?? null;
+                  const title = item.title || linkedSection?.title || "Section";
+                  const instructions =
+                    item.instructions ||
+                    (linkedSection && firstQuestion
+                      ? getSectionInstruction(linkedSection, firstQuestion)
+                      : linkedSection?.instructions) ||
+                    "";
+                  const sectionMetadata = getManualSectionMetadata(item, instructionOptions, sectionRun);
+                  previousQuestionType = null;
+                  manualSectionQuestionType = item.question_type ?? null;
+                  suppressAutoAfterManualSection = true;
 
-                {question ? (
-                  <>
-                    <MathTextPreview text={question.prompt} className="print-question-prompt" />
-                    {choices.length > 0 ? (
-                      <ol className="print-choice-list">
-                        {choices.map((choice, choiceIndex) => (
-                          <li key={`${choice}-${choiceIndex}`}>
-                            <span>{CHOICE_LABELS[choiceIndex] ?? `${choiceIndex + 1}`}</span>
-                            <MathTextPreview text={choice} preferWholeExpression />
-                          </li>
-                        ))}
-                      </ol>
+                  return (
+                    <article
+                      key={`${item.section_id ?? item.title ?? "section"}-${index}`}
+                      className="print-section-item"
+                    >
+                      <TemplateBlock
+                        block={{
+                          template:
+                            item.header_template ??
+                            linkedSection?.header_template ??
+                            "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+                          alignment: instructionOptions.alignment,
+                          horizontal_line: instructionOptions.horizontal_line,
+                          spacing_after_lines: instructionOptions.spacing_after_lines,
+                        }}
+                        values={{
+                          section_title: title,
+                          instructions,
+                          ...sectionMetadata,
+                        }}
+                        className="print-instruction-section"
+                      />
+                    </article>
+                  );
+                }
+
+                const question = item.question_id ? questionsById[item.question_id] : null;
+                const suppressAutoHeader =
+                  !!question &&
+                  suppressAutoAfterManualSection &&
+                  (!manualSectionQuestionType || manualSectionQuestionType === question.type);
+                const showSectionHeader =
+                  !!question && !suppressAutoHeader && previousQuestionType !== question.type;
+                const section = question
+                  ? getInstructionSection(settings, question.type)
+                  : null;
+                const sectionRun = question
+                  ? getSectionRun(selectedTest, index, questionsById)
+                  : [];
+                const sectionMetadata = section
+                  ? getSectionMetadata(section, instructionOptions, sectionRun)
+                  : {};
+                const choices = question ? getChoices(question) : [];
+                const responseLines =
+                  item.response_space_lines ?? settings.default_response_space_lines;
+
+                if (question) {
+                  questionNumber += 1;
+                  if (
+                    suppressAutoAfterManualSection &&
+                    (!manualSectionQuestionType || manualSectionQuestionType !== question.type)
+                  ) {
+                    suppressAutoAfterManualSection = false;
+                    manualSectionQuestionType = null;
+                  }
+                  if (suppressAutoAfterManualSection && !manualSectionQuestionType) {
+                    suppressAutoAfterManualSection = false;
+                  }
+                  previousQuestionType = question.type;
+                }
+
+                return (
+                  <article key={`${item.question_id ?? "question"}-${index}`} className="print-question-item">
+                    {showSectionHeader && section && question ? (
+                      <TemplateBlock
+                        block={{
+                          template:
+                            section.header_template ??
+                            "{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+                          alignment: instructionOptions.alignment,
+                          horizontal_line: instructionOptions.horizontal_line,
+                          spacing_after_lines: instructionOptions.spacing_after_lines,
+                        }}
+                        values={{
+                          section_title: section.title,
+                          instructions: getSectionInstruction(section, question),
+                          ...sectionMetadata,
+                        }}
+                        className="print-instruction-section"
+                      />
                     ) : null}
-                    {responseLines > 0 ? (
-                      <div className="print-response-space">
-                        {Array.from({ length: responseLines }).map((_, lineIndex) => (
-                          <i key={lineIndex} />
-                        ))}
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="print-missing-question">Question not found: {item.question_id}</p>
-                )}
-              </article>
-            );
-          })}
-        </section>
-      </main>
+
+                    <div className="print-question-header">
+                      <strong>{questionNumber}.</strong>
+                    </div>
+
+                    {question ? (
+                      <>
+                        <MathTextPreview text={question.prompt} className="print-question-prompt" />
+                        {choices.length > 0 ? (
+                          <ol className="print-choice-list">
+                            {choices.map((choice, choiceIndex) => (
+                              <li key={`${choice}-${choiceIndex}`}>
+                                <span>{CHOICE_LABELS[choiceIndex] ?? `${choiceIndex + 1}`}</span>
+                                <MathTextPreview text={choice} preferWholeExpression />
+                              </li>
+                            ))}
+                          </ol>
+                        ) : null}
+                        {responseLines > 0 ? (
+                          <div className="print-response-space">
+                            {Array.from({ length: responseLines }).map((_, lineIndex) => (
+                              <i key={lineIndex} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="print-missing-question">Question not found: {item.question_id}</p>
+                    )}
+                  </article>
+                );
+              });
+            })()}
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

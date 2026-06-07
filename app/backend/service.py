@@ -47,7 +47,8 @@ from .models import (
     TestDraftListResponseModel,
     TestDraftModel,
     TestDraftSummaryModel,
-    TestItemModel,
+    TestQuestionItemModel,
+    TestSectionItemModel,
     TestStandardBalanceModel,
 )
 
@@ -111,6 +112,7 @@ class BankWorkspaceService:
 
         normalized_path = self._normalize_workspace_root(workspace_path)
         self._ensure_support_files(normalized_path)
+        self._ensure_referenced_standard_records(normalized_path)
         self._validate_workspace(normalized_path)
 
         self._source_path = source_path
@@ -300,6 +302,125 @@ class BankWorkspaceService:
             source_list=source_list,
             imported_count=len(imported_standards),
             imported_path=imported_path,
+        )
+
+    def update_standard_record(
+        self,
+        current_standard_id: str,
+        payload: StandardRecordModel,
+    ) -> StandardRecordModel:
+        _, workspace_path = self.ensure_open()
+        current_standard_id = current_standard_id.strip()
+        if not current_standard_id:
+            raise BankWorkspaceError("Standard id must not be empty.", status_code=400)
+
+        next_record = StandardRecordModel(
+            id=payload.id.strip(),
+            source_list_id=payload.source_list_id.strip(),
+            code=payload.code.strip(),
+            statement=payload.statement.strip(),
+            subject=self._normalize_optional_text(payload.subject),
+            grade_band=self._normalize_optional_text(payload.grade_band),
+            tags=self._normalize_tags(payload.tags),
+        )
+        if not next_record.id:
+            raise BankWorkspaceError("Standard id must not be empty.", status_code=400)
+        if not next_record.source_list_id:
+            raise BankWorkspaceError("Source list id must not be empty.", status_code=400)
+        if not next_record.code:
+            raise BankWorkspaceError("Standard short name must not be empty.", status_code=400)
+        if not next_record.statement:
+            raise BankWorkspaceError("Standard text must not be empty.", status_code=400)
+
+        if next_record.source_list_id not in {item.id for item in self._read_source_standard_lists().items}:
+            raise BankWorkspaceError(
+                f"Unknown standards source list: {next_record.source_list_id}",
+                status_code=422,
+            )
+
+        records = self._read_standard_records()
+        existing_index = next(
+            (index for index, item in enumerate(records.items) if item.id == current_standard_id),
+            None,
+        )
+        if existing_index is None:
+            raise BankWorkspaceError(f"Standard not found: {current_standard_id}", status_code=404)
+
+        if next_record.id != current_standard_id and any(item.id == next_record.id for item in records.items):
+            raise BankWorkspaceError(
+                f"A standard with id {next_record.id} already exists.",
+                status_code=409,
+            )
+
+        records.items[existing_index] = next_record
+        records.items.sort(key=lambda item: item.id)
+        self._write_standard_records(records)
+
+        if next_record.id != current_standard_id:
+            self._replace_standard_references(
+                workspace_path,
+                old_standard_id=current_standard_id,
+                new_standard_id=next_record.id,
+            )
+
+        return next_record
+
+    def create_standard_placeholders(self, standard_ids: list[str]) -> StandardSearchResponseModel:
+        source_lists = self._read_source_standard_lists()
+        records = self._read_standard_records()
+        existing_standard_ids = {item.id for item in records.items}
+        requested_standard_ids = sorted(
+            {
+                standard_id.strip()
+                for standard_id in standard_ids
+                if isinstance(standard_id, str) and standard_id.strip()
+            }
+        )
+        missing_standard_ids = [
+            standard_id for standard_id in requested_standard_ids if standard_id not in existing_standard_ids
+        ]
+        if not missing_standard_ids:
+            return StandardSearchResponseModel(
+                items=[item for item in records.items if item.id in requested_standard_ids]
+            )
+
+        placeholder_source_id = "unresolved-question-standards"
+        if not any(item.id == placeholder_source_id for item in source_lists.items):
+            source_lists.items.append(
+                SourceStandardListModel(
+                    id=placeholder_source_id,
+                    title="Unresolved Question Standards",
+                    issuer="Nexzam",
+                    subject=None,
+                    version=None,
+                    description=(
+                        "Placeholder standards created for question or course references "
+                        "that were present in the bank but missing from standards/records.json."
+                    ),
+                    imported_at=datetime.now(UTC),
+                )
+            )
+
+        for standard_id in missing_standard_ids:
+            records.items.append(
+                StandardRecordModel(
+                    id=standard_id,
+                    source_list_id=placeholder_source_id,
+                    code=standard_id,
+                    statement=(
+                        "Placeholder for an imported or referenced standard. "
+                        "Review this record and replace it with the official standard text."
+                    ),
+                    tags=["placeholder", "needs-review"],
+                )
+            )
+
+        source_lists.items.sort(key=lambda item: item.id)
+        records.items.sort(key=lambda item: item.id)
+        self._write_source_standard_lists(source_lists)
+        self._write_standard_records(records)
+        return StandardSearchResponseModel(
+            items=[item for item in records.items if item.id in requested_standard_ids]
         )
 
     def stage_question_import(self, *, filename: str, content: bytes) -> QuestionImportStageModel:
@@ -522,7 +643,12 @@ class BankWorkspaceService:
             raise BankWorkspaceError(f"Test draft not found: {test_id}", status_code=404)
         self.get_question(question_id)
 
-        test.items.append(TestItemModel(question_id=question_id, experimental=experimental))
+        test.items.append(
+            TestQuestionItemModel(
+                question_id=question_id,
+                experimental=experimental,
+            )
+        )
         self._write_tests(tests)
         return self.get_test_draft(test.id)
 
@@ -641,6 +767,7 @@ class BankWorkspaceService:
                 difficulty=question.difficulty,
                 status=question.status,
                 prompt=question.prompt,
+                choice_preview=self._build_question_choice_preview(question),
             )
             for question in filtered
         ]
@@ -835,6 +962,50 @@ class BankWorkspaceService:
         _, workspace_path = self.ensure_open()
         (workspace_path / "courses" / "courses.json").write_text(payload.model_dump_json(indent=2) + "\n")
 
+    def _replace_standard_references(
+        self,
+        workspace_path: Path,
+        *,
+        old_standard_id: str,
+        new_standard_id: str,
+    ) -> None:
+        courses = self._read_courses()
+        courses_changed = False
+        for course in courses.items:
+            if not any(reference.standard_id == old_standard_id for reference in course.standard_refs):
+                continue
+            course.standard_refs = self._dedupe_standard_refs(
+                [
+                    StandardReferenceModel(
+                        standard_id=new_standard_id
+                        if reference.standard_id == old_standard_id
+                        else reference.standard_id
+                    )
+                    for reference in course.standard_refs
+                ]
+            )
+            courses_changed = True
+
+        if courses_changed:
+            self._write_courses(courses)
+
+        questions_dir = workspace_path / "questions"
+        for question_path in sorted(questions_dir.glob("*.json")):
+            question = QuestionModel.model_validate_json(question_path.read_text())
+            if not any(reference.standard_id == old_standard_id for reference in question.standards):
+                continue
+            question.standards = self._dedupe_standard_refs(
+                [
+                    StandardReferenceModel(
+                        standard_id=new_standard_id
+                        if reference.standard_id == old_standard_id
+                        else reference.standard_id
+                    )
+                    for reference in question.standards
+                ]
+            )
+            question_path.write_text(question.model_dump_json(indent=2) + "\n")
+
     def _read_tests(self) -> TestDraftCollectionModel:
         _, workspace_path = self.ensure_open()
         return TestDraftCollectionModel.model_validate_json(
@@ -853,13 +1024,21 @@ class BankWorkspaceService:
         questions = [
             questions_by_id[item.question_id]
             for item in test.items
-            if item.question_id in questions_by_id
+            if isinstance(item, TestQuestionItemModel) and item.question_id in questions_by_id
         ]
         return TestDraftDetailModel(
             test=test,
             summary=self._build_test_summary(test, questions_by_id),
             questions=questions,
         )
+
+    def _build_question_choice_preview(self, question: QuestionModel) -> list[str]:
+        if question.type != "multiple_choice":
+            return []
+        choices = (question.answer or {}).get("choices")
+        if not isinstance(choices, list):
+            return []
+        return [str(choice) for choice in choices if isinstance(choice, str)]
 
     def _build_test_summary(
         self,
@@ -876,6 +1055,8 @@ class BankWorkspaceService:
         standard_difficulty_counts: dict[str, dict[str, int]] = {}
 
         for item in test.items:
+            if isinstance(item, TestSectionItemModel):
+                continue
             question = questions_by_id.get(item.question_id)
             if question is None:
                 continue
@@ -927,7 +1108,11 @@ class BankWorkspaceService:
     def _validate_test_question_references(self, test: TestDraftModel) -> None:
         question_ids = {question.id for question in self._load_questions()}
         missing_ids = sorted(
-            {item.question_id for item in test.items if item.question_id not in question_ids}
+            {
+                item.question_id
+                for item in test.items
+                if isinstance(item, TestQuestionItemModel) and item.question_id not in question_ids
+            }
         )
         if missing_ids:
             raise BankWorkspaceError(
@@ -1057,6 +1242,71 @@ class BankWorkspaceService:
         tests_path = tests_dir / "tests.json"
         if not tests_path.exists():
             tests_path.write_text(TestDraftCollectionModel().model_dump_json(indent=2) + "\n")
+
+    def _ensure_referenced_standard_records(self, workspace_path: Path) -> None:
+        source_lists_path = workspace_path / "standards" / "source_lists.json"
+        records_path = workspace_path / "standards" / "records.json"
+        courses_path = workspace_path / "courses" / "courses.json"
+        questions_dir = workspace_path / "questions"
+
+        source_lists = SourceStandardListCollectionModel.model_validate_json(
+            source_lists_path.read_text()
+        )
+        records = StandardRecordCollectionModel.model_validate_json(records_path.read_text())
+        known_standard_ids = {item.id for item in records.items}
+        referenced_standard_ids: set[str] = set()
+
+        for path in sorted(questions_dir.glob("*.json")):
+            question = QuestionModel.model_validate_json(path.read_text())
+            referenced_standard_ids.update(
+                reference.standard_id for reference in question.standards
+            )
+
+        courses = CourseCollectionModel.model_validate_json(courses_path.read_text())
+        for course in courses.items:
+            referenced_standard_ids.update(
+                reference.standard_id for reference in course.standard_refs
+            )
+
+        missing_standard_ids = sorted(referenced_standard_ids - known_standard_ids)
+        if not missing_standard_ids:
+            return
+
+        placeholder_source_id = "unresolved-question-standards"
+        if not any(item.id == placeholder_source_id for item in source_lists.items):
+            source_lists.items.append(
+                SourceStandardListModel(
+                    id=placeholder_source_id,
+                    title="Unresolved Question Standards",
+                    issuer="Nexzam",
+                    subject=None,
+                    version=None,
+                    description=(
+                        "Placeholder standards created for question or course references "
+                        "that were present in the bank but missing from standards/records.json."
+                    ),
+                    imported_at=datetime.now(UTC),
+                )
+            )
+
+        for standard_id in missing_standard_ids:
+            records.items.append(
+                StandardRecordModel(
+                    id=standard_id,
+                    source_list_id=placeholder_source_id,
+                    code=standard_id,
+                    statement=(
+                        "Placeholder for a standard referenced by a question or course. "
+                        "Review this record and replace it with the official standard text."
+                    ),
+                    tags=["placeholder", "needs-review"],
+                )
+            )
+
+        source_lists.items.sort(key=lambda item: item.id)
+        records.items.sort(key=lambda item: item.id)
+        source_lists_path.write_text(source_lists.model_dump_json(indent=2) + "\n")
+        records_path.write_text(records.model_dump_json(indent=2) + "\n")
 
     def _build_blank_question(self) -> QuestionModel:
         return QuestionModel(

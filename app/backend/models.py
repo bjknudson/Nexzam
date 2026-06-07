@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 
 QuestionType = Literal[
@@ -110,6 +110,10 @@ class StandardImportResponseModel(BaseModel):
     imported_path: str | None = None
 
 
+class CreateStandardPlaceholdersRequest(BaseModel):
+    standard_ids: list[str]
+
+
 class QuestionImportValidationIssueModel(BaseModel):
     code: str
     message: str
@@ -159,16 +163,128 @@ class QuestionImportPromoteResponseModel(BaseModel):
     stage: QuestionImportStageModel
 
 
-class TestItemModel(BaseModel):
+class TestQuestionItemModel(BaseModel):
     question_id: str
     experimental: bool = False
     response_space_lines: int | None = None
     teacher_notes: str | None = None
 
+    @field_validator("question_id")
+    @classmethod
+    def validate_question_id(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("question test items require question_id")
+        return text
+
+
+class TestSectionItemModel(BaseModel):
+    item_type: Literal["section"] = "section"
+    section_id: str | None = None
+    question_type: QuestionType | None = None
+    title: str
+    instructions: str = ""
+    header_template: str | None = None
+    topic: str | None = None
+    standards: list[str] = Field(default_factory=list)
+    suggested_time_mode: Literal["calculated", "override"] = "calculated"
+    suggested_time_sec: int | None = None
+
+    @model_validator(mode="after")
+    def validate_section_shape(self) -> "TestSectionItemModel":
+        if not (self.title or "").strip():
+            raise ValueError("section test items require title")
+        self.section_id = (self.section_id or self.title).strip()
+        self.instructions = self.instructions or ""
+        self.header_template = self.header_template if self.header_template is not None else None
+        self.topic = self.topic if self.topic and self.topic.strip() else None
+        self.standards = [standard.strip() for standard in self.standards if standard.strip()]
+        return self
+
+
+TestItemModel = TestQuestionItemModel | TestSectionItemModel
+
+
+class TestInstructionSectionModel(BaseModel):
+    question_type: QuestionType
+    title: str
+    instructions: str
+    header_template: str | None = None
+    show_topic: bool = False
+    show_standards: bool = False
+    show_suggested_time: bool = True
+    suggested_time_mode: Literal["calculated", "override"] = "calculated"
+    suggested_time_sec: int | None = None
+
+
+class TestTemplateBlockModel(BaseModel):
+    template: str
+    alignment: Literal["left", "center", "right"] = "left"
+    horizontal_line: bool = False
+    spacing_after_lines: int = 1
+
+
+class TestInstructionSectionOptionsModel(BaseModel):
+    show_topic: bool = False
+    show_standards: bool = False
+    show_suggested_time: bool = True
+    alignment: Literal["left", "center", "right"] = "left"
+    horizontal_line: bool = True
+    spacing_after_lines: int = 1
+
+
+def default_test_instruction_sections() -> list[TestInstructionSectionModel]:
+    return [
+        TestInstructionSectionModel(
+            question_type="multiple_choice",
+            title="Multiple Choice",
+            instructions="Select the best answer.",
+            header_template="{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+        ),
+        TestInstructionSectionModel(
+            question_type="numeric_response",
+            title="Numeric Response",
+            instructions="Enter a numeric answer.",
+            header_template="{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+        ),
+        TestInstructionSectionModel(
+            question_type="short_answer",
+            title="Short Answer",
+            instructions="Write a concise response.",
+            header_template="{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+        ),
+        TestInstructionSectionModel(
+            question_type="free_response",
+            title="Free Response",
+            instructions="Show your work and justify your answer.",
+            header_template="{{section_title}}\n{{instructions}}\n{{topic}}\n{{standards}}\n{{time}}",
+        ),
+    ]
+
+
+def default_test_page_header() -> TestTemplateBlockModel:
+    return TestTemplateBlockModel(
+        template="{{title}}\nVersion {{version}}    {{date}}",
+        alignment="center",
+        horizontal_line=True,
+        spacing_after_lines=1,
+    )
+
+
+def default_test_name_field() -> TestTemplateBlockModel:
+    return TestTemplateBlockModel(
+        template="Name: ______________________________",
+        alignment="left",
+        horizontal_line=False,
+        spacing_after_lines=1,
+    )
+
 
 class TestPrintSettingsModel(BaseModel):
     cover_sheet_enabled: bool = True
     cover_sheet_template: str | None = None
+    page_header: TestTemplateBlockModel = Field(default_factory=default_test_page_header)
+    name_field: TestTemplateBlockModel = Field(default_factory=default_test_name_field)
     typeface: str = "system"
     font_size_pt: int = 11
     margin_in: float = 0.75
@@ -177,6 +293,12 @@ class TestPrintSettingsModel(BaseModel):
     name_field_enabled: bool = True
     page_numbers_enabled: bool = True
     default_response_space_lines: int = 0
+    instruction_section_options: TestInstructionSectionOptionsModel = Field(
+        default_factory=TestInstructionSectionOptionsModel
+    )
+    instruction_sections: list[TestInstructionSectionModel] = Field(
+        default_factory=default_test_instruction_sections
+    )
 
 
 class TestPerformanceItemModel(BaseModel):
@@ -207,11 +329,10 @@ class TestDraftModel(BaseModel):
 
     @field_validator("id", "title", "version")
     @classmethod
-    def validate_required_text(cls, value: str) -> str:
-        text = value.strip()
-        if not text:
+    def validate_required_text(cls, value: str, info: ValidationInfo) -> str:
+        if not value.strip():
             raise ValueError("field must not be empty")
-        return text
+        return value.strip() if info.field_name == "id" else value
 
 
 class TestDraftCollectionModel(BaseModel):
@@ -410,6 +531,7 @@ class QuestionListItemModel(BaseModel):
     difficulty: int
     status: str
     prompt: str
+    choice_preview: list[str] = Field(default_factory=list)
 
 
 class QuestionListResponseModel(BaseModel):

@@ -67,6 +67,7 @@ type EditorMode = "form" | "json";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 type PersistReason = "autosave" | "manual" | "switch" | "save-bank" | "open-bank";
 type PaneKind = "questions" | "assets" | "standards" | "test-preview";
+type WorkspacePage = "questions" | "tests";
 
 interface QuestionPaneSnapshot {
   hasBank: boolean;
@@ -108,6 +109,7 @@ type PaneMessage =
   | { type: "assets-search"; value: string }
   | { type: "assets-attach"; path: string }
   | { type: "standards-data-changed" }
+  | { type: "standard-id-changed"; oldStandardId: string; newStandardId: string }
   | { type: "request-question-standards-state" }
   | { type: "question-standards-state"; state: QuestionStandardsSnapshot }
   | { type: "question-attach-standard"; standardId: string }
@@ -307,6 +309,7 @@ interface QuestionPaneProps {
   selectedId: string | null;
   promptPreview: string;
   showPromptPreview: boolean;
+  wideRows?: boolean;
   onOpen: () => void;
   onClose: () => void;
   onPopOut: () => void;
@@ -334,6 +337,7 @@ function QuestionPane({
   selectedId,
   promptPreview,
   showPromptPreview,
+  wideRows = false,
   onOpen,
   onClose,
   onPopOut,
@@ -357,7 +361,11 @@ function QuestionPane({
   }
 
   return (
-    <aside className={`dock-pane question-pane ${poppedOut ? "popout" : "docked"}`}>
+    <aside
+      className={`dock-pane question-pane ${poppedOut ? "popout" : "docked"} ${
+        wideRows ? "wide-rows" : ""
+      }`}
+    >
       <div className="pane-header">
         <h2>Questions</h2>
         <div className="pane-header-actions">
@@ -425,6 +433,18 @@ function QuestionPane({
                 <span>{item.type}</span>
                 <span>Difficulty {item.difficulty}</span>
                 <span>{item.status}</span>
+                {wideRows ? (
+                  <span className="question-row-preview">{item.prompt}</span>
+                ) : null}
+                {wideRows && item.choice_preview.length > 0 ? (
+                  <span className="question-row-choices">
+                    {item.choice_preview.map((choice, choiceIndex) => (
+                      <em key={`${item.id}-${choiceIndex}`}>
+                        {String.fromCharCode(65 + choiceIndex)}. {choice}
+                      </em>
+                    ))}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -625,7 +645,7 @@ function App() {
   const [questionPanePoppedOut, setQuestionPanePoppedOut] = useState(false);
   const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
   const [questionImportOpen, setQuestionImportOpen] = useState(false);
-  const [testBuilderOpen, setTestBuilderOpen] = useState(false);
+  const [workspacePage, setWorkspacePage] = useState<WorkspacePage>("questions");
   const [testDrafts, setTestDrafts] = useState<TestDraftDetailModel[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
@@ -1219,6 +1239,64 @@ function App() {
     }
   }
 
+  async function addQuestionIdsToTest(testId: string, questionIds: string[]) {
+    let latestDetail: TestDraftDetailModel | null = null;
+    for (const questionId of questionIds) {
+      latestDetail = await addQuestionToTest({
+        testId,
+        question_id: questionId,
+      });
+    }
+    if (latestDetail) {
+      replaceTestDraft(latestDetail);
+    }
+    return latestDetail;
+  }
+
+  async function handleCreateTestFromImportedQuestions(questionIds: string[]) {
+    if (!bank || questionIds.length === 0) return;
+
+    setLoading(true);
+    try {
+      const created = await createTestDraft({
+        title: `${bank.manifest.title} Imported Test`,
+        version: "A",
+      });
+      const detail = await addQuestionIdsToTest(created.test.id, questionIds);
+      setQuestionImportOpen(false);
+      setWorkspacePage("tests");
+      setWorkspaceDirty(true);
+      setStatusMessage(
+        `Created ${detail?.test.id ?? created.test.id} with ${questionIds.length} imported questions.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAddImportedQuestionsToCurrentTest(questionIds: string[]) {
+    if (!selectedTestId || questionIds.length === 0) return;
+
+    setLoading(true);
+    try {
+      const detail = await addQuestionIdsToTest(selectedTestId, questionIds);
+      setQuestionImportOpen(false);
+      setWorkspacePage("tests");
+      setWorkspaceDirty(true);
+      setStatusMessage(
+        `Added ${questionIds.length} imported questions to ${detail?.test.id ?? selectedTestId}.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleUpdateTestDraft(test: TestDraftModel) {
     setLoading(true);
     try {
@@ -1638,6 +1716,25 @@ function App() {
     );
   }
 
+  function replaceStandardIdOnDraftQuestion(oldStandardId: string, newStandardId: string) {
+    const current = draftQuestionRef.current;
+    if (!current) return;
+    if (!current.standards.some((reference) => reference.standard_id === oldStandardId)) return;
+
+    const seenStandardIds = new Set<string>();
+    const nextStandards = current.standards
+      .map((reference) => ({
+        standard_id:
+          reference.standard_id === oldStandardId ? newStandardId : reference.standard_id,
+      }))
+      .filter((reference) => {
+        if (seenStandardIds.has(reference.standard_id)) return false;
+        seenStandardIds.add(reference.standard_id);
+        return true;
+      });
+    updateDraft("standards", nextStandards);
+  }
+
   async function handleOpenQuestionStandardsPicker() {
     try {
       await openPaneWindow("standards", "Question Standards", {
@@ -1820,6 +1917,10 @@ function App() {
         }
         if (message.type === "standards-data-changed") {
           void refreshStandardsData();
+          return;
+        }
+        if (message.type === "standard-id-changed") {
+          replaceStandardIdOnDraftQuestion(message.oldStandardId, message.newStandardId);
           return;
         }
         if (message.type === "request-question-standards-state") {
@@ -2046,6 +2147,7 @@ function App() {
           selectedId={questionPaneSnapshot.selectedId}
           promptPreview={questionPaneSnapshot.promptPreview}
           showPromptPreview
+          wideRows
           onOpen={() => undefined}
           onClose={() => undefined}
           onPopOut={() => undefined}
@@ -2133,6 +2235,29 @@ function App() {
           <button onClick={() => void handleOpenDemo()} disabled={loading}>
             Open Demo Bank
           </button>
+          <div className="topbar-page-toggle" role="group" aria-label="Workspace page">
+            <button
+              type="button"
+              className={workspacePage === "questions" ? "active" : ""}
+              aria-pressed={workspacePage === "questions"}
+              onClick={() => setWorkspacePage("questions")}
+              disabled={!bank}
+            >
+              Question Editor
+            </button>
+            <button
+              type="button"
+              className={workspacePage === "tests" ? "active" : ""}
+              aria-pressed={workspacePage === "tests"}
+              onClick={() => {
+                setQuestionImportOpen(false);
+                setWorkspacePage("tests");
+              }}
+              disabled={!bank}
+            >
+              Test Builder
+            </button>
+          </div>
           <button onClick={() => void handleOpenStandardsWorkspace()} disabled={loading || !bank}>
             Standards
           </button>
@@ -2142,13 +2267,6 @@ function App() {
             disabled={loading || !bank}
           >
             Import Questions
-          </button>
-          <button
-            type="button"
-            onClick={() => setTestBuilderOpen((current) => !current)}
-            disabled={loading || !bank}
-          >
-            Test Builder
           </button>
           <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
             Save Bank
@@ -2204,29 +2322,24 @@ function App() {
       <QuestionImportWorkspace
         open={questionImportOpen}
         hasBank={!!bank}
+        selectedTestLabel={
+          testDrafts.find((detail) => detail.test.id === selectedTestId)?.test.title ?? null
+        }
         onClose={() => setQuestionImportOpen(false)}
         onWorkspaceChanged={(message, promotedQuestionIds) =>
           void handleQuestionImportWorkspaceChanged(message, promotedQuestionIds)
         }
+        onCreateTestFromQuestions={(questionIds) =>
+          void handleCreateTestFromImportedQuestions(questionIds)
+        }
+        onAddQuestionsToCurrentTest={
+          selectedTestId
+            ? (questionIds) => void handleAddImportedQuestionsToCurrentTest(questionIds)
+            : undefined
+        }
       />
 
-      <TestBuilderPane
-        open={testBuilderOpen}
-        hasBank={!!bank}
-        loading={loading}
-        selectedQuestionId={selectedId}
-        selectedTestId={selectedTestId}
-        tests={testDrafts}
-        onOpen={() => setTestBuilderOpen(true)}
-        onClose={() => setTestBuilderOpen(false)}
-        onCreateTest={() => void handleCreateTestDraft()}
-        onSelectTest={setSelectedTestId}
-        onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
-        onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
-        onUpdateTest={(test) => void handleUpdateTestDraft(test)}
-      />
-
-      <div className="workspace">
+      <div className={`workspace ${workspacePage === "tests" ? "test-builder-workspace" : ""}`}>
         {!questionPanePoppedOut ? (
           <QuestionPane
             open={questionDrawerOpen}
@@ -2242,6 +2355,7 @@ function App() {
             selectedId={selectedId}
             promptPreview={promptPreview}
             showPromptPreview={false}
+            wideRows={workspacePage === "tests"}
             onOpen={() => setQuestionDrawerOpen(true)}
             onClose={() => setQuestionDrawerOpen(false)}
             onPopOut={() => void handlePopOutPane("questions")}
@@ -2258,6 +2372,7 @@ function App() {
           />
         ) : null}
 
+        {workspacePage === "questions" ? (
         <main className="editor-pane">
           <div className={`editor-main ${editorShouldFill ? "full-width" : ""}`}>
             {draftQuestion ? (
@@ -2889,8 +3004,28 @@ function App() {
           )}
           </div>
         </main>
+        ) : (
+          <main className="test-page-pane">
+            <TestBuilderPane
+              open
+              pageMode
+              hasBank={!!bank}
+              loading={loading}
+              selectedQuestionId={selectedId}
+              selectedTestId={selectedTestId}
+              tests={testDrafts}
+              onOpen={() => undefined}
+              onClose={() => setWorkspacePage("questions")}
+              onCreateTest={() => void handleCreateTestDraft()}
+              onSelectTest={setSelectedTestId}
+              onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
+              onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
+              onUpdateTest={(test) => void handleUpdateTestDraft(test)}
+            />
+          </main>
+        )}
 
-        {!assetPanePoppedOut ? (
+        {workspacePage === "questions" && !assetPanePoppedOut ? (
           <AssetPane
             open={assetDrawerOpen}
             poppedOut={false}

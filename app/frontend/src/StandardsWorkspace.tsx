@@ -7,6 +7,7 @@ import {
   listCourses,
   listSourceStandardLists,
   listStandards,
+  updateStandard,
   upsertCourse,
 } from "./api";
 import type { CourseModel, SourceStandardListModel, StandardRecordModel } from "./types";
@@ -32,6 +33,43 @@ interface StandardsWorkspaceProps {
   showCloseHint?: boolean;
 }
 
+interface StandardEditDraft {
+  id: string;
+  source_list_id: string;
+  code: string;
+  statement: string;
+  subject: string;
+  grade_band: string;
+  tagsText: string;
+}
+
+function buildStandardEditDraft(standard: StandardRecordModel): StandardEditDraft {
+  return {
+    id: standard.id,
+    source_list_id: standard.source_list_id,
+    code: standard.code,
+    statement: standard.statement,
+    subject: standard.subject ?? "",
+    grade_band: standard.grade_band ?? "",
+    tagsText: standard.tags.join(", "),
+  };
+}
+
+function parseTags(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function replaceId(items: string[], oldId: string, newId: string): string[] {
+  return Array.from(new Set(items.map((item) => (item === oldId ? newId : item))));
+}
+
 export default function StandardsWorkspace({
   showCloseHint = false,
 }: StandardsWorkspaceProps) {
@@ -55,6 +93,8 @@ export default function StandardsWorkspace({
   const [importSubject, setImportSubject] = useState("");
   const [importVersion, setImportVersion] = useState("");
   const [importDescription, setImportDescription] = useState("");
+  const [editingStandardId, setEditingStandardId] = useState<string | null>(null);
+  const [standardEditDraft, setStandardEditDraft] = useState<StandardEditDraft | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -365,6 +405,69 @@ export default function StandardsWorkspace({
     );
   }
 
+  function handleStartStandardEdit(standard: StandardRecordModel) {
+    setEditingStandardId(standard.id);
+    setStandardEditDraft(buildStandardEditDraft(standard));
+    setErrorMessage("");
+    setStatusMessage("");
+  }
+
+  function handleCancelStandardEdit() {
+    setEditingStandardId(null);
+    setStandardEditDraft(null);
+  }
+
+  function updateStandardEditDraft<K extends keyof StandardEditDraft>(
+    field: K,
+    value: StandardEditDraft[K],
+  ) {
+    setStandardEditDraft((current) => (current ? { ...current, [field]: value } : current));
+  }
+
+  async function handleSaveStandardEdit() {
+    if (!editingStandardId || !standardEditDraft) return;
+    const payload: StandardRecordModel = {
+      id: standardEditDraft.id.trim(),
+      source_list_id: standardEditDraft.source_list_id.trim(),
+      code: standardEditDraft.code.trim(),
+      statement: standardEditDraft.statement.trim(),
+      subject: standardEditDraft.subject.trim() || null,
+      grade_band: standardEditDraft.grade_band.trim() || null,
+      tags: parseTags(standardEditDraft.tagsText),
+    };
+    if (!payload.id || !payload.source_list_id || !payload.code || !payload.statement) {
+      setErrorMessage("Standard id, source list, short name, and text are required.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const saved = await updateStandard(editingStandardId, payload);
+      if (saved.id !== editingStandardId) {
+        setQuestionStandardsState((current) => ({
+          ...current,
+          attachedStandardIds: replaceId(current.attachedStandardIds, editingStandardId, saved.id),
+        }));
+        channelRef.current?.postMessage({
+          type: "standard-id-changed",
+          oldStandardId: editingStandardId,
+          newStandardId: saved.id,
+        });
+      }
+      setSelectedSourceListId(saved.source_list_id);
+      setEditingStandardId(saved.id);
+      setStandardEditDraft(buildStandardEditDraft(saved));
+      setStatusMessage(`Saved ${saved.code}.`);
+      setErrorMessage("");
+      channelRef.current?.postMessage({ type: "standards-data-changed" });
+      await refreshData();
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className={`standards-workspace ${pickerMode ? "picker" : ""}`}>
       <header className="standards-header">
@@ -414,6 +517,89 @@ export default function StandardsWorkspace({
           {errorMessage ? <span className="status-pill error">{errorMessage}</span> : null}
         </div>
       </header>
+
+      {standardEditDraft ? (
+        <section className="standards-panel standards-edit-panel">
+          <div className="standards-panel-header">
+            <div>
+              <h2>Edit Standard</h2>
+              <p>Changes to a standard id are applied to saved questions and course libraries.</p>
+            </div>
+            <div className="standards-course-actions">
+              <button type="button" onClick={handleCancelStandardEdit} disabled={busy}>
+                Close
+              </button>
+              <button type="button" onClick={() => void handleSaveStandardEdit()} disabled={busy}>
+                {busy ? "Saving..." : "Save Standard"}
+              </button>
+            </div>
+          </div>
+          <div className="standards-edit-grid">
+            <label>
+              Standard ID
+              <input
+                value={standardEditDraft.id}
+                onChange={(event) => updateStandardEditDraft("id", event.target.value)}
+                placeholder="CALC-DIFF-02"
+              />
+            </label>
+            <label>
+              Short Name
+              <input
+                value={standardEditDraft.code}
+                onChange={(event) => updateStandardEditDraft("code", event.target.value)}
+                placeholder="CALC-DIFF-02"
+              />
+            </label>
+            <label>
+              Source List
+              <select
+                value={standardEditDraft.source_list_id}
+                onChange={(event) => updateStandardEditDraft("source_list_id", event.target.value)}
+              >
+                {sourceLists.map((sourceList) => (
+                  <option key={sourceList.id} value={sourceList.id}>
+                    {sourceList.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Subject
+              <input
+                value={standardEditDraft.subject}
+                onChange={(event) => updateStandardEditDraft("subject", event.target.value)}
+                placeholder="Algebra"
+              />
+            </label>
+            <label>
+              Grade Band
+              <input
+                value={standardEditDraft.grade_band}
+                onChange={(event) => updateStandardEditDraft("grade_band", event.target.value)}
+                placeholder="9-12"
+              />
+            </label>
+            <label className="metadata-span-full">
+              Topic Tags
+              <input
+                value={standardEditDraft.tagsText}
+                onChange={(event) => updateStandardEditDraft("tagsText", event.target.value)}
+                placeholder="functions, derivatives, needs-review"
+              />
+            </label>
+            <label className="metadata-span-full">
+              Standard Text
+              <textarea
+                className="standards-description-input"
+                value={standardEditDraft.statement}
+                onChange={(event) => updateStandardEditDraft("statement", event.target.value)}
+                placeholder="Full standard text"
+              />
+            </label>
+          </div>
+        </section>
+      ) : null}
 
       {!pickerMode && showImportPanel ? (
       <section className="standards-import-panel">
@@ -650,15 +836,24 @@ export default function StandardsWorkspace({
                           <strong>{standard.code}</strong>
                           <p>{standard.statement}</p>
                         </div>
-                        {selectedCourse ? (
+                        <div className="standards-card-actions">
                           <button
                             type="button"
-                            onClick={() => void handleToggleCourseStandard(standard.id)}
+                            onClick={() => handleStartStandardEdit(standard)}
                             disabled={busy}
                           >
-                            {inCourse ? "Remove" : "Add"}
+                            Edit
                           </button>
-                        ) : null}
+                          {selectedCourse ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleCourseStandard(standard.id)}
+                              disabled={busy}
+                            >
+                              {inCourse ? "Remove" : "Add"}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="bank-asset-badges">
                         <span className="asset-badge">{standard.id}</span>
@@ -752,23 +947,32 @@ export default function StandardsWorkspace({
                       <strong>{standard.code}</strong>
                       <p>{standard.statement}</p>
                     </div>
-                    {pickerMode ? (
+                    <div className="standards-card-actions">
                       <button
                         type="button"
-                        onClick={() => handleQuestionStandardToggle(standard.id)}
-                        disabled={!questionStandardsState.questionId}
-                      >
-                        {selectedQuestionStandardIds.has(standard.id) ? "Remove" : "Attach"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void handleToggleCourseStandard(standard.id)}
+                        onClick={() => handleStartStandardEdit(standard)}
                         disabled={busy}
                       >
-                        Remove
+                        Edit
                       </button>
-                    )}
+                      {pickerMode ? (
+                        <button
+                          type="button"
+                          onClick={() => handleQuestionStandardToggle(standard.id)}
+                          disabled={!questionStandardsState.questionId}
+                        >
+                          {selectedQuestionStandardIds.has(standard.id) ? "Remove" : "Attach"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleCourseStandard(standard.id)}
+                          disabled={busy}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="bank-asset-badges">
                     <span className="asset-badge">{standard.id}</span>
@@ -810,9 +1014,16 @@ export default function StandardsWorkspace({
                         <strong>{standard?.code ?? standardId}</strong>
                         <span>{standard?.statement ?? "Standard not found."}</span>
                       </div>
-                      <button type="button" onClick={() => handleQuestionStandardToggle(standardId)}>
-                        Remove
-                      </button>
+                      <div className="standards-card-actions">
+                        {standard ? (
+                          <button type="button" onClick={() => handleStartStandardEdit(standard)}>
+                            Edit
+                          </button>
+                        ) : null}
+                        <button type="button" onClick={() => handleQuestionStandardToggle(standardId)}>
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

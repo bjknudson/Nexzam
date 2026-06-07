@@ -98,7 +98,11 @@
 - Added backend test draft models, summaries, and create/list/update/add-question endpoints.
 - Added a React Test Builder panel for creating draft tests, adding the selected question, reviewing balance, editing basic print settings from a collapsed Page Settings submenu, and reordering/removing items.
 - Added a printable preview window with cover sheet/name-field support, page size, margins, columns, font size, multiple-choice choices, response lines, and browser print output.
-- Remaining Phase 4 work: richer instruction sections, cover sheet templates, local saved page-setting presets, HTML-to-PDF export, performance-entry UI, swap suggestions, and digital export adapters.
+- Added editable instruction sections by question style. Instructions render as section headers only when the question style changes, with shared display controls and per-style header templates using placeholders for instructions, topic, standards, and time.
+- Added explicit manually placed section items inside test drafts. Sections can be inserted, reordered with questions, edited inline, linked to a question style for defaults, given manual topic/standard/time text, and printed where placed without repeating the same automatic style header.
+- Added template-based page topper and name-field formatting controls with alignment, horizontal line, and spacing options.
+- Split the main app workspace into page-level Question Editor and Test Builder views. Both can use the question bank search pane; the Test Builder gets a wider question pane with prompt and multiple-choice choice previews, while the asset pane remains scoped to the Question Editor.
+- Remaining Phase 4 work: cover sheet templates, local saved page-setting presets, HTML-to-PDF export, performance-entry UI, swap suggestions, and digital export adapters.
 
 ## Phase 5 — Builder
 

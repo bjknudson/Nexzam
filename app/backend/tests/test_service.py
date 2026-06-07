@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from app.backend.models import TestSectionItemModel
 from app.backend.service import BankWorkspaceError, BankWorkspaceService
 
 
@@ -479,6 +480,40 @@ def test_create_test_draft_and_add_questions_builds_summary(
 
     listed = bank_service.list_test_drafts()
     assert [item.test.id for item in listed.items] == ["test_0001"]
+
+
+def test_test_draft_supports_manual_section_items(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    detail = bank_service.create_test_draft("Manual Sections", "A")
+    detail = bank_service.add_question_to_test(detail.test.id, "q_mc_0001")
+    test = detail.test.model_copy(deep=True)
+    test.items.insert(
+        0,
+        TestSectionItemModel(
+            item_type="section",
+            section_id="section_1",
+            question_type="multiple_choice",
+            title="Part 1",
+            instructions="Answer each multiple-choice item.",
+            header_template="{{section_title}}\n{{instructions}}\n{{time}}",
+            topic="Kinematics",
+            standards=["PHY-KIN-01"],
+            suggested_time_mode="override",
+            suggested_time_sec=300,
+        ),
+    )
+
+    updated = bank_service.update_test_draft(test.id, test)
+
+    assert updated.test.items[0].item_type == "section"
+    assert updated.test.items[0].title == "Part 1"
+    assert [question.id for question in updated.questions] == ["q_mc_0001"]
+    assert updated.summary.question_type_counts == {"multiple_choice": 1}
+    assert updated.summary.total_time_estimate_sec == updated.questions[0].estimated_time_sec
 
 
 def test_test_drafts_are_saved_in_repacked_bank(

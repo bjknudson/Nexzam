@@ -13,6 +13,7 @@ import type {
   QuestionModel,
   StandardImportResponseModel,
   StandardListResponseModel,
+  StandardRecordModel,
   StandardReferenceModel,
   StandardSearchResponseModel,
   TestDraftDetailModel,
@@ -142,6 +143,29 @@ export async function importStandards(payload: {
     await fetch(buildApiUrl("/api/standards/import"), {
       method: "POST",
       body: formData,
+    }),
+  );
+}
+
+export async function updateStandard(
+  standardId: string,
+  payload: StandardRecordModel,
+): Promise<StandardRecordModel> {
+  return handleResponse(
+    await fetch(buildApiUrl(`/api/standards/${encodeURIComponent(standardId)}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
+  );
+}
+
+export async function createStandardPlaceholders(standardIds: string[]): Promise<StandardSearchResponseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/standards/placeholders"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ standard_ids: standardIds }),
     }),
   );
 }
