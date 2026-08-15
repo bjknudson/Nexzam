@@ -58,6 +58,31 @@
         "electricity",
         "circuits"
       ]
+    },
+    {
+      "id": "CALC-DIFF-02",
+      "source_list_id": "calculus-core-2026",
+      "code": "CALC-DIFF-02",
+      "statement": "Apply differentiation rules, including the power and exponential rules, to find derivatives and evaluate tangent lines.",
+      "subject": "Calculus",
+      "grade_band": "HS",
+      "tags": [
+        "calculus",
+        "derivatives"
+      ]
+    },
+    {
+      "id": "CALC-LIM-01",
+      "source_list_id": "calculus-core-2026",
+      "code": "CALC-LIM-01",
+      "statement": "Use the formal definition of continuity and limits to analyze function behavior at a point.",
+      "subject": "Calculus",
+      "grade_band": "HS",
+      "tags": [
+        "calculus",
+        "limits",
+        "continuity"
+      ]
     }
   ]
 }

@@ -1,0 +1,35 @@
+{
+  "id": "q_mc_0007",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 1,
+  "prompt": "If a function $f(x)$ is continuous at $x = c$, which of the following statements must be true?",
+  "subtopic": "Limits and Continuity",
+  "tags": [
+    "continuity",
+    "conceptual"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-LIM-01"
+    }
+  ],
+  "estimated_time_sec": 45,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": "Tests understanding of the formal definition of continuity.",
+  "answer": {
+    "choices": [
+      "\\lim_{x \\to c} f(x) = f(c)",
+      "f'(c) exists",
+      "\\lim_{x \\to c} f(x) = 0",
+      "f(c) = 0"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "By the formal definition, a function is continuous at a point $x=c$ if the limit as $x$ approaches $c$ exists, the function is defined at $c$, and the limit equals the value of the function: $\\lim_{x \\to c} f(x) = f(c)$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

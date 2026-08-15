@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0003",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 1,
+  "prompt": "Find the slope of the tangent line to the curve $y = x^2$ at the point $(2, 4)$.",
+  "subtopic": "Differentiation: Definition and Fundamental Properties",
+  "tags": [
+    "derivative",
+    "slope",
+    "tangent line"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-DIFF-02"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": "Application of the derivative to find an evaluation slope.",
+  "answer": {
+    "choices": [
+      "2",
+      "4",
+      "8",
+      "1"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The slope of the tangent line is given by the derivative of the function. First, find $y' = 2x$. Then evaluate it at the given point's x-coordinate ($x = 2$): $m = 2(2) = 4$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

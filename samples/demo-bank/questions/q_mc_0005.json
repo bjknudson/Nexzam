@@ -1,0 +1,35 @@
+{
+  "id": "q_mc_0005",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 1,
+  "prompt": "Find the derivative of $f(x) = x^4$ with respect to $x$.",
+  "subtopic": "Differentiation: Definition and Fundamental Properties",
+  "tags": [
+    "derivative",
+    "power rule"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-DIFF-02"
+    }
+  ],
+  "estimated_time_sec": 30,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": "Basic power rule verification.",
+  "answer": {
+    "choices": [
+      "4x",
+      "x^3",
+      "4x^3",
+      "3x^4"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Using the Power Rule, $\\frac{d}{dx}[x^n] = n x^{n-1}$, we get $\\frac{d}{dx}[x^4] = 4x^{4-1} = 4x^3$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

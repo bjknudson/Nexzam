@@ -218,3 +218,4 @@ app/frontend/dist/
 !app/frontend/dist/index.html
 !app/frontend/dist/.gitkeep
 src-tauri/target/
+.DS_Store

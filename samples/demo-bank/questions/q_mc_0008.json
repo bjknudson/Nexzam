@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0008",
+  "type": "multiple_choice",
+  "topic": "Mechanics",
+  "difficulty": 3,
+  "prompt": "A lab cart moves with constant acceleration. Its position is modeled by $x(t)=1.5t^2+2.0t+0.50$, where $x$ is in meters and $t$ is in seconds. What is the cart's instantaneous velocity at $t=4.0\\text{ s}$?",
+  "subtopic": "Kinematics",
+  "tags": [
+    "motion",
+    "velocity",
+    "quadratic model",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-KIN-01"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": "Equation-rich demo item for printable preview and choice rendering.",
+  "answer": {
+    "choices": [
+      "$6.0\\text{ m/s}$",
+      "$8.0\\text{ m/s}$",
+      "$14\\text{ m/s}$",
+      "$26\\text{ m/s}$"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Velocity is the derivative of position: $v(t)=\\frac{dx}{dt}=3.0t+2.0$. At $t=4.0\\text{ s}$, $v=3.0(4.0)+2.0=14\\text{ m/s}$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -19,20 +19,30 @@ def test_open_bank_lists_and_filters_questions(
     assert summary.manifest.title == "Demo Physics Bank"
     assert summary.bank.question_ids == [
         "q_fr_0001",
+        "q_fr_0002",
+        "q_fr_0003",
         "q_mc_0001",
         "q_mc_0002",
+        "q_mc_0003",
+        "q_mc_0004",
+        "q_mc_0005",
+        "q_mc_0006",
+        "q_mc_0007",
+        "q_mc_0008",
+        "q_mc_0009",
+        "q_mc_0010",
         "q_num_0001",
         "q_sa_0001",
     ]
 
     result = bank_service.list_questions(
-        search="cart",
+        search="starts from rest",
         topic="Mechanics",
         question_type="multiple_choice",
     )
 
     assert [item.id for item in result.items] == ["q_mc_0001"]
-    assert result.available_topics == ["Electricity", "Mechanics", "Waves"]
+    assert result.available_topics == ["Calculus", "Electricity", "Mechanics", "Waves"]
     assert result.available_types == [
         "free_response",
         "multiple_choice",
@@ -88,10 +98,10 @@ def test_create_question_from_json_assigns_unique_id(
     created = bank_service.create_question_from_json(source)
     summary = bank_service.get_summary()
 
-    assert created.id == "q_mc_0003"
+    assert created.id == "q_mc_0011"
     assert created.prompt == source["prompt"]
     assert "q_mc_0001" in summary.bank.question_ids
-    assert "q_mc_0003" in summary.bank.question_ids
+    assert "q_mc_0011" in summary.bank.question_ids
 
 
 def test_create_question_from_json_adds_missing_id(
@@ -551,10 +561,10 @@ def test_next_question_id_uses_type_prefix_and_serial(
 ) -> None:
     bank_service.open_bank(str(demo_bok))
 
-    assert bank_service.next_question_id("multiple_choice") == "q_mc_0003"
+    assert bank_service.next_question_id("multiple_choice") == "q_mc_0011"
     assert bank_service.next_question_id("numeric_response") == "q_num_0002"
     assert bank_service.next_question_id("short_answer") == "q_sa_0002"
-    assert bank_service.next_question_id("free_response") == "q_fr_0002"
+    assert bank_service.next_question_id("free_response") == "q_fr_0004"
 
 
 def test_asset_paths_must_stay_inside_workspace(

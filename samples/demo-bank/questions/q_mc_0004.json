@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0004",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 2,
+  "prompt": "Find the equation of the tangent line to the curve $y = \\sin(x)$ at the point where $x = \\frac{\\pi}{3}$.",
+  "subtopic": "Differentiation: Definition and Fundamental Properties",
+  "tags": [
+    "derivative",
+    "tangent line",
+    "trigonometric functions"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-DIFF-02"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": null,
+  "answer": {
+    "choices": [
+      "y - \\frac{\\sqrt{3}}{2} = \\frac{1}{2}\\left(x - \\frac{\\pi}{3}\\right)",
+      "y - \\frac{1}{2} = \\frac{\\sqrt{3}}{2}\\left(x - \\frac{\\pi}{3}\\right)",
+      "y - \\frac{\\sqrt{3}}{2} = -\\frac{1}{2}\\left(x - \\frac{\\pi}{3}\\right)",
+      "y - \\frac{\\sqrt{3}}{2} = \\frac{1}{2}x"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "To find the equation of the tangent line, we need the point of tangency and the slope. \n1. Find the y-coordinate: $y = \\sin\\left(\\frac{\\pi}{3}\\right) = \\frac{\\sqrt{3}}{2}$. The point is $\\left(\\frac{\\pi}{3}, \\frac{\\sqrt{3}}{2}\\right)$.\n2. Find the slope by taking the derivative: $y' = \\cos(x)$. \n3. Evaluate the slope at $x = \\frac{\\pi}{3}$: $m = \\cos\\left(\\frac{\\pi}{3}\\right) = \\frac{1}{2}$.\n4. Write the equation in point-slope form: $y - y_1 = m(x - x_1) \\implies y - \\frac{\\sqrt{3}}{2} = \\frac{1}{2}\\left(x - \\frac{\\pi}{3}\\right)$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

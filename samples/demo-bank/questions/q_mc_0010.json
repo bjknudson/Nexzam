@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0010",
+  "type": "multiple_choice",
+  "topic": "Electricity",
+  "difficulty": 3,
+  "prompt": "A resistor has current $I=0.25\\text{ A}$ when connected across a $9.0\\text{ V}$ battery. Using $V=IR$, what is the resistance?",
+  "subtopic": "Ohm's law",
+  "tags": [
+    "electricity",
+    "circuits",
+    "ohms-law",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-ELE-01"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "draft",
+  "teacher_notes": null,
+  "answer": {
+    "choices": [
+      "$2.25\\ \\Omega$",
+      "$8.75\\ \\Omega$",
+      "$18\\ \\Omega$",
+      "$36\\ \\Omega$"
+    ],
+    "correct_choice_index": 3
+  },
+  "explanation": "Solve $R=\\frac{V}{I}=\\frac{9.0\\text{ V}}{0.25\\text{ A}}=36\\ \\Omega$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

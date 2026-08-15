@@ -1,0 +1,50 @@
+{
+  "id": "q_fr_0003",
+  "type": "free_response",
+  "topic": "Electricity",
+  "subtopic": "Series circuits",
+  "difficulty": 5,
+  "prompt": "A circuit has two resistors in series, $R_1=12\\ \\Omega$ and $R_2=18\\ \\Omega$, connected to a $15\\text{ V}$ battery.\n\nFind the equivalent resistance, the circuit current, and the voltage drop across each resistor. Use $R_{eq}=R_1+R_2$, $V=IR$, and explain why $V_1+V_2$ should equal the battery voltage.",
+  "tags": [
+    "electricity",
+    "series-circuit",
+    "ohms-law",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-ELE-01"
+    }
+  ],
+  "estimated_time_sec": 420,
+  "points": 6.0,
+  "status": "draft",
+  "teacher_notes": "Longer equation-heavy FR item for section timing and response space.",
+  "answer": null,
+  "explanation": "$R_{eq}=12+18=30\\ \\Omega$. The current is $I=\\frac{V}{R_{eq}}=\\frac{15}{30}=0.50\\text{ A}$. $V_1=IR_1=(0.50)(12)=6.0\\text{ V}$ and $V_2=IR_2=(0.50)(18)=9.0\\text{ V}$. The drops add to $15\\text{ V}$, matching the battery.",
+  "rubric": [
+    {
+      "criterion": "Computes $R_{eq}$ for series resistors",
+      "points": 1.0
+    },
+    {
+      "criterion": "Finds total current using Ohm's law",
+      "points": 1.5
+    },
+    {
+      "criterion": "Computes $V_1$ correctly",
+      "points": 1.0
+    },
+    {
+      "criterion": "Computes $V_2$ correctly",
+      "points": 1.0
+    },
+    {
+      "criterion": "Explains voltage conservation around the loop",
+      "points": 1.5
+    }
+  ],
+  "sample_solution": "$R_{eq}=30\\ \\Omega$, so $I=15\\text{ V}/30\\ \\Omega=0.50\\text{ A}$. Then $V_1=0.50(12)=6.0\\text{ V}$ and $V_2=0.50(18)=9.0\\text{ V}$.",
+  "exemplar_answer": "The two resistors are in series, so their resistances add to $30\\ \\Omega$. The same current flows through both resistors, giving $I=0.50\\text{ A}$. The voltage drops are $6.0\\text{ V}$ and $9.0\\text{ V}$, and these add to $15\\text{ V}$ because the battery energy per charge is used across the two resistors.",
+  "assets": []
+}
