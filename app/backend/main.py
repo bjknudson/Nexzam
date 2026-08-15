@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 import zipfile
@@ -76,6 +77,10 @@ def open_bank(request: OpenBankRequest):
 
 @app.post("/api/banks/open-demo")
 def open_demo_bank():
+    bundled_demo_bank = os.environ.get("NEXZAM_DEMO_BANK_PATH")
+    if bundled_demo_bank:
+        return service.open_bank(bundled_demo_bank)
+
     repo_root = Path(__file__).resolve().parents[2]
     demo_dir = repo_root / "samples" / "demo-bank"
     demo_archive = repo_root / "samples" / "demo-bank.bok"

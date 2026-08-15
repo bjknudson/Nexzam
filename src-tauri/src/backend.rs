@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::Client;
 use serde::Serialize;
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 const BACKEND_START_TIMEOUT: Duration = Duration::from_secs(20);
@@ -106,8 +107,9 @@ impl Drop for AppRuntimeState {
 
 pub fn start_backend_supervisor<R: Runtime>(app_handle: AppHandle<R>) {
     let runtime_state = app_handle.state::<Arc<AppRuntimeState>>().inner().clone();
+    let supervisor_handle = app_handle.clone();
     thread::spawn(move || {
-        let result = start_backend_process(&runtime_state);
+        let result = start_backend_process(&runtime_state, &supervisor_handle);
         if let Err(error) = result {
             runtime_state.set_backend_error(error.to_string());
         }
@@ -115,27 +117,24 @@ pub fn start_backend_supervisor<R: Runtime>(app_handle: AppHandle<R>) {
     });
 }
 
-fn start_backend_process(state: &Arc<AppRuntimeState>) -> Result<()> {
-    let repo_root = resolve_repo_root()?;
+fn start_backend_process<R: Runtime>(
+    state: &Arc<AppRuntimeState>,
+    app_handle: &AppHandle<R>,
+) -> Result<()> {
     let port = find_free_local_port()?;
     let base_url = format!("http://127.0.0.1:{port}");
-    let python = resolve_python_path(&repo_root);
 
-    let child = Command::new(&python)
-        .args([
-            "-m",
-            "uvicorn",
-            "app.backend.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            &port.to_string(),
-        ])
-        .current_dir(&repo_root)
+    let mut command = if cfg!(debug_assertions) {
+        build_dev_command(port)?
+    } else {
+        build_bundled_command(app_handle, port)?
+    };
+
+    let child = command
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .with_context(|| format!("Failed to launch backend with {}", python.display()))?;
+        .context("Failed to launch the Nexzam backend process.")?;
 
     state.set_backend_started(child, base_url.clone());
 
@@ -146,6 +145,42 @@ fn start_backend_process(state: &Arc<AppRuntimeState>) -> Result<()> {
 
     state.set_backend_ready();
     Ok(())
+}
+
+fn build_dev_command(port: u16) -> Result<Command> {
+    let repo_root = resolve_repo_root()?;
+    let python = resolve_python_path(&repo_root);
+
+    let mut command = Command::new(&python);
+    command
+        .args([
+            "-m",
+            "uvicorn",
+            "app.backend.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+        ])
+        .current_dir(&repo_root);
+    Ok(command)
+}
+
+fn build_bundled_command<R: Runtime>(app_handle: &AppHandle<R>, port: u16) -> Result<Command> {
+    let backend_binary = app_handle
+        .path()
+        .resolve("nexzam-backend/nexzam-backend", BaseDirectory::Resource)
+        .context("Failed to resolve the bundled backend binary path.")?;
+    let demo_bank = app_handle
+        .path()
+        .resolve("samples/demo-bank.bok", BaseDirectory::Resource)
+        .context("Failed to resolve the bundled demo bank path.")?;
+
+    let mut command = Command::new(&backend_binary);
+    command
+        .args(["--port", &port.to_string()])
+        .env("NEXZAM_DEMO_BANK_PATH", &demo_bank);
+    Ok(command)
 }
 
 fn resolve_repo_root() -> Result<PathBuf> {

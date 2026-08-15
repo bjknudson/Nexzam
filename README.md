@@ -330,6 +330,6 @@ Verified locally in this repo:
 
 ## Unfinished edges
 
-- The desktop launcher assumes a local development checkout and prefers repo-root `.venv/bin/python3`, falling back to `python3`. Packaged-app Python bundling is not implemented yet.
+- In dev builds, the desktop launcher assumes a local development checkout and prefers repo-root `.venv/bin/python3`, falling back to `python3`. Release builds instead launch a PyInstaller-frozen backend bundled into the `.app` (see `scripts/build_backend_binary.sh` and [DISTRIBUTION.md](DISTRIBUTION.md)) — no Python install is required to run a packaged build.
 - Browser-only dev still uses manual path fallback because native dialogs are wired through Tauri commands.
 - There is no automated migration layer yet; validation is strict against the current v1 schema.
