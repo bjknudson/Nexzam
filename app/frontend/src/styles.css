@@ -153,6 +153,55 @@ textarea {
   border-bottom: none;
 }
 
+.settings-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.settings-directory-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.settings-directory-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.bank-properties-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.bank-properties-field:last-of-type {
+  margin-bottom: 0;
+}
+
+.bank-properties-field textarea {
+  min-height: 90px;
+}
+
+.bank-properties-error {
+  margin: 0.75rem 0 0;
+  color: #b91c1c;
+}
+
+.bank-properties-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #d1dbe5;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;

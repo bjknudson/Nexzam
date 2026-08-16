@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { checkForUpdates, getAppVersion } from "./desktop";
+import { checkForUpdates, getAppVersion, pickDirectoryDialog } from "./desktop";
 
 interface SettingsProps {
   open: boolean;
@@ -19,6 +19,8 @@ interface SettingsProps {
   onQuestionsShowStatusFilterChange: (value: boolean) => void;
   questionsShortenText: boolean;
   onQuestionsShortenTextChange: (value: boolean) => void;
+  bankDirectory: string;
+  onBankDirectoryChange: (value: string) => void;
 }
 
 function Settings({
@@ -38,6 +40,8 @@ function Settings({
   onQuestionsShowStatusFilterChange,
   questionsShortenText,
   onQuestionsShortenTextChange,
+  bankDirectory,
+  onBankDirectoryChange,
 }: SettingsProps) {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -56,6 +60,11 @@ function Settings({
     } finally {
       setCheckingUpdate(false);
     }
+  }
+
+  async function handleChooseBankDirectory() {
+    const chosen = await pickDirectoryDialog(bankDirectory || undefined);
+    if (chosen) onBankDirectoryChange(chosen);
   }
 
   return (
@@ -84,6 +93,21 @@ function Settings({
                 checked={showFullPaths}
                 onChange={(event) => onShowFullPathsChange(event.target.checked)}
               />
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <h3>Bank Files</h3>
+            <div className="settings-row settings-row-stacked">
+              <span>Default folder</span>
+              <div className="settings-directory-row">
+                <span className="settings-directory-path" title={bankDirectory}>
+                  {bankDirectory || "Not set"}
+                </span>
+                <button type="button" onClick={() => void handleChooseBankDirectory()}>
+                  Choose Folder…
+                </button>
+              </div>
             </div>
           </section>
 

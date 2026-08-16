@@ -91,6 +91,7 @@ export interface ManifestModel {
   schema_version: string;
   bank_id: string;
   title: string;
+  description?: string | null;
   created_at: string;
   updated_at: string;
   difficulty_labels: Record<string, string>;

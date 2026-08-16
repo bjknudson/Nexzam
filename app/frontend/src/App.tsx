@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   addQuestionToTest,
+  createBank,
   createQuestion,
   createQuestionFromJson,
   createTestDraft,
@@ -21,6 +22,7 @@ import {
   openDemoBank,
   saveBank,
   setApiBaseUrl,
+  updateBankDetails,
   uploadAsset,
   updateQuestion,
   updateTestDraft as updateTestDraftApi,
@@ -29,6 +31,8 @@ import {
   closeCurrentPaneWindow,
   getDesktopContext,
   isDesktopShell,
+  onBankPropertiesMenu,
+  onNewBankMenu,
   onOpenBankMenu,
   onOpenDemoBankMenu,
   onOpenSettings,
@@ -36,6 +40,7 @@ import {
   onSaveBankMenu,
   openBankDialog,
   openPaneWindow,
+  resolveDefaultBankDirectory,
   saveBankDialog,
   setArchiveDirtyInShell,
   watchPaneWindowClose,
@@ -48,9 +53,10 @@ import {
   MathTextPreview,
   QuestionMathSummaryPreview,
 } from "./MathPreview";
+import BankPropertiesDialog, { type BankPropertiesMode } from "./BankPropertiesDialog";
 import QuestionImportWorkspace from "./QuestionImportWorkspace";
 import Settings from "./Settings";
-import { SETTINGS_KEYS, usePersistedBoolean } from "./appSettings";
+import { SETTINGS_KEYS, usePersistedBoolean, usePersistedString } from "./appSettings";
 import StandardsWorkspace from "./StandardsWorkspace";
 import TestBuilderPane from "./TestBuilderPane";
 import TestPrintPreview from "./TestPrintPreview";
@@ -874,6 +880,9 @@ function App() {
     SETTINGS_KEYS.questionsShortenText,
     true,
   );
+  const [bankDirectory, setBankDirectory] = usePersistedString(SETTINGS_KEYS.bankDirectory, "");
+  const [bankPropertiesOpen, setBankPropertiesOpen] = useState(false);
+  const [bankPropertiesMode, setBankPropertiesMode] = useState<BankPropertiesMode>("create");
   const [assetSearch, setAssetSearch] = useState("");
   const [questionPaneSnapshot, setQuestionPaneSnapshot] = useState<QuestionPaneSnapshot>({
     hasBank: false,
@@ -997,16 +1006,18 @@ function App() {
     };
 
     registerMenuListener(onOpenSettings, () => setSettingsOpen(true));
+    registerMenuListener(onNewBankMenu, () => void handleOpenNewBankDialog());
     registerMenuListener(onOpenBankMenu, () => void handleOpenDialog());
     registerMenuListener(onOpenDemoBankMenu, () => void handleOpenDemo());
+    registerMenuListener(onBankPropertiesMenu, () => handleOpenBankPropertiesDialog());
     registerMenuListener(onSaveBankMenu, () => void handleSaveBank());
-    registerMenuListener(onSaveAsMenu, () => void handleSaveAs());
+    registerMenuListener(onSaveAsMenu, () => handleSaveAs());
 
     return () => {
       cancelled = true;
       unlistenFns.forEach((fn) => fn());
     };
-  }, [desktopMode, isMainWindow]);
+  }, [desktopMode, isMainWindow, bank, bankDirectory, showFullPaths]);
 
   useEffect(() => {
     if (!isMainWindow) return;
@@ -1107,6 +1118,17 @@ function App() {
     setTopicFilter("");
     setTypeFilter("");
   }, [questionsShowTypeTopicFilters]);
+
+  useEffect(() => {
+    if (!desktopMode || !isMainWindow || bankDirectory) return;
+    let cancelled = false;
+    void resolveDefaultBankDirectory().then((resolved) => {
+      if (!cancelled && resolved) setBankDirectory(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopMode, isMainWindow, bankDirectory]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1342,7 +1364,7 @@ function App() {
 
   async function handleOpenDialog() {
     if (!(await persistDraft("open-bank"))) return;
-    const path = await openBankDialog();
+    const path = await openBankDialog(bankDirectory || undefined);
     if (!path) return;
     await openBankAtPath(path);
   }
@@ -1409,16 +1431,88 @@ function App() {
     await runSave(undefined);
   }
 
-  async function handleSaveAs() {
-    if (!desktopMode) return;
+  function handleSaveAs() {
+    if (!desktopMode || !bank) return;
+    setBankPropertiesMode("save-as");
+    setBankPropertiesOpen(true);
+  }
 
-    const destinationPath = (await saveBankDialog(bank?.source_path)) ?? undefined;
-    if (!destinationPath) {
-      setErrorMessage("Choose a destination for Save As.");
-      return;
+  function slugifyBankFileName(title: string): string {
+    const slug = title
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return `${slug || "bank"}.bok`;
+  }
+
+  async function handleOpenNewBankDialog() {
+    if (!desktopMode) return;
+    if (!(await persistDraft("open-bank"))) return;
+    setBankPropertiesMode("create");
+    setBankPropertiesOpen(true);
+  }
+
+  function handleOpenBankPropertiesDialog() {
+    if (!bank) return;
+    setBankPropertiesMode("edit");
+    setBankPropertiesOpen(true);
+  }
+
+  async function handleBankPropertiesSubmit(title: string, description: string): Promise<boolean> {
+    if (bankPropertiesMode === "create") {
+      const destinationPath = await saveBankDialog(undefined, {
+        suggestedFileName: slugifyBankFileName(title),
+        initialDirectory: bankDirectory || undefined,
+      });
+      if (!destinationPath) return false;
+
+      setLoading(true);
+      try {
+        const summary = await createBank({
+          title,
+          description: description || null,
+          destinationPath,
+        });
+        setBank(summary);
+        setSelectedId(null);
+        setQuestionImportOpen(false);
+        setWorkspaceDirty(false);
+        setAutosaveState("idle");
+        setStatusMessage(`Created ${summary.manifest.title}.`);
+        await refreshAssetList();
+        await refreshStandardsData();
+        await refreshTestDrafts();
+        setErrorMessage("");
+        return true;
+      } finally {
+        setLoading(false);
+      }
     }
 
-    await runSave(destinationPath);
+    if (bankPropertiesMode === "save-as") {
+      const destinationPath = await saveBankDialog(bank?.source_path, {
+        suggestedFileName: slugifyBankFileName(title),
+        initialDirectory: bankDirectory || undefined,
+      });
+      if (!destinationPath) return false;
+
+      await updateBankDetails({ title, description: description || null });
+      await runSave(destinationPath);
+      return true;
+    }
+
+    setLoading(true);
+    try {
+      const summary = await updateBankDetails({ title, description: description || null });
+      setBank(summary);
+      setWorkspaceDirty(true);
+      setStatusMessage(`Updated bank properties. Save Bank writes the archive.`);
+      setErrorMessage("");
+      return true;
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleQuestionImportWorkspaceChanged(
@@ -2505,6 +2599,17 @@ function App() {
         onQuestionsShowStatusFilterChange={setQuestionsShowStatusFilter}
         questionsShortenText={questionsShortenText}
         onQuestionsShortenTextChange={setQuestionsShortenText}
+        bankDirectory={bankDirectory}
+        onBankDirectoryChange={setBankDirectory}
+      />
+
+      <BankPropertiesDialog
+        open={bankPropertiesOpen}
+        mode={bankPropertiesMode}
+        initialTitle={bankPropertiesMode !== "create" ? bank?.manifest.title ?? "" : ""}
+        initialDescription={bankPropertiesMode !== "create" ? bank?.manifest.description ?? "" : ""}
+        onClose={() => setBankPropertiesOpen(false)}
+        onSubmit={handleBankPropertiesSubmit}
       />
 
       <header className="topbar">
@@ -2553,9 +2658,14 @@ function App() {
             Import Questions
           </button>
           {!desktopMode ? (
-            <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
-              Save Bank
-            </button>
+            <>
+              <button onClick={handleOpenBankPropertiesDialog} disabled={loading || !bank}>
+                Bank Properties
+              </button>
+              <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
+                Save Bank
+              </button>
+            </>
           ) : null}
         </div>
       </header>
@@ -2764,6 +2874,7 @@ function App() {
                           question={draftQuestion}
                           previewEnabled={!editingFieldsEnabled}
                           invalid={jsonError}
+                          assetInspections={assetInspections}
                         />
                       </div>
                     </div>
@@ -3278,7 +3389,11 @@ function App() {
               </>
           ) : (
             <div className="empty-state">
-              <p>Open a bank and select a question to start editing.</p>
+              <p>
+                {bank
+                  ? "Import or create a question to get started."
+                  : "Open a bank and select a question to start editing."}
+              </p>
             </div>
           )}
           </div>

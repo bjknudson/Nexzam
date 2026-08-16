@@ -394,6 +394,7 @@ class ManifestModel(BaseModel):
     schema_version: str
     bank_id: str
     title: str
+    description: str | None = None
     created_at: datetime
     updated_at: datetime
     difficulty_labels: dict[str, str] = Field(default_factory=dict)
@@ -507,6 +508,17 @@ class OpenBankRequest(BaseModel):
 
 class SaveBankRequest(BaseModel):
     destination_path: str | None = None
+
+
+class CreateBankRequest(BaseModel):
+    title: str
+    description: str | None = None
+    destination_path: str
+
+
+class UpdateBankDetailsRequest(BaseModel):
+    title: str
+    description: str | None = None
 
 
 class CreateQuestionRequest(BaseModel):

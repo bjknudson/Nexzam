@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from .models import (
     AssetInspectionRequest,
     AddQuestionToTestRequest,
+    CreateBankRequest,
     CreateStandardPlaceholdersRequest,
     CreateQuestionRequest,
     CreateTestDraftRequest,
@@ -27,6 +28,7 @@ from .models import (
     SaveBankRequest,
     StandardRecordModel,
     TestDraftModel,
+    UpdateBankDetailsRequest,
     UpsertCourseRequest,
 )
 from .service import BankWorkspaceError, BankWorkspaceService
@@ -95,6 +97,16 @@ def open_demo_bank():
 @app.get("/api/banks/current")
 def get_current_bank():
     return service.get_summary()
+
+
+@app.post("/api/banks/create")
+def create_bank(request: CreateBankRequest):
+    return service.create_bank(request.title, request.description, request.destination_path)
+
+
+@app.put("/api/banks/current")
+def update_bank_details(request: UpdateBankDetailsRequest):
+    return service.update_bank_details(request.title, request.description)
 
 
 @app.post("/api/banks/save")

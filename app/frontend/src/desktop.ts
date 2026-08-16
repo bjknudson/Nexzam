@@ -24,16 +24,37 @@ export async function getDesktopContext(): Promise<DesktopContext | null> {
   return invoke<DesktopContext>("get_desktop_context");
 }
 
-export async function openBankDialog(): Promise<string | null> {
+export async function openBankDialog(initialDirectory?: string | null): Promise<string | null> {
   if (!isDesktopShell()) return null;
-  return invoke<string | null>("open_bank_dialog");
+  return invoke<string | null>("open_bank_dialog", {
+    initialDirectory: initialDirectory ?? null,
+  });
 }
 
-export async function saveBankDialog(currentPath?: string | null): Promise<string | null> {
+export async function saveBankDialog(
+  currentPath?: string | null,
+  options: { suggestedFileName?: string | null; initialDirectory?: string | null } = {},
+): Promise<string | null> {
   if (!isDesktopShell()) return null;
   return invoke<string | null>("save_bank_dialog", {
     currentPath: currentPath ?? null,
+    suggestedFileName: options.suggestedFileName ?? null,
+    initialDirectory: options.initialDirectory ?? null,
   });
+}
+
+export async function pickDirectoryDialog(initialDirectory?: string | null): Promise<string | null> {
+  if (!isDesktopShell()) return null;
+  return invoke<string | null>("pick_directory_dialog", {
+    initialDirectory: initialDirectory ?? null,
+  });
+}
+
+export async function resolveDefaultBankDirectory(): Promise<string | null> {
+  if (!isDesktopShell()) return null;
+  const { documentDir, join } = await import("@tauri-apps/api/path");
+  const documents = await documentDir();
+  return join(documents, "Nexzam");
 }
 
 export async function setArchiveDirtyInShell(dirty: boolean): Promise<void> {
@@ -125,8 +146,16 @@ export function onOpenSettings(callback: () => void): Promise<UnlistenFn | null>
   return onMenuEvent("nexzam://open-settings", callback);
 }
 
+export function onNewBankMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://new-bank", callback);
+}
+
 export function onOpenBankMenu(callback: () => void): Promise<UnlistenFn | null> {
   return onMenuEvent("nexzam://open-bank", callback);
+}
+
+export function onBankPropertiesMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://bank-properties", callback);
 }
 
 export function onOpenDemoBankMenu(callback: () => void): Promise<UnlistenFn | null> {

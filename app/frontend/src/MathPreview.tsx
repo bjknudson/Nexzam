@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { BlockMath, InlineMath } from "react-katex";
 
-import type { QuestionModel } from "./types";
+import { getAssetFileUrl } from "./api";
+import type { AssetInspectionResponseModel, QuestionModel } from "./types";
 
 type MathToken =
   | { kind: "text"; value: string }
@@ -145,10 +146,12 @@ export function QuestionMathSummaryPreview({
   question,
   previewEnabled,
   invalid,
+  assetInspections,
 }: {
   question: QuestionModel | null;
   previewEnabled: boolean;
   invalid?: boolean;
+  assetInspections?: AssetInspectionResponseModel[];
 }) {
   if (!previewEnabled) return null;
 
@@ -163,6 +166,7 @@ export function QuestionMathSummaryPreview({
   if (!question) return null;
 
   const sections = getQuestionMathPreviewSections(question);
+  const assets = question.assets ?? [];
   return (
     <section className="math-preview-summary">
       {sections.length > 0 ? (
@@ -176,8 +180,28 @@ export function QuestionMathSummaryPreview({
           </article>
         ))
       ) : (
-        <p className="math-preview-empty">No math markup found in the parsed question.</p>
+        <p className="math-preview-empty">Nothing to preview yet.</p>
       )}
+      {assets.map((asset, index) => {
+        const inspection = assetInspections?.[index];
+        const svgMarkup = inspection?.rendered_svg;
+        return (
+          <article key={`${asset.path}-${index}`} className="math-preview-summary-item">
+            <span className="math-preview-label">
+              Asset: {asset.path.split("/").slice(-1)[0] ?? asset.path}
+            </span>
+            {asset.kind === "svg" ? (
+              svgMarkup ? (
+                <div className="asset-svg-preview" dangerouslySetInnerHTML={{ __html: svgMarkup }} />
+              ) : (
+                <p className="math-preview-empty">Preview unavailable.</p>
+              )
+            ) : (
+              <img className="asset-image-preview" src={getAssetFileUrl(asset.path)} alt={asset.path} />
+            )}
+          </article>
+        );
+      })}
     </section>
   );
 }
@@ -200,7 +224,7 @@ function getQuestionMathPreviewSections(question: QuestionModel): MathPreviewSec
   const answer = question.answer ?? {};
   if (Array.isArray(answer.choices)) {
     answer.choices.forEach((choice, index) =>
-      addSection(sections, `Choice ${index + 1}`, choice, true),
+      addSection(sections, `Choice ${index + 1}`, choice, true, true),
     );
   }
 
@@ -225,8 +249,10 @@ function addSection(
   label: string,
   value: unknown,
   preferWholeExpression = false,
+  alwaysShow = false,
 ) {
-  if (typeof value !== "string" || !hasMathMarkup(value)) return;
+  if (typeof value !== "string") return;
+  if (!alwaysShow && !value.trim()) return;
   sections.push({ label, text: value, preferWholeExpression });
 }
 

@@ -8,6 +8,7 @@ export const SETTINGS_KEYS = {
   questionsShowSubtopicFilter: "nexzam:qp-show-subtopic-filter",
   questionsShowStatusFilter: "nexzam:qp-show-status-filter",
   questionsShortenText: "nexzam:qp-shorten-question-text",
+  bankDirectory: "nexzam:bank-directory",
 } as const;
 
 // Persists to localStorage and stays in sync across windows (via the native
@@ -27,6 +28,26 @@ export function usePersistedBoolean(key: string, defaultValue: boolean): [boolea
     function handleStorage(event: StorageEvent) {
       if (event.key !== key || event.newValue === null) return;
       setValue(event.newValue === "true");
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [key]);
+
+  return [value, setValue];
+}
+
+// Same persistence/sync behavior as usePersistedBoolean, for string-valued settings.
+export function usePersistedString(key: string, defaultValue: string): [string, (value: string) => void] {
+  const [value, setValue] = useState(() => localStorage.getItem(key) ?? defaultValue);
+
+  useEffect(() => {
+    localStorage.setItem(key, value);
+  }, [key, value]);
+
+  useEffect(() => {
+    function handleStorage(event: StorageEvent) {
+      if (event.key !== key || event.newValue === null) return;
+      setValue(event.newValue);
     }
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);

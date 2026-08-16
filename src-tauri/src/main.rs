@@ -19,32 +19,57 @@ fn get_desktop_context(state: tauri::State<'_, Arc<AppRuntimeState>>) -> Desktop
 }
 
 #[tauri::command]
-fn open_bank_dialog() -> Option<String> {
-    FileDialog::new()
+fn open_bank_dialog(initial_directory: Option<String>) -> Option<String> {
+    let mut dialog = FileDialog::new()
         .add_filter("Nexzam Banks", &["bok"])
-        .set_title("Open Nexzam Bank")
-        .pick_file()
-        .map(|path| path.display().to_string())
+        .set_title("Open Nexzam Bank");
+
+    if let Some(dir) = initial_directory {
+        dialog = dialog.set_directory(dir);
+    }
+
+    dialog.pick_file().map(|path| path.display().to_string())
 }
 
 #[tauri::command]
-fn save_bank_dialog(current_path: Option<String>) -> Option<String> {
+fn save_bank_dialog(
+    current_path: Option<String>,
+    suggested_file_name: Option<String>,
+    initial_directory: Option<String>,
+) -> Option<String> {
     let mut dialog = FileDialog::new()
         .add_filter("Nexzam Banks", &["bok"])
         .set_title("Save Nexzam Bank");
 
     if let Some(path) = current_path {
+        let path = std::path::Path::new(&path);
         dialog = dialog.set_file_name(
-            std::path::Path::new(&path)
-                .file_name()
+            path.file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("bank.bok"),
         );
+        if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+            dialog = dialog.set_directory(parent);
+        }
     } else {
-        dialog = dialog.set_file_name("bank.bok");
+        dialog = dialog.set_file_name(suggested_file_name.as_deref().unwrap_or("bank.bok"));
+        if let Some(dir) = initial_directory {
+            dialog = dialog.set_directory(dir);
+        }
     }
 
     dialog.save_file().map(|path| path.display().to_string())
+}
+
+#[tauri::command]
+fn pick_directory_dialog(initial_directory: Option<String>) -> Option<String> {
+    let mut dialog = FileDialog::new().set_title("Choose a Folder");
+
+    if let Some(dir) = initial_directory {
+        dialog = dialog.set_directory(dir);
+    }
+
+    dialog.pick_folder().map(|path| path.display().to_string())
 }
 
 #[tauri::command]
@@ -190,11 +215,17 @@ fn main() {
                 .build(handle)?;
             let check_updates_item =
                 MenuItemBuilder::with_id("check-for-updates", "Check for Updates…").build(handle)?;
+            let new_bank_item = MenuItemBuilder::with_id("new-bank", "New Bank…")
+                .accelerator("CmdOrCtrl+N")
+                .build(handle)?;
             let open_bank_item = MenuItemBuilder::with_id("open-bank", "Open Bank…")
                 .accelerator("CmdOrCtrl+O")
                 .build(handle)?;
             let open_demo_item =
                 MenuItemBuilder::with_id("open-demo-bank", "Open Demo Bank").build(handle)?;
+            let bank_properties_item = MenuItemBuilder::with_id("bank-properties", "Bank Properties…")
+                .accelerator("CmdOrCtrl+I")
+                .build(handle)?;
             let save_bank_item = MenuItemBuilder::with_id("save-bank", "Save Bank")
                 .accelerator("CmdOrCtrl+S")
                 .build(handle)?;
@@ -217,8 +248,11 @@ fn main() {
                 .build()?;
 
             let file_menu = SubmenuBuilder::new(handle, "File")
+                .item(&new_bank_item)
                 .item(&open_bank_item)
                 .item(&open_demo_item)
+                .separator()
+                .item(&bank_properties_item)
                 .separator()
                 .item(&save_bank_item)
                 .item(&save_as_item)
@@ -257,11 +291,17 @@ fn main() {
             "check-for-updates" => {
                 run_update_check(app_handle);
             }
+            "new-bank" => {
+                let _ = app_handle.emit("nexzam://new-bank", ());
+            }
             "open-bank" => {
                 let _ = app_handle.emit("nexzam://open-bank", ());
             }
             "open-demo-bank" => {
                 let _ = app_handle.emit("nexzam://open-demo-bank", ());
+            }
+            "bank-properties" => {
+                let _ = app_handle.emit("nexzam://bank-properties", ());
             }
             "save-bank" => {
                 let _ = app_handle.emit("nexzam://save-bank", ());
@@ -279,6 +319,7 @@ fn main() {
             get_desktop_context,
             open_bank_dialog,
             save_bank_dialog,
+            pick_directory_dialog,
             set_archive_dirty,
             check_for_updates
         ])

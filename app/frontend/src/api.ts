@@ -61,6 +61,37 @@ export async function getCurrentBank(): Promise<BankSummaryModel> {
   return handleResponse(await fetch(buildApiUrl("/api/banks/current")));
 }
 
+export async function createBank(payload: {
+  title: string;
+  description: string | null;
+  destinationPath: string;
+}): Promise<BankSummaryModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/banks/create"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: payload.title,
+        description: payload.description,
+        destination_path: payload.destinationPath,
+      }),
+    }),
+  );
+}
+
+export async function updateBankDetails(payload: {
+  title: string;
+  description: string | null;
+}): Promise<BankSummaryModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/banks/current"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: payload.title, description: payload.description }),
+    }),
+  );
+}
+
 export async function listSourceStandardLists(): Promise<StandardListResponseModel> {
   return handleResponse(await fetch(buildApiUrl("/api/standards/source-lists")));
 }

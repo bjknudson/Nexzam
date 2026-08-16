@@ -68,6 +68,7 @@ ParsedQuestionImportRow = tuple[
 
 
 class BankWorkspaceService:
+    BANK_SCHEMA_VERSION = "1.0.0"
     QUESTION_ID_PREFIX_BY_TYPE: dict[str, str] = {
         "multiple_choice": "q_mc",
         "numeric_response": "q_num",
@@ -119,6 +120,54 @@ class BankWorkspaceService:
         self._workspace_path = normalized_path
 
         self._refresh_bank_index()
+        return self.get_summary()
+
+    def create_bank(self, title: str, description: str | None, destination_path: str) -> BankSummaryModel:
+        title = (title or "").strip()
+        if not title:
+            raise BankWorkspaceError("Bank title must not be empty.", status_code=400)
+
+        target_path = Path(destination_path).expanduser().resolve()
+        if target_path.suffix != ".bok":
+            raise BankWorkspaceError("Destination path must end with .bok", status_code=400)
+
+        workspace_root = Path(tempfile.gettempdir()) / "nexzam-workspaces"
+        workspace_root.mkdir(parents=True, exist_ok=True)
+        workspace_path = workspace_root / f"{target_path.stem}-{uuid.uuid4().hex[:8]}"
+        workspace_path.mkdir(parents=True, exist_ok=False)
+        (workspace_path / "questions").mkdir(parents=True, exist_ok=True)
+        (workspace_path / "assets").mkdir(parents=True, exist_ok=True)
+
+        now = datetime.now(UTC)
+        manifest = ManifestModel(
+            schema_version=self.BANK_SCHEMA_VERSION,
+            bank_id=uuid.uuid4().hex,
+            title=title,
+            description=(description or "").strip() or None,
+            created_at=now,
+            updated_at=now,
+        )
+        (workspace_path / "manifest.json").write_text(manifest.model_dump_json(indent=2) + "\n")
+
+        self._source_path = target_path
+        self._workspace_path = workspace_path
+        self._ensure_support_files(workspace_path)
+        self._refresh_bank_index()
+
+        self.save_bank(str(target_path))
+        return self.get_summary()
+
+    def update_bank_details(self, title: str, description: str | None) -> BankSummaryModel:
+        title = (title or "").strip()
+        if not title:
+            raise BankWorkspaceError("Bank title must not be empty.", status_code=400)
+
+        _, workspace_path = self.ensure_open()
+        manifest = self._read_manifest()
+        manifest.title = title
+        manifest.description = (description or "").strip() or None
+        manifest.updated_at = datetime.now(UTC)
+        (workspace_path / "manifest.json").write_text(manifest.model_dump_json(indent=2) + "\n")
         return self.get_summary()
 
     def get_summary(self) -> BankSummaryModel:
@@ -859,9 +908,12 @@ class BankWorkspaceService:
 
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(target_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            for file_path in sorted(workspace_path.rglob("*")):
-                if file_path.is_file():
-                    archive.write(file_path, file_path.relative_to(workspace_path))
+            for entry_path in sorted(workspace_path.rglob("*")):
+                relative_path = entry_path.relative_to(workspace_path)
+                if entry_path.is_file():
+                    archive.write(entry_path, relative_path)
+                elif entry_path.is_dir() and not any(entry_path.iterdir()):
+                    archive.writestr(f"{relative_path.as_posix()}/", "")
         self._source_path = target_path
         return str(target_path)
 
