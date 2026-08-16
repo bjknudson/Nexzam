@@ -110,6 +110,43 @@ export async function watchPaneWindowClose(
   });
 }
 
+export async function checkForUpdates(): Promise<void> {
+  if (!isDesktopShell()) return;
+  await invoke("check_for_updates");
+}
+
+async function onMenuEvent(eventName: string, callback: () => void): Promise<UnlistenFn | null> {
+  if (!isDesktopShell()) return null;
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen(eventName, () => callback());
+}
+
+export function onOpenSettings(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://open-settings", callback);
+}
+
+export function onOpenBankMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://open-bank", callback);
+}
+
+export function onOpenDemoBankMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://open-demo-bank", callback);
+}
+
+export function onSaveBankMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://save-bank", callback);
+}
+
+export function onSaveAsMenu(callback: () => void): Promise<UnlistenFn | null> {
+  return onMenuEvent("nexzam://save-as", callback);
+}
+
+export async function getAppVersion(): Promise<string | null> {
+  if (!isDesktopShell()) return null;
+  const { getVersion } = await import("@tauri-apps/api/app");
+  return getVersion();
+}
+
 export async function closeCurrentPaneWindow(): Promise<void> {
   if (!isDesktopShell()) {
     window.close();

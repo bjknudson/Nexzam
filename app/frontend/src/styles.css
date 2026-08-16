@@ -86,6 +86,73 @@ textarea {
   color: #475569;
 }
 
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.settings-modal {
+  width: min(420px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #d1dbe5;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #d1dbe5;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.settings-close {
+  border: none;
+  background: transparent;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+}
+
+.settings-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settings-section h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eef3f8;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -152,7 +219,6 @@ textarea {
 
 .archive-strip {
   display: grid;
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
   gap: 0.75rem;
   padding: 0.85rem 1.25rem;
   background: #edf4fb;
@@ -220,20 +286,7 @@ textarea {
   color: #b91c1c;
 }
 
-.fallback-panel {
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #d1dbe5;
-  background: #ffffff;
-}
-
-.fallback-panel summary {
-  cursor: pointer;
-  color: #475569;
-  font-weight: 600;
-}
-
-.fallback-grid {
-  margin-top: 0.8rem;
+.archive-open-path {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.6rem;
@@ -345,6 +398,51 @@ textarea {
   border-bottom: 1px solid #d1dbe5;
 }
 
+.filters select {
+  width: 100%;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.filter-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.filter-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-clear {
+  flex: 0 0 auto;
+  width: 1.9rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.filter-clear:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.filter-clear-all {
+  justify-self: start;
+  color: #1d4ed8;
+  border-color: transparent;
+  background: transparent;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
 .question-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -391,7 +489,17 @@ textarea {
   margin-top: 0.2rem;
   color: #1f2937;
   line-height: 1.35;
+}
+
+.question-row-preview.math-text-preview {
   white-space: normal;
+}
+
+.question-row-preview.truncated {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .question-row-choices {
@@ -598,6 +706,12 @@ textarea {
 .longform-math-field.with-preview textarea {
   height: 100%;
   min-height: 220px;
+}
+
+.math-preview-empty-field {
+  margin: 0;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .math-preview-label {
@@ -2247,7 +2361,7 @@ textarea {
 
 .rubric-row {
   display: grid;
-  grid-template-columns: 1fr 120px;
+  grid-template-columns: minmax(0, 1fr) 6rem;
   gap: 0.6rem;
   align-items: start;
 }
@@ -2258,6 +2372,7 @@ textarea {
 
 .rubric-points-field {
   min-width: 0;
+  max-width: 6rem;
 }
 
 .visually-hidden {
@@ -2414,7 +2529,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .fallback-grid {
+  .archive-open-path {
     grid-template-columns: 1fr;
   }
 

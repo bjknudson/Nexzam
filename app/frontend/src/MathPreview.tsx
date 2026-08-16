@@ -11,11 +11,10 @@ type MathToken =
 interface MathPreviewFieldProps {
   label: string;
   value: string;
-  previewEnabled: boolean;
+  editing: boolean;
   children: ReactNode;
   className?: string;
   preferWholeExpression?: boolean;
-  showPreviewLabel?: boolean;
 }
 
 interface MathPreviewSection {
@@ -59,11 +58,15 @@ export function MathTextPreview({
   text,
   className,
   preferWholeExpression = false,
+  inline = false,
 }: {
   text: string;
   className?: string;
   preferWholeExpression?: boolean;
+  inline?: boolean;
 }) {
+  const Wrapper = inline ? "span" : "div";
+
   if (
     preferWholeExpression &&
     !findDelimitedMath(text, 0) &&
@@ -71,16 +74,16 @@ export function MathTextPreview({
   ) {
     const renderError = () => <span className="math-render-error">{text || "Invalid math"}</span>;
     return (
-      <div className={["math-text-preview", className].filter(Boolean).join(" ")}>
+      <Wrapper className={["math-text-preview", className].filter(Boolean).join(" ")}>
         <InlineMath math={prepareMathForKatex(text.trim())} renderError={renderError} />
-      </div>
+      </Wrapper>
     );
   }
 
   const tokens = tokenizeMathText(text);
 
   return (
-    <div className={["math-text-preview", className].filter(Boolean).join(" ")}>
+    <Wrapper className={["math-text-preview", className].filter(Boolean).join(" ")}>
       {tokens.map((token, index) => {
         if (token.kind === "text") {
           return <span key={index}>{token.value}</span>;
@@ -96,39 +99,41 @@ export function MathTextPreview({
           <InlineMath key={index} math={prepareMathForKatex(token.value)} renderError={renderError} />
         );
       })}
-    </div>
+    </Wrapper>
   );
 }
 
 export function MathPreviewField({
   label,
   value,
-  previewEnabled,
+  editing,
   children,
   className,
   preferWholeExpression = false,
-  showPreviewLabel,
 }: MathPreviewFieldProps) {
-  const showPreview = previewEnabled && hasMathMarkup(value);
-  const shouldShowPreviewLabel = showPreviewLabel ?? label === "Prompt";
+  const showLivePreview = editing && hasMathMarkup(value);
 
   return (
     <div
-      className={[
-        "math-preview-field",
-        showPreview ? "with-preview" : "",
-        className,
-      ]
+      className={["math-preview-field", showLivePreview ? "with-preview" : "", className]
         .filter(Boolean)
         .join(" ")}
     >
       <label>
         {label}
-        {children}
+        {editing ? (
+          children
+        ) : value.trim() ? (
+          <div className="math-preview-panel">
+            <MathTextPreview text={value} preferWholeExpression={preferWholeExpression} />
+          </div>
+        ) : (
+          <p className="math-preview-empty-field">No {label.toLowerCase()} yet.</p>
+        )}
       </label>
-      {showPreview ? (
+      {showLivePreview ? (
         <aside className="math-preview-panel">
-          {shouldShowPreviewLabel ? <span className="math-preview-label">Preview</span> : null}
+          <span className="math-preview-label">Preview</span>
           <MathTextPreview text={value} preferWholeExpression={preferWholeExpression} />
         </aside>
       ) : null}

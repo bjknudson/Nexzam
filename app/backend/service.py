@@ -768,6 +768,8 @@ class BankWorkspaceService:
                 status=question.status,
                 prompt=question.prompt,
                 choice_preview=self._build_question_choice_preview(question),
+                subtopic=question.subtopic,
+                standards=question.standards,
             )
             for question in filtered
         ]

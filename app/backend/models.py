@@ -532,6 +532,8 @@ class QuestionListItemModel(BaseModel):
     status: str
     prompt: str
     choice_preview: list[str] = Field(default_factory=list)
+    subtopic: str | None = None
+    standards: list[StandardReferenceModel] = Field(default_factory=list)
 
 
 class QuestionListResponseModel(BaseModel):

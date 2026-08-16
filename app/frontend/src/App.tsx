@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   addQuestionToTest,
@@ -29,6 +29,11 @@ import {
   closeCurrentPaneWindow,
   getDesktopContext,
   isDesktopShell,
+  onOpenBankMenu,
+  onOpenDemoBankMenu,
+  onOpenSettings,
+  onSaveAsMenu,
+  onSaveBankMenu,
   openBankDialog,
   openPaneWindow,
   saveBankDialog,
@@ -37,11 +42,15 @@ import {
 } from "./desktop";
 import {
   escapeLikelyLatexBackslashesInJson,
+  hasMathMarkup,
   looksLikeUnescapedLatexInJson,
   MathPreviewField,
+  MathTextPreview,
   QuestionMathSummaryPreview,
 } from "./MathPreview";
 import QuestionImportWorkspace from "./QuestionImportWorkspace";
+import Settings from "./Settings";
+import { SETTINGS_KEYS, usePersistedBoolean } from "./appSettings";
 import StandardsWorkspace from "./StandardsWorkspace";
 import TestBuilderPane from "./TestBuilderPane";
 import TestPrintPreview from "./TestPrintPreview";
@@ -257,6 +266,46 @@ function getPaneMode(): PaneKind | null {
     : null;
 }
 
+const FILTER_OPTION_LABEL_MAX_LENGTH = 28;
+
+function truncateFilterLabel(value: string): string {
+  if (value.length <= FILTER_OPTION_LABEL_MAX_LENGTH) return value;
+  return `${value.slice(0, FILTER_OPTION_LABEL_MAX_LENGTH - 1)}…`;
+}
+
+interface FilterSelectRowProps {
+  value: string;
+  onChange: (value: string) => void;
+  allOptionLabel: string;
+  clearLabel: string;
+  options: Array<{ value: string; label: string; title?: string }>;
+}
+
+function FilterSelectRow({ value, onChange, allOptionLabel, clearLabel, options }: FilterSelectRowProps) {
+  return (
+    <div className="filter-row">
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{allOptionLabel}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value} title={option.title}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="filter-clear"
+        onClick={() => onChange("")}
+        disabled={!value}
+        aria-label={clearLabel}
+        title={clearLabel}
+      >
+        &times;
+      </button>
+    </div>
+  );
+}
+
 function filterAssets(items: AssetListItemModel[], searchTerm: string): AssetListItemModel[] {
   const needle = searchTerm.trim().toLowerCase();
   if (!needle) return items;
@@ -310,6 +359,12 @@ interface QuestionPaneProps {
   promptPreview: string;
   showPromptPreview: boolean;
   wideRows?: boolean;
+  showTypeTopicFilters: boolean;
+  showStandardsFilter: boolean;
+  showDifficultyFilter: boolean;
+  showSubtopicFilter: boolean;
+  showStatusFilter: boolean;
+  shortenQuestionText: boolean;
   onOpen: () => void;
   onClose: () => void;
   onPopOut: () => void;
@@ -338,6 +393,12 @@ function QuestionPane({
   promptPreview,
   showPromptPreview,
   wideRows = false,
+  showTypeTopicFilters,
+  showStandardsFilter,
+  showDifficultyFilter,
+  showSubtopicFilter,
+  showStatusFilter,
+  shortenQuestionText,
   onOpen,
   onClose,
   onPopOut,
@@ -350,6 +411,75 @@ function QuestionPane({
   onDuplicateQuestion,
   onDeleteQuestion,
 }: QuestionPaneProps) {
+  const [difficultyFilter, setDifficultyFilter] = useState("");
+  const [subtopicFilter, setSubtopicFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [standardsFilter, setStandardsFilter] = useState("");
+
+  useEffect(() => {
+    if (!showDifficultyFilter) setDifficultyFilter("");
+  }, [showDifficultyFilter]);
+
+  useEffect(() => {
+    if (!showSubtopicFilter) setSubtopicFilter("");
+  }, [showSubtopicFilter]);
+
+  useEffect(() => {
+    if (!showStatusFilter) setStatusFilter("");
+  }, [showStatusFilter]);
+
+  useEffect(() => {
+    if (!showStandardsFilter) setStandardsFilter("");
+  }, [showStandardsFilter]);
+
+  const availableDifficulties = useMemo(
+    () => Array.from(new Set(questionItems.map((item) => item.difficulty))).sort((a, b) => a - b),
+    [questionItems],
+  );
+  const availableSubtopics = useMemo(
+    () =>
+      Array.from(new Set(questionItems.map((item) => item.subtopic).filter((value): value is string => !!value))).sort(),
+    [questionItems],
+  );
+  const availableStatuses = useMemo(
+    () => Array.from(new Set(questionItems.map((item) => item.status))).sort(),
+    [questionItems],
+  );
+  const availableStandardIds = useMemo(
+    () =>
+      Array.from(
+        new Set(questionItems.flatMap((item) => item.standards.map((reference) => reference.standard_id))),
+      ).sort(),
+    [questionItems],
+  );
+
+  const filteredQuestionItems = useMemo(
+    () =>
+      questionItems.filter((item) => {
+        if (difficultyFilter && item.difficulty !== Number(difficultyFilter)) return false;
+        if (subtopicFilter && item.subtopic !== subtopicFilter) return false;
+        if (statusFilter && item.status !== statusFilter) return false;
+        if (standardsFilter && !item.standards.some((reference) => reference.standard_id === standardsFilter)) {
+          return false;
+        }
+        return true;
+      }),
+    [questionItems, difficultyFilter, subtopicFilter, statusFilter, standardsFilter],
+  );
+
+  const hasActiveFilters = Boolean(
+    topicFilter || typeFilter || standardsFilter || difficultyFilter || subtopicFilter || statusFilter,
+  );
+
+  function clearAllFilters() {
+    onTopicFilterChange("");
+    onTypeFilterChange("");
+    setStandardsFilter("");
+    setDifficultyFilter("");
+    setSubtopicFilter("");
+    setStatusFilter("");
+  }
+
   if (!open && !poppedOut) {
     return (
       <aside className="dock-pane drawer-closed left">
@@ -402,27 +532,92 @@ function QuestionPane({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search text"
           />
-          <select value={topicFilter} onChange={(event) => onTopicFilterChange(event.target.value)}>
-            <option value="">All topics</option>
-            {availableTopics.map((topic) => (
-              <option key={topic} value={topic}>
-                {topic}
-              </option>
-            ))}
-          </select>
-          <select value={typeFilter} onChange={(event) => onTypeFilterChange(event.target.value)}>
-            <option value="">All types</option>
-            {availableTypes.map((questionType) => (
-              <option key={questionType} value={questionType}>
-                {questionType}
-              </option>
-            ))}
-          </select>
+          {showTypeTopicFilters ? (
+            <>
+              <FilterSelectRow
+                value={topicFilter}
+                onChange={onTopicFilterChange}
+                allOptionLabel="All topics"
+                clearLabel="Clear topic filter"
+                options={availableTopics.map((topic) => ({
+                  value: topic,
+                  label: truncateFilterLabel(topic),
+                  title: topic,
+                }))}
+              />
+              <FilterSelectRow
+                value={typeFilter}
+                onChange={onTypeFilterChange}
+                allOptionLabel="All types"
+                clearLabel="Clear type filter"
+                options={availableTypes.map((questionType) => ({
+                  value: questionType,
+                  label: questionType,
+                }))}
+              />
+            </>
+          ) : null}
+          {showStandardsFilter ? (
+            <FilterSelectRow
+              value={standardsFilter}
+              onChange={setStandardsFilter}
+              allOptionLabel="All standards"
+              clearLabel="Clear standards filter"
+              options={availableStandardIds.map((standardId) => ({
+                value: standardId,
+                label: truncateFilterLabel(standardId),
+                title: standardId,
+              }))}
+            />
+          ) : null}
+          {showDifficultyFilter ? (
+            <FilterSelectRow
+              value={difficultyFilter}
+              onChange={setDifficultyFilter}
+              allOptionLabel="All difficulties"
+              clearLabel="Clear difficulty filter"
+              options={availableDifficulties.map((difficulty) => ({
+                value: String(difficulty),
+                label: `Difficulty ${difficulty}`,
+              }))}
+            />
+          ) : null}
+          {showSubtopicFilter ? (
+            <FilterSelectRow
+              value={subtopicFilter}
+              onChange={setSubtopicFilter}
+              allOptionLabel="All subtopics"
+              clearLabel="Clear subtopic filter"
+              options={availableSubtopics.map((subtopic) => ({
+                value: subtopic,
+                label: truncateFilterLabel(subtopic),
+                title: subtopic,
+              }))}
+            />
+          ) : null}
+          {showStatusFilter ? (
+            <FilterSelectRow
+              value={statusFilter}
+              onChange={setStatusFilter}
+              allOptionLabel="All statuses"
+              clearLabel="Clear status filter"
+              options={availableStatuses.map((status) => ({
+                value: status,
+                label: truncateFilterLabel(status),
+                title: status,
+              }))}
+            />
+          ) : null}
+          {hasActiveFilters ? (
+            <button type="button" className="filter-clear-all" onClick={clearAllFilters}>
+              Clear All Filters
+            </button>
+          ) : null}
         </div>
 
         <div className="question-pane-body">
           <div className="question-list">
-            {questionItems.map((item) => (
+            {filteredQuestionItems.map((item) => (
               <button
                 key={item.id}
                 className={`question-row ${selectedId === item.id ? "selected" : ""}`}
@@ -434,13 +629,17 @@ function QuestionPane({
                 <span>Difficulty {item.difficulty}</span>
                 <span>{item.status}</span>
                 {wideRows ? (
-                  <span className="question-row-preview">{item.prompt}</span>
+                  <MathTextPreview
+                    text={item.prompt}
+                    className={`question-row-preview ${shortenQuestionText ? "truncated" : ""}`}
+                  />
                 ) : null}
                 {wideRows && item.choice_preview.length > 0 ? (
                   <span className="question-row-choices">
                     {item.choice_preview.map((choice, choiceIndex) => (
                       <em key={`${item.id}-${choiceIndex}`}>
-                        {String.fromCharCode(65 + choiceIndex)}. {choice}
+                        {String.fromCharCode(65 + choiceIndex)}.{" "}
+                        <MathTextPreview text={choice} preferWholeExpression inline />
                       </em>
                     ))}
                   </span>
@@ -624,7 +823,6 @@ function App() {
   const [topicFilter, setTopicFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [openPath, setOpenPath] = useState("");
-  const [savePath, setSavePath] = useState("");
   const [statusMessage, setStatusMessage] = useState(
     desktopMode ? "Starting local backend..." : "Open a .bok file or load the demo bank.",
   );
@@ -649,7 +847,33 @@ function App() {
   const [testDrafts, setTestDrafts] = useState<TestDraftDetailModel[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
-  const [mathPreviewEnabled, setMathPreviewEnabled] = useState(false);
+  const [editingFieldsEnabled, setEditingFieldsEnabled] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showFullPaths, setShowFullPaths] = usePersistedBoolean(SETTINGS_KEYS.showFullPaths, false);
+  const [questionsShowTypeTopicFilters, setQuestionsShowTypeTopicFilters] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShowTypeTopicFilters,
+    true,
+  );
+  const [questionsShowStandardsFilter, setQuestionsShowStandardsFilter] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShowStandardsFilter,
+    false,
+  );
+  const [questionsShowDifficultyFilter, setQuestionsShowDifficultyFilter] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShowDifficultyFilter,
+    false,
+  );
+  const [questionsShowSubtopicFilter, setQuestionsShowSubtopicFilter] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShowSubtopicFilter,
+    false,
+  );
+  const [questionsShowStatusFilter, setQuestionsShowStatusFilter] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShowStatusFilter,
+    false,
+  );
+  const [questionsShortenText, setQuestionsShortenText] = usePersistedBoolean(
+    SETTINGS_KEYS.questionsShortenText,
+    true,
+  );
   const [assetSearch, setAssetSearch] = useState("");
   const [questionPaneSnapshot, setQuestionPaneSnapshot] = useState<QuestionPaneSnapshot>({
     hasBank: false,
@@ -753,6 +977,38 @@ function App() {
   }, [desktopMode, isMainWindow]);
 
   useEffect(() => {
+    if (!desktopMode || !isMainWindow) return;
+
+    let cancelled = false;
+    const unlistenFns: Array<() => void> = [];
+
+    const registerMenuListener = (
+      register: (callback: () => void) => Promise<(() => void) | null>,
+      callback: () => void,
+    ) => {
+      void register(callback).then((fn) => {
+        if (!fn) return;
+        if (cancelled) {
+          fn();
+          return;
+        }
+        unlistenFns.push(fn);
+      });
+    };
+
+    registerMenuListener(onOpenSettings, () => setSettingsOpen(true));
+    registerMenuListener(onOpenBankMenu, () => void handleOpenDialog());
+    registerMenuListener(onOpenDemoBankMenu, () => void handleOpenDemo());
+    registerMenuListener(onSaveBankMenu, () => void handleSaveBank());
+    registerMenuListener(onSaveAsMenu, () => void handleSaveAs());
+
+    return () => {
+      cancelled = true;
+      unlistenFns.forEach((fn) => fn());
+    };
+  }, [desktopMode, isMainWindow]);
+
+  useEffect(() => {
     if (!isMainWindow) return;
     if (!bank) return;
     void refreshQuestionList();
@@ -845,6 +1101,12 @@ function App() {
   useEffect(() => {
     void setArchiveDirtyInShell(workspaceDirty);
   }, [workspaceDirty]);
+
+  useEffect(() => {
+    if (questionsShowTypeTopicFilters) return;
+    setTopicFilter("");
+    setTypeFilter("");
+  }, [questionsShowTypeTopicFilters]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1096,7 +1358,9 @@ function App() {
       setQuestionImportOpen(false);
       setWorkspaceDirty(false);
       setAutosaveState("idle");
-      setStatusMessage(`Opened demo bank from ${summary.source_path}`);
+      setStatusMessage(
+        showFullPaths ? `Opened demo bank from ${summary.source_path}` : "Opened demo bank.",
+      );
       await refreshAssetList();
       await refreshStandardsData();
       await refreshTestDrafts();
@@ -1125,7 +1389,7 @@ function App() {
       if (!questionSaved) return;
 
       const response = await saveBank(destinationPath);
-      setStatusMessage(`Saved bank to ${response.saved_to}`);
+      setStatusMessage(showFullPaths ? `Saved bank to ${response.saved_to}` : "Saved bank.");
       const summary = await getCurrentBank();
       setBank(summary);
       setWorkspaceDirty(false);
@@ -1146,12 +1410,9 @@ function App() {
   }
 
   async function handleSaveAs() {
-    let destinationPath = savePath.trim() || undefined;
+    if (!desktopMode) return;
 
-    if (desktopMode) {
-      destinationPath = (await saveBankDialog(bank?.source_path)) ?? undefined;
-    }
-
+    const destinationPath = (await saveBankDialog(bank?.source_path)) ?? undefined;
     if (!destinationPath) {
       setErrorMessage("Choose a destination for Save As.");
       return;
@@ -2106,7 +2367,6 @@ function App() {
       : "No archive open";
 
   const archivePathLabel = bank?.source_path ?? "No archive open";
-  const workspaceLabel = bank ? `Workspace open at ${bank.workspace_path}` : "No workspace open";
   const desktopBootBlocked = desktopMode && !desktopContext?.backendReady;
   const questionPaneDocked = !questionPanePoppedOut && questionDrawerOpen;
   const assetPaneDocked = !assetPanePoppedOut && assetDrawerOpen;
@@ -2148,6 +2408,12 @@ function App() {
           promptPreview={questionPaneSnapshot.promptPreview}
           showPromptPreview
           wideRows
+          showTypeTopicFilters={questionsShowTypeTopicFilters}
+          showStandardsFilter={questionsShowStandardsFilter}
+          showDifficultyFilter={questionsShowDifficultyFilter}
+          showSubtopicFilter={questionsShowSubtopicFilter}
+          showStatusFilter={questionsShowStatusFilter}
+          shortenQuestionText={questionsShortenText}
           onOpen={() => undefined}
           onClose={() => undefined}
           onPopOut={() => undefined}
@@ -2222,6 +2488,25 @@ function App() {
 
   return (
     <div className="app-shell">
+      <Settings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        showFullPaths={showFullPaths}
+        onShowFullPathsChange={setShowFullPaths}
+        questionsShowTypeTopicFilters={questionsShowTypeTopicFilters}
+        onQuestionsShowTypeTopicFiltersChange={setQuestionsShowTypeTopicFilters}
+        questionsShowStandardsFilter={questionsShowStandardsFilter}
+        onQuestionsShowStandardsFilterChange={setQuestionsShowStandardsFilter}
+        questionsShowDifficultyFilter={questionsShowDifficultyFilter}
+        onQuestionsShowDifficultyFilterChange={setQuestionsShowDifficultyFilter}
+        questionsShowSubtopicFilter={questionsShowSubtopicFilter}
+        onQuestionsShowSubtopicFilterChange={setQuestionsShowSubtopicFilter}
+        questionsShowStatusFilter={questionsShowStatusFilter}
+        onQuestionsShowStatusFilterChange={setQuestionsShowStatusFilter}
+        questionsShortenText={questionsShortenText}
+        onQuestionsShortenTextChange={setQuestionsShortenText}
+      />
+
       <header className="topbar">
         <div className="topbar-title">
           <h1>Nexzam</h1>
@@ -2229,12 +2514,11 @@ function App() {
         </div>
 
         <div className="topbar-controls">
-          <button onClick={() => void handleOpenDialog()} disabled={loading || !desktopMode}>
-            Open Bank
-          </button>
-          <button onClick={() => void handleOpenDemo()} disabled={loading}>
-            Open Demo Bank
-          </button>
+          {!desktopMode ? (
+            <button onClick={() => void handleOpenDemo()} disabled={loading}>
+              Open Demo Bank
+            </button>
+          ) : null}
           <div className="topbar-page-toggle" role="group" aria-label="Workspace page">
             <button
               type="button"
@@ -2268,25 +2552,35 @@ function App() {
           >
             Import Questions
           </button>
-          <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
-            Save Bank
-          </button>
-          <button onClick={() => void handleSaveAs()} disabled={loading || !bank}>
-            Save As
-          </button>
+          {!desktopMode ? (
+            <button onClick={() => void handleSaveBank()} disabled={loading || !bank}>
+              Save Bank
+            </button>
+          ) : null}
         </div>
       </header>
 
-      <div className="archive-strip">
-        <div className="archive-meta">
-          <span className="meta-label">Archive</span>
-          <span className="meta-value">{archivePathLabel}</span>
+      {showFullPaths ? (
+        <div className="archive-strip">
+          <div className="archive-meta">
+            <span className="meta-label">Archive</span>
+            <span className="meta-value">{archivePathLabel}</span>
+          </div>
+          <div className="archive-meta">
+            <span className="meta-label">Open Path</span>
+            <div className="archive-open-path">
+              <input
+                value={openPath}
+                onChange={(event) => setOpenPath(event.target.value)}
+                placeholder="/absolute/path/to/bank.bok"
+              />
+              <button onClick={() => void handleManualOpen()} disabled={loading}>
+                Open
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="archive-meta">
-          <span className="meta-label">Workspace</span>
-          <span className="meta-value">{workspaceLabel}</span>
-        </div>
-      </div>
+      ) : null}
 
       <div className="status-strip">
         <span>{statusMessage}</span>
@@ -2296,28 +2590,6 @@ function App() {
         </div>
         {errorMessage ? <span className="error-text">{errorMessage}</span> : null}
       </div>
-
-      <details className="fallback-panel">
-        <summary>Manual Path Fallback</summary>
-        <div className="fallback-grid">
-          <input
-            value={openPath}
-            onChange={(event) => setOpenPath(event.target.value)}
-            placeholder="/absolute/path/to/bank.bok"
-          />
-          <button onClick={() => void handleManualOpen()} disabled={loading}>
-            Open Path
-          </button>
-          <input
-            value={savePath}
-            onChange={(event) => setSavePath(event.target.value)}
-            placeholder="/absolute/path/to/save-as.bok"
-          />
-          <button onClick={() => void handleSaveAs()} disabled={loading || !bank}>
-            Save As Path
-          </button>
-        </div>
-      </details>
 
       <QuestionImportWorkspace
         open={questionImportOpen}
@@ -2355,7 +2627,13 @@ function App() {
             selectedId={selectedId}
             promptPreview={promptPreview}
             showPromptPreview={false}
-            wideRows={workspacePage === "tests"}
+            wideRows
+            showTypeTopicFilters={questionsShowTypeTopicFilters}
+            showStandardsFilter={questionsShowStandardsFilter}
+            showDifficultyFilter={questionsShowDifficultyFilter}
+            showSubtopicFilter={questionsShowSubtopicFilter}
+            showStatusFilter={questionsShowStatusFilter}
+            shortenQuestionText={questionsShortenText}
             onOpen={() => setQuestionDrawerOpen(true)}
             onClose={() => setQuestionDrawerOpen(false)}
             onPopOut={() => void handlePopOutPane("questions")}
@@ -2442,10 +2720,10 @@ function App() {
                     <label className="editor-toggle">
                       <input
                         type="checkbox"
-                        checked={mathPreviewEnabled}
-                        onChange={(event) => setMathPreviewEnabled(event.target.checked)}
+                        checked={editingFieldsEnabled}
+                        onChange={(event) => setEditingFieldsEnabled(event.target.checked)}
                       />
-                      Math Preview
+                      Edit Fields
                     </label>
                   </div>
                 </div>
@@ -2474,7 +2752,7 @@ function App() {
                         </div>
                       ) : null}
                       <div
-                        className={`json-editor-layout ${mathPreviewEnabled ? "with-preview" : ""}`}
+                        className={`json-editor-layout ${!editingFieldsEnabled ? "with-preview" : ""}`}
                       >
                         <textarea
                           className="json-editor"
@@ -2484,7 +2762,7 @@ function App() {
                         />
                         <QuestionMathSummaryPreview
                           question={draftQuestion}
-                          previewEnabled={mathPreviewEnabled}
+                          previewEnabled={!editingFieldsEnabled}
                           invalid={jsonError}
                         />
                       </div>
@@ -2647,7 +2925,7 @@ function App() {
                   <MathPreviewField
                     label="Prompt"
                     value={draftQuestion.prompt}
-                    previewEnabled={mathPreviewEnabled}
+                    editing={editingFieldsEnabled}
                   >
                     <textarea
                       value={draftQuestion.prompt}
@@ -2819,7 +3097,7 @@ function App() {
                                 <MathPreviewField
                                   label={`Choice ${index + 1}`}
                                   value={choice}
-                                  previewEnabled={mathPreviewEnabled}
+                                  editing={editingFieldsEnabled}
                                   preferWholeExpression
                                   className="choice-math-field"
                                 >
@@ -2845,7 +3123,7 @@ function App() {
                       <MathPreviewField
                         label="Explanation"
                         value={draftQuestion.explanation ?? ""}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                         className="longform-math-field"
                       >
                         <textarea
@@ -2870,7 +3148,7 @@ function App() {
                       <MathPreviewField
                         label="Unit"
                         value={String((draftQuestion.answer as Record<string, unknown>)?.unit ?? "")}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                       >
                         <input
                           value={String((draftQuestion.answer as Record<string, unknown>)?.unit ?? "")}
@@ -2893,7 +3171,7 @@ function App() {
                       <MathPreviewField
                         label="Explanation"
                         value={draftQuestion.explanation ?? ""}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                         className="longform-math-field"
                       >
                         <textarea
@@ -2910,7 +3188,7 @@ function App() {
                       <MathPreviewField
                         label="Sample Solution"
                         value={draftQuestion.sample_solution ?? ""}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                       >
                         <textarea
                           value={draftQuestion.sample_solution ?? ""}
@@ -2928,7 +3206,7 @@ function App() {
                       <MathPreviewField
                         label="Sample Solution"
                         value={draftQuestion.sample_solution ?? ""}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                       >
                         <textarea
                           value={draftQuestion.sample_solution ?? ""}
@@ -2940,7 +3218,7 @@ function App() {
                       <MathPreviewField
                         label="Exemplar Answer"
                         value={draftQuestion.exemplar_answer ?? ""}
-                        previewEnabled={mathPreviewEnabled}
+                        editing={editingFieldsEnabled}
                       >
                         <textarea
                           value={draftQuestion.exemplar_answer ?? ""}
@@ -2955,7 +3233,7 @@ function App() {
                             <MathPreviewField
                               label={`Criterion ${index + 1}`}
                               value={row.criterion}
-                              previewEnabled={mathPreviewEnabled}
+                              editing={editingFieldsEnabled}
                               className="rubric-criterion-field"
                             >
                               <input
@@ -2969,6 +3247,7 @@ function App() {
                             <label className="rubric-points-field">
                               Points
                               <input
+                                className="compact-number-input"
                                 type="number"
                                 step="0.5"
                                 value={row.points}

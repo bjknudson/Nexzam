@@ -138,6 +138,8 @@ export interface QuestionListItemModel {
   status: string;
   prompt: string;
   choice_preview: string[];
+  subtopic?: string | null;
+  standards: StandardReferenceModel[];
 }
 
 export interface QuestionListResponseModel {
