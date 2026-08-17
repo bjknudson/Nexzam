@@ -163,6 +163,14 @@ Paste the result into **Import Questions** to review, fix any flagged
 issues, and promote the ones you want — or paste a single question
 into a question's Raw JSON tab and use **Save as New**.
 
+## License
+
+Nexzam is free software, licensed under the [GNU General Public
+License v3.0 or later](LICENSE) — a share-alike license: if you
+distribute a modified version, you must pass the same source-access
+freedoms on to your users. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)
+for the licenses of the open-source components Nexzam is built on.
+
 ---
 
 Looking to build Nexzam from source or contribute? See

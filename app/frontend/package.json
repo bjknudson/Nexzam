@@ -1,7 +1,8 @@
 {
   "name": "nexzam-frontend",
   "private": true,
-  "version": "0.10.0",
+  "license": "GPL-3.0-or-later",
+  "version": "0.10.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

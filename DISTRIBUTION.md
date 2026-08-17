@@ -7,20 +7,41 @@ code-signed yet, so macOS will show a warning the first time it's opened.
 
 ```bash
 source .venv/bin/activate
-./scripts/build_backend_binary.sh
-cd app/frontend
-npm run tauri:build
+./scripts/package_release.sh
 ```
 
-This produces `src-tauri/target/release/bundle/macos/Nexzam.app`. Zip it for
-sharing:
-
-```bash
-cd src-tauri/target/release/bundle/macos
-ditto -c -k --sequesterRsrc --keepParent Nexzam.app Nexzam.zip
-```
+This builds the backend binary, builds and bundles the Tauri app, re-signs it
+(see "Why the re-sign step matters" below), and writes
+`src-tauri/target/release/bundle/macos/Nexzam.zip`.
 
 Send testers `Nexzam.zip`.
+
+### Why the re-sign step matters
+
+`tauri build` ad-hoc signs `Nexzam.app` itself, but that signature doesn't
+reliably seal all of `Contents/Resources` once the frozen Python backend is
+bundled in — `codesign --verify --deep --strict` fails with `code has no
+resources but signature indicates they must be present`. A same-machine copy
+still launches fine (macOS only runs the strict resource-seal check on files
+carrying the `com.apple.quarantine` flag, i.e. ones that were actually
+downloaded), which is why this doesn't show up until a tester downloads the
+zip from GitHub — where it fails Gatekeeper's assessment and gets reported as
+**"Nexzam is damaged and should be moved to the Trash"** instead of the
+expected "unidentified developer" prompt. Right-click → Open does not bypass
+that error, because it isn't a trust decision, it's a validation failure.
+
+`scripts/package_release.sh` fixes this with a `codesign --force --deep
+--sign -` pass after bundling, which regenerates a complete
+`_CodeSignature/CodeResources` seal over every bundled file. If you ever build
+manually instead of using the script, re-sign before zipping:
+
+```bash
+codesign --force --deep --sign - src-tauri/target/release/bundle/macos/Nexzam.app
+codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Nexzam.app
+```
+
+The second command should print `valid on disk` — if it doesn't, don't ship
+that zip.
 
 ## Instructions for testers
 

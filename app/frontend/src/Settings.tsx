@@ -170,6 +170,10 @@ function Settings({
               <span>{appVersion ?? "Unknown"}</span>
             </div>
             <div className="settings-row">
+              <span>License</span>
+              <span>GNU GPL v3.0 or later</span>
+            </div>
+            <div className="settings-row">
               <span>Updates</span>
               <button type="button" onClick={() => void handleCheckForUpdates()} disabled={checkingUpdate}>
                 {checkingUpdate ? "Checking…" : "Check for Updates"}

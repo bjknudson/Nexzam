@@ -1,8 +1,9 @@
 [package]
 name = "nexzam"
-version = "0.10.0"
+version = "0.10.1"
 description = "Desktop-first local editor for .bok question banks"
 authors = ["Nexzam"]
+license = "GPL-3.0-or-later"
 edition = "2021"
 
 [build-dependencies]

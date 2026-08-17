@@ -183,13 +183,17 @@ What the desktop shell does ([src-tauri/src/backend.rs](../src-tauri/src/backend
 
 ```bash
 source .venv/bin/activate
-./scripts/build_backend_binary.sh   # freezes the backend with PyInstaller into dist/backend/
-cd app/frontend
-npm run tauri:build                 # builds the frontend, then bundles the .app
+./scripts/package_release.sh
 ```
 
-See [DISTRIBUTION.md](../DISTRIBUTION.md) for the full process of
-zipping and sharing a beta build with testers.
+This freezes the backend with PyInstaller, builds the frontend, bundles the
+`.app`, **re-signs it** (`codesign --force --deep --sign -`), and zips it.
+The re-sign step is required, not optional: `tauri build`'s own ad-hoc
+signature doesn't reliably seal `Contents/Resources` once the frozen backend
+is bundled in, which passes locally but gets Gatekeeper-rejected as
+"damaged" (not just "unidentified developer") once a copy is downloaded and
+carries the `com.apple.quarantine` flag. See [DISTRIBUTION.md](../DISTRIBUTION.md)
+for the full explanation and for sharing a beta build with testers.
 
 ## API endpoints
 
