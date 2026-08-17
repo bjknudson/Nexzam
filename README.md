@@ -1,335 +1,169 @@
 # Nexzam
 
-Nexzam is a **desktop-first, local-first** question bank and test-building app.
+Nexzam is a desktop app for building and maintaining a question bank
+and turning it into printable tests — without a subscription, an
+account, or an internet connection.
 
-## Core stack
-
-- **Tauri** desktop shell
-- **React + TypeScript + Vite** frontend
-- **Python + FastAPI + Pydantic** backend
-- **`.bok`** as the source-of-truth package format from day one
-
-## Product goals
-
-### v1
-1. Create/open/save `.bok`
-2. Browse and filter questions
-3. Edit questions and metadata
-4. Attach and manage SVG/image assets
-
-### v2
-1. JSON + CSV import workflows
-2. Test assembly
-3. Auto-builder by topic/type/difficulty
-4. Printable PDF export
-
-## `.bok` package layout
-
-`.bok` files are zip packages with this internal structure:
+Everything you make lives in a single `.bok` file: a zip package of
+plain JSON that you can back up, move between computers, or hand to a
+colleague like any other document. Open the file, and you'll find
+readable JSON — one file per question, plus your standards, courses,
+tests, and attached images — not a proprietary blob.
 
 ```text
 mybank.bok
-├── manifest.json
-├── bank.json
-├── standards/
-│   ├── source_lists.json
-│   └── records.json
-├── courses/
-│   └── courses.json
-├── questions/
-│   ├── q_mc_0001.json
-│   ├── q_num_0001.json
-│   └── q_fr_0001.json
-├── assets/
-│   ├── fig_shm_01.svg
-│   ├── graph_kin_01.svg
-│   └── photo_01.jpg
-├── imports/
-│   └── source_questions.csv
-└── meta/
-    └── audit_log.json
+├── manifest.json     # bank title, description
+├── questions/        # one JSON file per question
+├── standards/        # imported standards you align questions to
+├── courses/          # curated standard sets per course
+├── tests/            # test drafts assembled from your questions
+└── assets/           # images and SVG diagrams attached to questions
 ```
 
-## Required question fields (v1)
+## Features
 
-- `id`
-- `type`
-- `topic`
-- `difficulty`
-- `prompt`
+- **Math formatting** — Write math right in a prompt or answer using
+  `$v^2 = u^2 + 2as$`, `\( ... \)`, `\[ ... \]`, or plain notation like
+  `x^2`, and Nexzam renders it live with KaTeX. The stored JSON stays
+  exactly what you typed.
+- **Print-ready export** — Assemble a test in the Test Builder, open
+  Print Preview, and use your system print dialog to save it as a
+  paginated PDF.
+- **Local-first `.bok` files** — No account, no cloud, no lock-in.
+  Your bank is one file on your disk.
+- **Image and SVG assets** — Attach diagrams and photos to questions,
+  including parameterized SVG templates whose labels and values you
+  can adjust per question.
 
-## Vertical slice status
+## Tools
 
-This repo now includes a first working vertical slice for:
+### Question Editor
 
-- opening a `.bok` archive
-- unpacking it to a managed working directory
-- browsing and filtering questions
-- editing one question in form mode or raw JSON mode
-- saving raw JSON edits explicitly, formatting JSON, reverting edits, and saving pasted JSON as a new question
-- assigning new question ids by question type and next serial number
-- previewing LaTeX/math with KaTeX without changing stored question JSON
-- attaching multiple SVG/image assets to a question
-- previewing attached SVGs with live placeholder controls
-- browsing bank-wide assets with previews and usage counts
-- saving form edits back to the unpacked working copy
-- repacking the bank into `.bok`
-- launching the backend automatically from the Tauri shell
-- using native desktop open/save dialogs for `.bok` files
-- showing working-copy vs archive-save state in the UI
-- running backend workflow tests with pytest
+Browse and filter your question bank, then edit a question in form
+mode or switch to raw JSON for full control. Every question has a
+`type`, `topic`, `difficulty`, and `prompt`; everything else depends
+on the type. Nexzam supports four question types:
 
-## Updated repo layout
+**`multiple_choice`**
 
-```text
-nexzam/
-├── README.md
-├── AGENTS.md
-├── app/
-│   ├── backend/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── requirements-dev.txt
-│   │   ├── requirements.txt
-│   │   ├── service.py
-│   │   └── tests/
-│   └── frontend/
-│       ├── package.json
-│       ├── src/
-│       │   ├── App.tsx
-│       │   ├── MathPreview.tsx
-│       │   ├── api.ts
-│       │   ├── main.tsx
-│       │   ├── react-katex.d.ts
-│       │   ├── styles.css
-│       │   └── types.ts
-│       └── vite.config.ts
-├── src-tauri/
-│   ├── Cargo.toml
-│   ├── src/main.rs
-│   └── tauri.conf.json
-├── docs/
-├── samples/
-│   ├── demo-bank/
-│   └── demo-bank.bok
-└── scripts/
+```json
+{
+  "id": "q_mc_0001",
+  "type": "multiple_choice",
+  "topic": "Mechanics",
+  "difficulty": 2,
+  "prompt": "A cart starts from rest and accelerates at 2 m/s^2 for 3 s. What is its final speed?",
+  "answer": {
+    "choices": ["3 m/s", "6 m/s", "9 m/s", "12 m/s"],
+    "correct_choice_index": 1
+  },
+  "explanation": "Use v = u + at with u = 0, a = 2, t = 3."
+}
 ```
 
-## Sample package artifact
+**`numeric_response`**
 
-Build the sample archive with:
-
-```bash
-python3 scripts/build_demo_bok.py
+```json
+{
+  "id": "q_num_0001",
+  "type": "numeric_response",
+  "topic": "Waves",
+  "difficulty": 3,
+  "prompt": "A wave has speed 12 m/s and wavelength 3 m. Find its frequency.",
+  "answer": { "value": 4, "unit": "Hz", "tolerance": 0.05 },
+  "explanation": "Use v = fλ, so f = v/λ = 12/3 = 4 Hz."
+}
 ```
 
-The generated archive is written to `samples/demo-bank.bok`.
+**`short_answer`**
 
-## Demo content
-
-The demo bank includes five questions across:
-
-- `multiple_choice`
-- `numeric_response`
-- `short_answer`
-- `free_response`
-
-## Backend setup
-
-Install backend dependencies:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install -r app/backend/requirements.txt
+```json
+{
+  "id": "q_sa_0001",
+  "type": "short_answer",
+  "topic": "Electricity",
+  "difficulty": 2,
+  "prompt": "State Ohm's law in words and write the symbolic equation.",
+  "sample_solution": "Current is directly proportional to voltage for a conductor at constant temperature: V = IR."
+}
 ```
 
-For backend test development, install the dev requirements:
+**`free_response`**
 
-```bash
-python3 -m pip install -r app/backend/requirements-dev.txt
+```json
+{
+  "id": "q_fr_0001",
+  "type": "free_response",
+  "topic": "Mechanics",
+  "difficulty": 4,
+  "prompt": "Explain the difference between mass and weight, and give one real-world example.",
+  "rubric": [
+    { "criterion": "Defines mass", "points": 1 },
+    { "criterion": "Defines weight", "points": 1 },
+    { "criterion": "States equation W=mg", "points": 1 },
+    { "criterion": "Provides valid example", "points": 1 }
+  ]
+}
 ```
 
-Run the API from the repo root:
+A question can also carry `subtopic`, `tags`, `standards`, `points`,
+`status`, `teacher_notes`, and `assets` — all optional.
 
-```bash
-python3 -m uvicorn app.backend.main:app --reload
-```
+### Import Questions
 
-API endpoints included in this slice:
+Paste JSON or CSV containing many questions at once. Nexzam stages
+each row, flags problems (invalid fields, unknown standards, etc.) so
+you can fix them before they land in your bank, and lets you promote
+the ones you want. This is the fastest way to bring in AI-generated or
+spreadsheet-authored questions in bulk — see [Generating questions
+with AI](#generating-questions-with-ai) below.
 
-- `GET /health`
-- `GET /api/health`
-- `POST /api/banks/open`
-- `POST /api/banks/open-demo`
-- `GET /api/banks/current`
-- `POST /api/banks/save`
-- `GET /api/questions`
-- `GET /api/questions/next-id?type={question_type}`
-- `POST /api/questions`
-- `POST /api/questions/from-json`
-- `GET /api/questions/{question_id}`
-- `PUT /api/questions/{question_id}`
-- `DELETE /api/questions/{question_id}`
-- `GET /api/standards/source-lists`
-- `GET /api/standards`
-- `POST /api/standards/import`
-- `GET /api/courses`
-- `PUT /api/courses/{course_id}`
-- `POST /api/courses/{course_id}/standards/{standard_id}`
-- `DELETE /api/courses/{course_id}/standards/{standard_id}`
-- `GET /api/assets`
-- `POST /api/assets/upload`
-- `POST /api/assets/inspect`
-- `GET /api/assets/file`
+### Standards
 
-## Testing
+Import a set of standards from CSV or JSON, then align questions and
+courses to them. CSV needs `id` (or `standard_id`), `code`, and
+`statement` columns, plus optional `subject`, `grade_band`, and `tags`
+columns. JSON can be a plain array of standard objects, `{ "items":
+[...] }`, or `{ "source_list": {...}, "standards": [...] }`.
 
-Run the backend pytest suite from the repo root:
+### Test Builder
 
-```bash
-source .venv/bin/activate
-python3 -m pytest
-```
+Pick questions from your bank to assemble a test draft, reorder them,
+and drop in section headers (e.g. "Multiple Choice — select the best
+answer"). Configure the print layout — page size, columns, font size,
+margins, cover sheet, name field — then open Print Preview to see the
+formatted, paginated result and export it to PDF.
 
-Useful broader verification commands:
+## Getting started
 
-```bash
-python3 -m compileall app/backend/main.py app/backend/models.py app/backend/service.py
-cd app/frontend && npm run build
-cd ../../src-tauri && cargo check
-cargo test wait_for_healthcheck
-```
+1. Open the bundled demo bank to explore, or start a new one from the
+   app menu.
+2. Browse and edit questions in the **Question Editor**.
+3. Attach images or SVG diagrams to a question from its asset panel.
+4. Import a standards list and align questions to it under
+   **Standards**.
+5. Build a test in **Test Builder**, then open Print Preview and
+   **Print** to save it as a PDF.
+6. Click **Save Bank** to write your changes back into the `.bok`
+   file. (Nexzam autosaves form edits to a local working copy as you
+   go; raw JSON edits and the `.bok` archive itself are saved
+   explicitly.)
 
-## Milestone status
+### Generating questions with AI
 
-- `Phase 2` complete for the current browser/editor scope.
-- `Milestone 2` complete: desktop-native open/edit/save `.bok` flow is in place.
-- `Milestone 3` complete for authoring basics: form editing, raw JSON editing, explicit question saves, Save as New, Revert, JSON formatting, type-based new ids, and backend workflow tests are in place.
-- `Milestone 4` complete for asset management basics: question asset attach/copy, SVG/image preview, live SVG variable controls, bank-wide asset browsing, usage visibility, and SVG token replacement preview are implemented.
-- Next planning track: JSON/CSV question import staging, print-prep test drafts, then later native SVG authoring.
+Because every question is just JSON, you can hand an existing one to
+an AI assistant as a template. Open a question's **Raw JSON** tab in
+the Question Editor, copy it, and ask something like:
 
-## Frontend setup
+> Using this JSON as a schema example, write 5 more `multiple_choice`
+> questions about projectile motion at difficulty 3. Return only a
+> JSON array in the same shape.
 
-Prerequisites:
+Paste the result into **Import Questions** to review, fix any flagged
+issues, and promote the ones you want — or paste a single question
+into a question's Raw JSON tab and use **Save as New**.
 
-- Node.js 20+
-- npm 10+
+---
 
-Install and run the frontend:
-
-```bash
-cd app/frontend
-npm install
-npm run dev
-```
-
-The Vite dev server runs on `http://127.0.0.1:5173` and proxies `/api` to the backend on port `8000` in browser-only dev.
-
-## Standards import format
-
-CSV headers:
-
-- required: `id` or `standard_id`, `code`, `statement`
-- optional: `subject`, `grade_band`, `tags`
-
-JSON formats accepted:
-
-- an array of standard objects
-- `{ "items": [...] }`
-- `{ "source_list": { ... }, "standards": [...] }`
-
-CSV imports require source-list metadata alongside the file. JSON imports can provide that metadata either in the file or in the import form.
-
-## Browser dev flow
-
-If you want to run the frontend in a browser without Tauri:
-
-1. Start the backend yourself:
-
-```bash
-python3 -m uvicorn app.backend.main:app --reload --port 8000
-```
-
-2. Start the frontend:
-
-```bash
-cd app/frontend
-npm install
-npm run dev
-```
-
-3. Open `http://localhost:5173`
-
-In browser-only dev, manual path fields remain available as a fallback.
-
-## Tauri dev shell
-
-Prerequisites:
-
-- Rust toolchain
-- Tauri CLI
-- Xcode command line tools on macOS
-
-Recommended local setup:
-
-- create a repo-root virtualenv at `.venv`
-- install backend requirements into that virtualenv
-- install frontend dependencies in `app/frontend`
-
-Then start the desktop shell from `app/frontend`:
-
-```bash
-npm install
-npm run tauri:dev
-```
-The `tauri:dev` script enters `src-tauri/` before invoking the Tauri CLI, so the CLI, config, and build hooks all resolve paths from the same place.
-
-What the desktop shell now does:
-
-- starts the Python backend automatically
-- waits for the backend health check before enabling the UI
-- exposes the backend base URL to the frontend
-- opens native macOS open/save dialogs for `.bok`
-- warns on close if the working copy has changes not yet written to the archive
-
-## Working flow
-
-1. Build `samples/demo-bank.bok`.
-2. Launch either the browser dev flow or the Tauri shell.
-3. Click `Open Bank` to choose a `.bok`, or `Open Demo Bank`.
-4. Select a question and edit it in form mode or raw JSON mode.
-5. Form edits autosave to the unpacked working copy.
-6. Raw JSON edits use explicit `Save`, `Save as New`, `Revert`, and `Format JSON` actions.
-7. Click `Save Bank` to write the `.bok` archive, or `Save As` to write a new archive path.
-
-## Save model
-
-Nexzam now distinguishes two save layers:
-
-- `Working copy`: unpacked files in the managed workspace. Form edits autosave here; raw JSON edits save here only when explicitly requested.
-- `Archive`: the `.bok` zip file on disk. `Save Bank` writes this layer.
-
-The top bar shows:
-
-- current archive path
-- whether a workspace is open
-- whether the working copy is autosaved
-- whether the archive still needs `Save Bank`
-
-## Verification run for this milestone
-
-Verified locally in this repo:
-
-- `python3 -m pytest`
-- `python3 -m compileall app/backend/main.py app/backend/models.py app/backend/service.py`
-- `npx tsc -p tsconfig.json --noEmit` in `app/frontend`
-- `npm run build` in `app/frontend`
-- `cargo check` in `src-tauri`
-- `cargo test wait_for_healthcheck` in `src-tauri`
-
-## Unfinished edges
-
-- In dev builds, the desktop launcher assumes a local development checkout and prefers repo-root `.venv/bin/python3`, falling back to `python3`. Release builds instead launch a PyInstaller-frozen backend bundled into the `.app` (see `scripts/build_backend_binary.sh` and [DISTRIBUTION.md](DISTRIBUTION.md)) — no Python install is required to run a packaged build.
-- Browser-only dev still uses manual path fallback because native dialogs are wired through Tauri commands.
-- There is no automated migration layer yet; validation is strict against the current v1 schema.
+Looking to build Nexzam from source or contribute? See
+[contributor/DEVELOPMENT.md](contributor/DEVELOPMENT.md).

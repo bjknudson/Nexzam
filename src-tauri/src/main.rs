@@ -215,6 +215,8 @@ fn main() {
                 .build(handle)?;
             let check_updates_item =
                 MenuItemBuilder::with_id("check-for-updates", "Check for Updates…").build(handle)?;
+            let view_help_item =
+                MenuItemBuilder::with_id("view-help", "Nexzam Help").build(handle)?;
             let new_bank_item = MenuItemBuilder::with_id("new-bank", "New Bank…")
                 .accelerator("CmdOrCtrl+N")
                 .build(handle)?;
@@ -273,6 +275,7 @@ fn main() {
             let window_menu = SubmenuBuilder::new(handle, "Window").minimize().build()?;
 
             let help_menu = SubmenuBuilder::new(handle, "Help")
+                .item(&view_help_item)
                 .item(&check_updates_item)
                 .build()?;
 
@@ -290,6 +293,10 @@ fn main() {
             }
             "check-for-updates" => {
                 run_update_check(app_handle);
+            }
+            "view-help" => {
+                let help_url = format!("https://github.com/{UPDATE_REPO}#readme");
+                let _ = Command::new("open").arg(help_url).spawn();
             }
             "new-bank" => {
                 let _ = app_handle.emit("nexzam://new-bank", ());
