@@ -249,8 +249,13 @@ jobs:
           fi
 
       - name: Sign the app
-        run: ./scripts/sign_macos_app.sh "$APPLE_SIGNING_IDENTITY" \
-               "src-tauri/target/release/bundle/macos/Nexzam.app"
+        # Block scalar, not a plain one: YAML folds plain scalars, which
+        # turns a trailing backslash into a literal "\ " -- bash reads
+        # that as an escaped space and the path arrives with a leading
+        # space. Still valid bash, so `bash -n` does not catch it.
+        run: |
+          ./scripts/sign_macos_app.sh "$APPLE_SIGNING_IDENTITY" \
+            "src-tauri/target/release/bundle/macos/Nexzam.app"
 
       - name: Notarize and staple
         env:

@@ -21,6 +21,23 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENTITLEMENTS="$REPO_ROOT/src-tauri/entitlements.plist"
 RESOURCES="$APP/Contents/Resources"
 
+# Fail with something readable rather than a bare `find: ... No such
+# file or directory`. Quoting the path in the message makes stray
+# leading/trailing whitespace visible, which is otherwise invisible in
+# CI logs.
+if [ ! -d "$APP" ]; then
+  echo "error: app bundle not found at '$APP'" >&2
+  exit 1
+fi
+if [ ! -d "$RESOURCES" ]; then
+  echo "error: '$APP' has no Contents/Resources -- is it a real .app bundle?" >&2
+  exit 1
+fi
+if [ ! -f "$ENTITLEMENTS" ]; then
+  echo "error: entitlements not found at '$ENTITLEMENTS'" >&2
+  exit 1
+fi
+
 sign() { codesign --force --timestamp --options runtime "$@"; }
 
 # 1. Frameworks, signed as bundles.
