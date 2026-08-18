@@ -149,6 +149,20 @@ jobs:
           # Truncated deliberately: enough to compare, useless otherwise.
           echo "Certificate fingerprint (sha256, first 12): $(shasum -a 256 "$CERT_PATH" | cut -c1-12)"
 
+          # security(1) only implements the legacy PKCS#12 MAC (SHA-1).
+          # OpenSSL 3 defaults to a SHA-256 MAC, and security(1) reports
+          # any MAC it cannot verify as "MAC verification failed (wrong
+          # password?)" -- so a perfectly correct password looks wrong.
+          # Catch it here rather than letting the misleading message stand.
+          MAC_ALG="$(openssl asn1parse -inform DER -in "$CERT_PATH" 2>/dev/null \
+            | grep -oE ':sha[0-9]+' | head -1 | tr -d ':')"
+          echo "PKCS#12 MAC algorithm: ${MAC_ALG:-unknown}"
+
+          if [ -n "$MAC_ALG" ] && [ "$MAC_ALG" != "sha1" ]; then
+            echo "::error::This .p12 uses a $MAC_ALG MAC. macOS security(1) only imports SHA-1 MAC PKCS#12 files and will report this as a wrong password. Convert it: openssl pkcs12 -in in.p12 -nodes -passin env:PW -out both.pem && openssl pkcs12 -export -macalg sha1 -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -in both.pem -out out.p12 -passout env:PW && rm -P both.pem"
+            exit 1
+          fi
+
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
