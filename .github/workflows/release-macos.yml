@@ -141,6 +141,14 @@ jobs:
             exit 1
           fi
 
+          # A well-formed .p12 still might not be the .p12 whose password
+          # you have -- an older export decodes just as cleanly and fails
+          # exactly like a wrong password. Print a short fingerprint so it
+          # can be compared against the local file:
+          #   shasum -a 256 DeveloperID.p12 | cut -c1-12
+          # Truncated deliberately: enough to compare, useless otherwise.
+          echo "Certificate fingerprint (sha256, first 12): $(shasum -a 256 "$CERT_PATH" | cut -c1-12)"
+
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
