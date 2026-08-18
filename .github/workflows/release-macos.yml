@@ -108,15 +108,63 @@ jobs:
           KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
           CERT_PATH="$RUNNER_TEMP/developer_id.p12"
 
-          echo "$DEVELOPER_ID_P12" | base64 --decode -o "$CERT_PATH"
+          # Strip any stray whitespace before decoding. base64(1) tolerates
+          # embedded newlines on its own, but this also catches a stray
+          # leading/trailing space picked up when pasting the secret.
+          printf '%s' "$DEVELOPER_ID_P12" | tr -d '[:space:]' | base64 --decode > "$CERT_PATH"
+
+          # `security import` reports a corrupt/truncated file and a wrong
+          # password with the same "MAC verification failed" message, so
+          # check the file itself first -- that tells us which secret to
+          # go look at. A DER-encoded PKCS#12 always starts 0x30 0x82.
+          if [ ! -s "$CERT_PATH" ]; then
+            echo "::error::Decoded certificate is empty. DEVELOPER_ID_P12 is not valid base64."
+            exit 1
+          fi
+
+          ACTUAL_SIZE="$(wc -c < "$CERT_PATH" | tr -d ' ')"
+          HEADER="$(od -An -tx1 -N4 "$CERT_PATH" | tr -d ' \n')"
+          echo "Decoded certificate: $ACTUAL_SIZE bytes, header 0x${HEADER:0:4}"
+
+          if [ "${HEADER:0:4}" != "3082" ]; then
+            echo "::error::Decoded file is not a PKCS#12 certificate (header 0x${HEADER:0:4}, expected 0x3082). DEVELOPER_ID_P12 is not the base64 of a .p12. Regenerate it with: base64 -i DeveloperID.p12 | pbcopy"
+            exit 1
+          fi
+
+          # A truncated .p12 keeps its 0x3082 header, so the header alone
+          # doesn't prove the secret survived the round trip. DER encodes
+          # its own content length in the next two bytes -- compare that
+          # against the real file size to catch a partial paste.
+          DECLARED_SIZE=$((0x${HEADER:4:4} + 4))
+          if [ "$ACTUAL_SIZE" -ne "$DECLARED_SIZE" ]; then
+            echo "::error::Certificate is incomplete: DER declares $DECLARED_SIZE bytes but the decoded file is $ACTUAL_SIZE. DEVELOPER_ID_P12 was truncated or padded in transit. Regenerate it with: base64 -i DeveloperID.p12 | pbcopy"
+            exit 1
+          fi
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" \
-            -P "$DEVELOPER_ID_P12_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
+          # The file is a well-formed .p12, so a failure past this point is
+          # about the password. Try it as given; if that fails and the
+          # password has surrounding whitespace (a newline picked up when
+          # pasting into the secret is the usual culprit), retry trimmed
+          # rather than failing on something that cosmetic.
+          import_p12() {
+            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" \
+              -P "$1" -T /usr/bin/codesign -T /usr/bin/security
+          }
+
+          TRIMMED_PASSWORD="$(printf '%s' "$DEVELOPER_ID_P12_PASSWORD" | tr -d '[:space:]')"
+
+          if import_p12 "$DEVELOPER_ID_P12_PASSWORD"; then
+            echo "Certificate imported."
+          elif [ "$TRIMMED_PASSWORD" != "$DEVELOPER_ID_P12_PASSWORD" ] && import_p12 "$TRIMMED_PASSWORD"; then
+            echo "::warning::Imported only after trimming whitespace from DEVELOPER_ID_P12_PASSWORD. Re-save that secret without the leading/trailing whitespace."
+          else
+            echo "::error::Could not import the certificate. The .p12 decoded cleanly, so DEVELOPER_ID_P12_PASSWORD does not match the password this .p12 was exported with. Verify locally: openssl pkcs12 -in DeveloperID.p12 -noout -passin pass:'<password>'"
+            exit 1
+          fi
 
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
