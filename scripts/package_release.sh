@@ -18,21 +18,32 @@ cd "$(dirname "$0")/.."
 
 APP="src-tauri/target/release/bundle/macos/Nexzam.app"
 
-# `tauri build`'s own ad-hoc signing step does not reliably produce a
-# valid resource-sealed signature once a large/nested resource (the
-# frozen Python backend under Contents/Resources) is bundled in --
-# `codesign --verify --deep --strict` fails with "code has no
-# resources but signature indicates they must be present", and a
-# downloaded copy is reported by Gatekeeper as "damaged" rather than
-# merely from an unidentified developer. A local, un-quarantined copy
-# launches fine regardless, because that broken seal is only checked
-# by the stricter validation path Gatekeeper runs on quarantined
-# files -- which is why this doesn't reproduce with a same-machine
-# copy. Force a full deep re-sign to regenerate a consistent
-# `_CodeSignature/CodeResources` seal covering every bundled file.
-echo "Re-signing $APP ..."
-codesign --force --deep --sign - "$APP"
-codesign --verify --deep --strict --verbose=2 "$APP"
+# Tauri's resource copier dereferences symlinks, which breaks the
+# versioned Python framework PyInstaller ships inside the backend (see
+# the same step in .github/workflows/release-macos.yml). ditto preserves
+# them. Harmless locally since this path is ad-hoc signed rather than
+# notarized, but it keeps local and CI builds structurally identical --
+# and keeps the .app ~10MB smaller.
+echo "Restoring backend framework symlinks..."
+rm -rf "$APP/Contents/Resources/nexzam-backend"
+ditto dist/backend/nexzam-backend "$APP/Contents/Resources/nexzam-backend"
+
+# `tauri build`'s own ad-hoc signing does not produce a valid
+# resource-sealed signature once the frozen Python backend is bundled
+# under Contents/Resources: `codesign --verify --deep --strict` fails
+# with "code has no resources but signature indicates they must be
+# present", and a downloaded copy is reported by Gatekeeper as
+# "damaged" rather than merely from an unidentified developer. A local,
+# un-quarantined copy launches fine regardless, because that stricter
+# check only runs on quarantined files -- which is why it never
+# reproduces with a same-machine copy.
+#
+# Sign with the same script CI uses, so this path exercises the real
+# signing logic. "-" means ad-hoc: fine for local testing, but ad-hoc
+# signatures cannot be notarized, so builds from this script still show
+# the unidentified-developer prompt. Releases come from the workflow.
+echo "Signing $APP (ad-hoc) ..."
+./scripts/sign_macos_app.sh - "$APP"
 
 ZIP_DIR="src-tauri/target/release/bundle/macos"
 rm -f "$ZIP_DIR/Nexzam.zip"

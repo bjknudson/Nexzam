@@ -213,49 +213,81 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           rm -f "$CERT_PATH"
 
-      - name: Sign the frozen backend's binaries
-        # PyInstaller's onedir output is a flat folder of the main
-        # executable plus its own bundled .so/.dylib files -- it is
-        # not a nested .app/.framework structure, so `codesign --deep`
-        # will not reliably walk it. Sign every Mach-O file in it
-        # individually instead. This has to happen before the Tauri
-        # build step below, since that step bundles this directory
-        # into Nexzam.app as a resource.
+      - name: Build the app (Tauri, unsigned)
+        # Deliberately no Apple env vars here, so Tauri neither signs nor
+        # notarizes. Both happen in the steps below, after the backend's
+        # symlinks are restored -- signing here would seal a bundle we
+        # are about to modify, and notarizing inside `tauri build` hides
+        # Apple's rejection detail behind a generic bundling error.
+        working-directory: app/frontend
+        run: npm run tauri:build
+
+      - name: Restore the backend's framework symlinks
+        # Tauri's resource copier dereferences symlinks. PyInstaller ships
+        # Python as a versioned framework held together by them
+        # (Python.framework/Python -> Versions/Current/Python, and
+        # Versions/Current -> 3.14), so the copy inside the .app ends up
+        # with standalone duplicates of the framework binary sitting
+        # outside their bundle. Those copies cannot carry a valid
+        # signature, and notarization rejects them by exact path:
+        #   Contents/Resources/nexzam-backend/_internal/Python
+        #   Contents/Resources/nexzam-backend/_internal/Python.framework/Python
+        # ditto preserves symlinks, so replace the flattened copy wholesale.
         run: |
           set -euo pipefail
-          BACKEND_DIR="dist/backend/nexzam-backend"
+          APP="src-tauri/target/release/bundle/macos/Nexzam.app"
+          DEST="$APP/Contents/Resources/nexzam-backend"
 
-          find "$BACKEND_DIR" -type f | while read -r f; do
-            if file "$f" | grep -q "Mach-O"; then
-              codesign --force --options runtime --timestamp \
-                --entitlements src-tauri/entitlements.plist \
-                --sign "$APPLE_SIGNING_IDENTITY" "$f"
-            fi
-          done
+          echo "symlinks before: $(find "$DEST" -type l | wc -l | tr -d ' ')"
+          rm -rf "$DEST"
+          ditto dist/backend/nexzam-backend "$DEST"
+          echo "symlinks after:  $(find "$DEST" -type l | wc -l | tr -d ' ')"
 
-          # Re-sign the main executable last so it's the final seal
-          # applied under this directory.
-          codesign --force --options runtime --timestamp \
-            --entitlements src-tauri/entitlements.plist \
-            --sign "$APPLE_SIGNING_IDENTITY" "$BACKEND_DIR/nexzam-backend"
+          if [ "$(find "$DEST" -type l | wc -l | tr -d ' ')" -eq 0 ]; then
+            echo "::error::No symlinks survived the copy; the framework would fail notarization."
+            exit 1
+          fi
 
-          codesign --verify --strict --verbose=2 "$BACKEND_DIR/nexzam-backend"
+      - name: Sign the app
+        run: ./scripts/sign_macos_app.sh "$APPLE_SIGNING_IDENTITY" \
+               "src-tauri/target/release/bundle/macos/Nexzam.app"
 
-      - name: Build, sign, and notarize the app (Tauri)
-        # Tauri's own bundler picks up these env vars, signs
-        # Nexzam.app with hardened runtime using APPLE_SIGNING_IDENTITY,
-        # then submits it to Apple's notary service and staples the
-        # ticket -- all as part of `tauri build`. See:
-        # https://v2.tauri.app/distribute/sign/macos/
-        working-directory: app/frontend
+      - name: Notarize and staple
         env:
-          APPLE_CERTIFICATE: ${{ secrets.DEVELOPER_ID_P12 }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run tauri:build
+        run: |
+          set -euo pipefail
+          APP="src-tauri/target/release/bundle/macos/Nexzam.app"
+          UPLOAD_ZIP="$RUNNER_TEMP/notarize.zip"
+
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$UPLOAD_ZIP"
+
+          set +e
+          SUBMIT_OUT="$(xcrun notarytool submit "$UPLOAD_ZIP" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" --wait 2>&1)"
+          SUBMIT_RC=$?
+          set -e
+          echo "$SUBMIT_OUT"
+
+          SUBMISSION_ID="$(printf '%s\n' "$SUBMIT_OUT" | awk '/^ *id:/ {print $2; exit}')"
+
+          if [ "$SUBMIT_RC" -ne 0 ] || ! printf '%s' "$SUBMIT_OUT" | grep -q "status: Accepted"; then
+            # Always surface Apple's per-file reasons -- the submit output
+            # alone only says "Invalid", which isn't actionable.
+            if [ -n "$SUBMISSION_ID" ]; then
+              echo "--- notarization log for $SUBMISSION_ID ---"
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" || true
+            fi
+            echo "::error::Notarization failed. See the per-file issues above."
+            exit 1
+          fi
+
+          xcrun stapler staple "$APP"
 
       - name: Verify signature and notarization
         run: |
@@ -265,11 +297,11 @@ jobs:
           echo "--- codesign --verify ---"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
-          echo "--- spctl assessment ---"
-          spctl -a -vvv "$APP_PATH"
-
           echo "--- notarization ticket ---"
           xcrun stapler validate "$APP_PATH"
+
+          echo "--- spctl assessment (must say: accepted / Notarized Developer ID) ---"
+          spctl -a -vvv "$APP_PATH"
 
       - name: Zip for distribution
         run: |
