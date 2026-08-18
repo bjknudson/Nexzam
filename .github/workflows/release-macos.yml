@@ -133,7 +133,12 @@ jobs:
             exit 1
           fi
 
-          echo "Found identity: $IDENTITY"
+          # Deliberately not echoing $IDENTITY itself: it expands to
+          # "Developer ID Application: <name> (<team id>)", and this
+          # repo's Actions logs are public. The team id is a registered
+          # secret so the runner masks it, but the account name is not.
+          # Confirm a match was found without printing it.
+          echo "Found a Developer ID Application identity."
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           rm -f "$CERT_PATH"
