@@ -53,6 +53,12 @@ jobs:
     # architecture, not just this workflow.
     runs-on: macos-14
 
+    # Without this, a hung step runs to GitHub's 6-hour default. macOS
+    # runners bill at a 10x multiplier, so that is 3600 billable minutes
+    # for a job that normally finishes in well under an hour. A green run
+    # is roughly 15-35 min, most of it waiting on Apple's notary service.
+    timeout-minutes: 75
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -270,9 +276,12 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP" "$UPLOAD_ZIP"
 
           set +e
+          # --timeout bounds the wait so a stuck submission fails the step
+          # instead of blocking until the job timeout. Apple usually
+          # answers within 5-15 min; 45 leaves room for a slow queue.
           SUBMIT_OUT="$(xcrun notarytool submit "$UPLOAD_ZIP" \
             --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" --wait 2>&1)"
+            --team-id "$APPLE_TEAM_ID" --wait --timeout 45m 2>&1)"
           SUBMIT_RC=$?
           set -e
           echo "$SUBMIT_OUT"
