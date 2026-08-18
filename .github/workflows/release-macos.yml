@@ -1,0 +1,242 @@
+name: Release (macOS, signed + notarized)
+
+# Builds Nexzam.app for Apple Silicon, signs both the frozen Python
+# backend and the Tauri-built app with a real Developer ID Application
+# certificate, notarizes and staples the result, then publishes it as
+# a GitHub Release for the pushed tag (creating the release if one
+# doesn't already exist, or uploading to it if it does -- so drafting
+# release notes ahead of the tag push still works). The zip is also
+# kept as a workflow artifact for convenience.
+#
+# Every tag pushed here is treated as a tested, intentional release --
+# there's no separate "draft" stage. Releases are published as
+# prereleases (matching this project's current early-beta status per
+# DISTRIBUTION.md); flip that off in the "Publish release" step below
+# once that's no longer accurate.
+#
+# Required repo secrets (already configured):
+#   DEVELOPER_ID_P12          base64-encoded Developer ID Application .p12
+#   DEVELOPER_ID_P12_PASSWORD export password for that .p12
+#   APPLE_ID                  Apple ID email used for notarization
+#   APPLE_ID_PASSWORD         app-specific password from appleid.apple.com
+#                             (not the Apple ID account password)
+#   APPLE_TEAM_ID             Team ID from the developer portal's
+#                             membership page
+#
+# This is Developer ID (direct-download) distribution only -- nothing
+# here touches App Store Connect.
+#
+# NOTE: this workflow has not been run yet. The steps below follow
+# Tauri's documented macOS signing/notarization env vars and the
+# standard GitHub Actions "import a .p12 into a temporary keychain"
+# recipe, but they haven't been exercised end to end against real
+# Apple credentials. Watch the first tag-triggered run closely; if
+# notarization fails, `xcrun notarytool log <submission-id>` (the
+# submission id is printed in the "Build, sign, and notarize" step's
+# output) will show Apple's actual rejection reason.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-sign-notarize:
+    # Apple Silicon only -- this matches the app's current arm64-only
+    # build (see contributor/DEVELOPMENT.md). Building a universal
+    # (arm64 + x86_64) binary would need a separate decision, since it
+    # touches the Rust target and the PyInstaller Python interpreter's
+    # architecture, not just this workflow.
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            app/backend/requirements.txt
+            app/backend/requirements-dev.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install backend dependencies
+        run: |
+          set -euo pipefail
+          python3 -m pip install --upgrade pip
+          pip install -r app/backend/requirements.txt -r app/backend/requirements-dev.txt
+
+      - name: Install frontend dependencies
+        working-directory: app/frontend
+        run: npm ci
+
+      - name: Backend test suite (release gate)
+        run: python3 -m pytest
+
+      - name: Build backend binary (PyInstaller)
+        run: ./scripts/build_backend_binary.sh
+
+      - name: Import Developer ID certificate into a temporary keychain
+        env:
+          DEVELOPER_ID_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEVELOPER_ID_P12:-}" ] || [ -z "${DEVELOPER_ID_P12_PASSWORD:-}" ]; then
+            echo "::error::DEVELOPER_ID_P12 / DEVELOPER_ID_P12_PASSWORD secrets are not set."
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          CERT_PATH="$RUNNER_TEMP/developer_id.p12"
+
+          echo "$DEVELOPER_ID_P12" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | sed 's/"//g')
+
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | grep 'Developer ID Application' | head -1 \
+            | sed -E 's/.*"(.+)".*/\1/')"
+
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No 'Developer ID Application' identity found in the imported certificate. Is DEVELOPER_ID_P12 a Developer ID Application cert (not Mac Installer or Apple Distribution)?"
+            exit 1
+          fi
+
+          echo "Found identity: $IDENTITY"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          rm -f "$CERT_PATH"
+
+      - name: Sign the frozen backend's binaries
+        # PyInstaller's onedir output is a flat folder of the main
+        # executable plus its own bundled .so/.dylib files -- it is
+        # not a nested .app/.framework structure, so `codesign --deep`
+        # will not reliably walk it. Sign every Mach-O file in it
+        # individually instead. This has to happen before the Tauri
+        # build step below, since that step bundles this directory
+        # into Nexzam.app as a resource.
+        run: |
+          set -euo pipefail
+          BACKEND_DIR="dist/backend/nexzam-backend"
+
+          find "$BACKEND_DIR" -type f | while read -r f; do
+            if file "$f" | grep -q "Mach-O"; then
+              codesign --force --options runtime --timestamp \
+                --entitlements src-tauri/entitlements.plist \
+                --sign "$APPLE_SIGNING_IDENTITY" "$f"
+            fi
+          done
+
+          # Re-sign the main executable last so it's the final seal
+          # applied under this directory.
+          codesign --force --options runtime --timestamp \
+            --entitlements src-tauri/entitlements.plist \
+            --sign "$APPLE_SIGNING_IDENTITY" "$BACKEND_DIR/nexzam-backend"
+
+          codesign --verify --strict --verbose=2 "$BACKEND_DIR/nexzam-backend"
+
+      - name: Build, sign, and notarize the app (Tauri)
+        # Tauri's own bundler picks up these env vars, signs
+        # Nexzam.app with hardened runtime using APPLE_SIGNING_IDENTITY,
+        # then submits it to Apple's notary service and staples the
+        # ticket -- all as part of `tauri build`. See:
+        # https://v2.tauri.app/distribute/sign/macos/
+        working-directory: app/frontend
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.DEVELOPER_ID_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run tauri:build
+
+      - name: Verify signature and notarization
+        run: |
+          set -euo pipefail
+          APP_PATH="src-tauri/target/release/bundle/macos/Nexzam.app"
+
+          echo "--- codesign --verify ---"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+          echo "--- spctl assessment ---"
+          spctl -a -vvv "$APP_PATH"
+
+          echo "--- notarization ticket ---"
+          xcrun stapler validate "$APP_PATH"
+
+      - name: Zip for distribution
+        run: |
+          set -euo pipefail
+          cd src-tauri/target/release/bundle/macos
+          ditto -c -k --sequesterRsrc --keepParent \
+            Nexzam.app "Nexzam-${{ github.ref_name }}.zip"
+
+      - name: Remove temporary keychain
+        if: always()
+        run: |
+          if [ -n "${KEYCHAIN_PATH:-}" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
+
+      - name: Upload signed build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nexzam-${{ github.ref_name }}-macos
+          path: src-tauri/target/release/bundle/macos/Nexzam-${{ github.ref_name }}.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish release
+        # Only publish on an actual tag push, not on a manual
+        # workflow_dispatch test run (which may not even be building
+        # from a tag ref).
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          ZIP_PATH: src-tauri/target/release/bundle/macos/Nexzam-${{ github.ref_name }}.zip
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists -- uploading the signed build to it."
+            gh release upload "$TAG" "$ZIP_PATH" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo "Creating release $TAG."
+            gh release create "$TAG" "$ZIP_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --generate-notes \
+              --prerelease
+          fi
