@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -78,6 +79,59 @@ function isManualRowEmpty(row: ManualStandardRow): boolean {
     row.subject.trim() ||
     row.grade_band.trim() ||
     row.tagsText.trim()
+  );
+}
+
+/**
+ * One standard as a table row. Columns line up with the manual-entry form so a
+ * standard reads the same whether you are typing it or browsing it.
+ */
+function StandardTableRow({
+  standard,
+  sourceLabel,
+  children,
+}: {
+  standard: StandardRecordModel;
+  sourceLabel?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="standards-table-row">
+      <span className="standards-cell-id" title={standard.id}>
+        {standard.id}
+      </span>
+      <span className="standards-cell-code">{standard.code}</span>
+      <span className="standards-cell-statement">{standard.statement}</span>
+      <span className="standards-cell-subject">{standard.subject ?? "-"}</span>
+      <span className="standards-cell-grade">{standard.grade_band ?? "-"}</span>
+      <span className="standards-cell-tags">
+        {standard.tags.length > 0 ? (
+          standard.tags.map((tag) => (
+            <span key={tag} className="asset-badge">
+              {tag}
+            </span>
+          ))
+        ) : (
+          <span className="standards-cell-muted">-</span>
+        )}
+        {sourceLabel ? <span className="standards-cell-source">{sourceLabel}</span> : null}
+      </span>
+      <span className="standards-cell-actions">{children}</span>
+    </div>
+  );
+}
+
+function StandardTableHead() {
+  return (
+    <div className="standards-table-row standards-table-head">
+      <span>Standard ID</span>
+      <span>Short Name</span>
+      <span>Standard Text</span>
+      <span>Subject</span>
+      <span>Grade Band</span>
+      <span>Topic Tags</span>
+      <span />
+    </div>
   );
 }
 
@@ -678,6 +732,72 @@ export default function StandardsWorkspace({
         </div>
       </header>
 
+      {!pickerMode ? (
+        <section className="standards-course-bar standards-panel">
+          {courses.length === 0 ? (
+            <div className="standards-library-empty">
+              <strong>No course libraries yet</strong>
+              <p>
+                A library is the set of standards you actually teach in one course, picked out of
+                the larger lists you import. It stores references, so editing a standard once
+                updates it everywhere it is used.
+              </p>
+              <p>
+                Type a title below and choose Save to create your first one, then use Show Sources
+                to pull standards into it. Standards themselves come from Upload Standards or Input
+                Manually and do not need a library to exist.
+              </p>
+            </div>
+          ) : null}
+          <label>
+            Library
+            <select
+              value={selectedCourseId}
+              onChange={(event) => setSelectedCourseId(event.target.value)}
+            >
+              <option value="">Select a course library</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Title
+            <input
+              value={courseDraftTitle}
+              onChange={(event) => setCourseDraftTitle(event.target.value)}
+              placeholder="Physics 1"
+            />
+          </label>
+          <div className="standards-course-id-preview">
+            <span className="meta-label">Library ID</span>
+            <strong>{selectedCourseId || computedCourseId || "set by title"}</strong>
+          </div>
+          <label className="standards-course-description-field">
+            Description
+            <textarea
+              className="standards-description-input"
+              value={courseDraftDescription}
+              onChange={(event) => setCourseDraftDescription(event.target.value)}
+              placeholder="Course library notes"
+            />
+          </label>
+          <div className="standards-course-actions">
+            <button type="button" onClick={handleNewCourse}>
+              New
+            </button>
+            <button type="button" onClick={() => void handleSaveCourseAs()} disabled={busy}>
+              Save As
+            </button>
+            <button type="button" onClick={() => void handleSaveCourse()} disabled={busy}>
+              {busy ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {standardEditDraft ? (
         <section className="standards-panel standards-edit-panel">
           <div className="standards-panel-header">
@@ -1012,56 +1132,6 @@ export default function StandardsWorkspace({
         </section>
       ) : null}
 
-      {!pickerMode ? (
-        <section className="standards-course-bar standards-panel">
-          <label>
-            Library
-            <select
-              value={selectedCourseId}
-              onChange={(event) => setSelectedCourseId(event.target.value)}
-            >
-              <option value="">Select a course library</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Title
-            <input
-              value={courseDraftTitle}
-              onChange={(event) => setCourseDraftTitle(event.target.value)}
-              placeholder="Physics 1"
-            />
-          </label>
-          <div className="standards-course-id-preview">
-            <span className="meta-label">Library ID</span>
-            <strong>{selectedCourseId || computedCourseId || "set by title"}</strong>
-          </div>
-          <label className="standards-course-description-field">
-            Description
-            <textarea
-              className="standards-description-input"
-              value={courseDraftDescription}
-              onChange={(event) => setCourseDraftDescription(event.target.value)}
-              placeholder="Course library notes"
-            />
-          </label>
-          <div className="standards-course-actions">
-            <button type="button" onClick={handleNewCourse}>
-              New
-            </button>
-            <button type="button" onClick={() => void handleSaveCourseAs()} disabled={busy}>
-              Save As
-            </button>
-            <button type="button" onClick={() => void handleSaveCourse()} disabled={busy}>
-              {busy ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </section>
-      ) : null}
 
       <div
         className={`standards-layout ${pickerMode ? "picker" : showSourceDrawer ? "drawer-open" : "drawer-closed"}`}
@@ -1087,6 +1157,16 @@ export default function StandardsWorkspace({
                     <h2>Source Lists</h2>
                     <span className="bank-assets-count">{sourceLists.length}</span>
                   </div>
+                  {sourceLists.length === 0 ? (
+                    <div className="standards-library-empty">
+                      <strong>No standards imported yet</strong>
+                      <p>
+                        A source list is where standards came from, such as a state framework or a
+                        published set. Use Upload Standards for a CSV or JSON file, or Input
+                        Manually to type them in.
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="standards-source-list">
                     <button
                       type="button"
@@ -1153,47 +1233,36 @@ export default function StandardsWorkspace({
                 ) : null}
               </div>
 
-              <div className="standards-record-list compact">
+              <div className="standards-record-list standards-table compact">
+                <StandardTableHead />
                 {filteredSourceStandards.map((standard) => {
                   const inCourse = selectedCourseStandardIds.has(standard.id);
                   return (
-                    <article key={standard.id} className="standards-record-card compact">
-                      <div className="standards-record-top compact">
-                        <div>
-                          <strong>{standard.code}</strong>
-                          <p>{standard.statement}</p>
-                        </div>
-                        <div className="standards-card-actions">
-                          <button
-                            type="button"
-                            onClick={() => handleStartStandardEdit(standard)}
-                            disabled={busy}
-                          >
-                            Edit
-                          </button>
-                          {selectedCourse ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleToggleCourseStandard(standard.id)}
-                              disabled={busy}
-                            >
-                              {inCourse ? "Remove" : "Add"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="bank-asset-badges">
-                        <span className="asset-badge">{standard.id}</span>
-                        <span className="asset-badge">
-                          {sourceLists.find((item) => item.id === standard.source_list_id)?.title ??
-                            standard.source_list_id}
-                        </span>
-                        {standard.subject ? <span className="asset-badge">{standard.subject}</span> : null}
-                        {standard.grade_band ? (
-                          <span className="asset-badge">{standard.grade_band}</span>
-                        ) : null}
-                      </div>
-                    </article>
+                    <StandardTableRow
+                      key={standard.id}
+                      standard={standard}
+                      sourceLabel={
+                        sourceLists.find((item) => item.id === standard.source_list_id)?.title ??
+                        standard.source_list_id
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleStartStandardEdit(standard)}
+                        disabled={busy}
+                      >
+                        Edit
+                      </button>
+                      {selectedCourse ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleCourseStandard(standard.id)}
+                          disabled={busy}
+                        >
+                          {inCourse ? "Remove" : "Add"}
+                        </button>
+                      ) : null}
+                    </StandardTableRow>
                   );
                 })}
               </div>
@@ -1264,56 +1333,37 @@ export default function StandardsWorkspace({
             </div>
           )}
 
-          <div className="standards-record-list compact">
+          <div className="standards-record-list standards-table compact">
+            <StandardTableHead />
             {(pickerMode ? filteredSourceStandards : curatedStandards).map((standard) => {
               const inCourse = selectedCourseStandardIds.has(standard.id);
               return (
-                <article key={standard.id} className="standards-record-card compact">
-                  <div className="standards-record-top compact">
-                    <div>
-                      <strong>{standard.code}</strong>
-                      <p>{standard.statement}</p>
-                    </div>
-                    <div className="standards-card-actions">
-                      <button
-                        type="button"
-                        onClick={() => handleStartStandardEdit(standard)}
-                        disabled={busy}
-                      >
-                        Edit
-                      </button>
-                      {pickerMode ? (
-                        <button
-                          type="button"
-                          onClick={() => handleQuestionStandardToggle(standard.id)}
-                          disabled={!questionStandardsState.questionId}
-                        >
-                          {selectedQuestionStandardIds.has(standard.id) ? "Remove" : "Attach"}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => void handleToggleCourseStandard(standard.id)}
-                          disabled={busy}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="bank-asset-badges">
-                    <span className="asset-badge">{standard.id}</span>
-                    {standard.subject ? <span className="asset-badge">{standard.subject}</span> : null}
-                    {standard.grade_band ? (
-                      <span className="asset-badge">{standard.grade_band}</span>
-                    ) : null}
-                    {standard.tags.map((tag) => (
-                      <span key={tag} className="asset-badge">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </article>
+                <StandardTableRow key={standard.id} standard={standard}>
+                  <button
+                    type="button"
+                    onClick={() => handleStartStandardEdit(standard)}
+                    disabled={busy}
+                  >
+                    Edit
+                  </button>
+                  {pickerMode ? (
+                    <button
+                      type="button"
+                      onClick={() => handleQuestionStandardToggle(standard.id)}
+                      disabled={!questionStandardsState.questionId}
+                    >
+                      {selectedQuestionStandardIds.has(standard.id) ? "Remove" : "Attach"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleCourseStandard(standard.id)}
+                      disabled={busy}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </StandardTableRow>
               );
             })}
             {!pickerMode && selectedCourse && curatedStandards.length === 0 ? (

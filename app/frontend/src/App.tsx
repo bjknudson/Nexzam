@@ -95,7 +95,7 @@ type PaneKind =
 type WorkspacePage = "questions" | "tests" | "standards";
 
 // The three top-level views, and the pop-out window each one opens.
-const WORKSPACE_PAGES: WorkspacePage[] = ["questions", "tests", "standards"];
+const WORKSPACE_PAGES: WorkspacePage[] = ["standards", "questions", "tests"];
 const WORKSPACE_PAGE_PANE: Record<WorkspacePage, PaneKind> = {
   questions: "editor",
   tests: "tests",
@@ -462,6 +462,9 @@ interface QuestionPaneProps {
   addToAllDisabled?: boolean;
   addToAllLabel?: string;
   onAddToAllTests?: () => void;
+  showImportToggle?: boolean;
+  importOpen?: boolean;
+  onToggleImport?: () => void;
 }
 
 function QuestionPane({
@@ -503,6 +506,9 @@ function QuestionPane({
   addToAllDisabled = false,
   addToAllLabel = "Add to All",
   onAddToAllTests,
+  showImportToggle = false,
+  importOpen = false,
+  onToggleImport,
 }: QuestionPaneProps) {
   const [difficultyFilter, setDifficultyFilter] = useState("");
   const [subtopicFilter, setSubtopicFilter] = useState("");
@@ -638,6 +644,16 @@ function QuestionPane({
                   {addToAllLabel}
                 </button>
               </>
+            ) : null}
+            {showImportToggle ? (
+              <button
+                type="button"
+                className="question-import-toggle"
+                onClick={onToggleImport}
+                disabled={loading || !hasBank}
+              >
+                {importOpen ? "Return to Editor" : "Import Questions"}
+              </button>
             ) : null}
           </div>
           <input
@@ -981,6 +997,8 @@ function App() {
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [openTestIds, setOpenTestIds] = useState<string[]>([]);
   const openTestsBankRef = useRef<string | null>(null);
+  const defaultPageBankRef = useRef<string | null>(null);
+  const [standardsLoaded, setStandardsLoaded] = useState(false);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [editingFieldsEnabled, setEditingFieldsEnabled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1205,6 +1223,14 @@ function App() {
   const openTestsStorageKey = bank ? `nexzam:open-tests:${bank.manifest.bank_id}` : null;
 
   useEffect(() => {
+    if (!isMainWindow || !bank || !standardsLoaded) return;
+    if (defaultPageBankRef.current === bank.manifest.bank_id) return;
+
+    defaultPageBankRef.current = bank.manifest.bank_id;
+    setWorkspacePage(standardRecords.length === 0 ? "standards" : "questions");
+  }, [isMainWindow, bank, standardsLoaded, standardRecords.length]);
+
+  useEffect(() => {
     if (!openTestsStorageKey) {
       openTestsBankRef.current = null;
       setOpenTestIds([]);
@@ -1361,6 +1387,8 @@ function App() {
       setCourses([]);
       setTestDrafts([]);
       setSelectedTestId(null);
+      setStandardsLoaded(false);
+      defaultPageBankRef.current = null;
     }
   }
 
@@ -1374,6 +1402,7 @@ function App() {
       setSourceStandardLists(sourceListsResponse.items);
       setStandardRecords(standardsResponse.items);
       setCourses(courseResponse.items);
+      setStandardsLoaded(true);
     } catch (error) {
       setErrorMessage((error as Error).message);
     }
@@ -3238,14 +3267,8 @@ function App() {
           <p>{bank ? bank.manifest.title : "No bank open"}</p>
         </div>
 
-        <div className="topbar-controls">
-          {!desktopMode ? (
-            <button onClick={() => void handleOpenDemo()} disabled={loading}>
-              Open Demo Bank
-            </button>
-          ) : null}
+        <div className="topbar-page-slot">
           {isMainWindow ? (
-            <>
               <div className="topbar-page-toggle" role="tablist" aria-label="Workspace view">
                 <span
                   className="topbar-page-thumb"
@@ -3261,10 +3284,7 @@ function App() {
                     role="tab"
                     aria-selected={workspacePage === page}
                     className={workspacePage === page ? "active" : ""}
-                    onClick={() => {
-                      if (page !== "questions") setQuestionImportOpen(false);
-                      setWorkspacePage(page);
-                    }}
+                    onClick={() => setWorkspacePage(page)}
                     disabled={!bank}
                   >
                     {WORKSPACE_PAGE_LABEL[page]}
@@ -3276,39 +3296,40 @@ function App() {
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  poppedOutPages[workspacePage]
-                    ? void handleDockWorkspacePage(workspacePage)
-                    : void handlePopOutWorkspacePage(workspacePage)
-                }
-                disabled={loading || !bank}
-                title={`${
-                  poppedOutPages[workspacePage] ? "Bring back" : "Open"
-                } ${WORKSPACE_PAGE_LABEL[workspacePage]}`}
-              >
-                {poppedOutPages[workspacePage] ? "Bring Back" : "Pop Out"}
-              </button>
-            </>
           ) : (
-            <>
-              <span className="topbar-pane-label">{WORKSPACE_PAGE_LABEL[activeWorkspacePage]}</span>
-              <button
-                type="button"
-                onClick={() => void handleDockWorkspacePage(activeWorkspacePage)}
-              >
-                Return to Main Window
-              </button>
-            </>
+            <span className="topbar-pane-label">{WORKSPACE_PAGE_LABEL[activeWorkspacePage]}</span>
           )}
-          <button
-            type="button"
-            onClick={() => setQuestionImportOpen((current) => !current)}
-            disabled={loading || !bank}
-          >
-            Import Questions
-          </button>
+        </div>
+
+        <div className="topbar-controls">
+          {!desktopMode ? (
+            <button onClick={() => void handleOpenDemo()} disabled={loading}>
+              Open Demo Bank
+            </button>
+          ) : null}
+          {isMainWindow ? (
+            <button
+              type="button"
+              onClick={() =>
+                poppedOutPages[workspacePage]
+                  ? void handleDockWorkspacePage(workspacePage)
+                  : void handlePopOutWorkspacePage(workspacePage)
+              }
+              disabled={loading || !bank}
+              title={`${
+                poppedOutPages[workspacePage] ? "Bring back" : "Open"
+              } ${WORKSPACE_PAGE_LABEL[workspacePage]}`}
+            >
+              {poppedOutPages[workspacePage] ? "Bring Back" : "Pop Out"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleDockWorkspacePage(activeWorkspacePage)}
+            >
+              Return to Main Window
+            </button>
+          )}
           {!desktopMode ? (
             <>
               <button onClick={handleOpenBankPropertiesDialog} disabled={loading || !bank}>
@@ -3363,7 +3384,7 @@ function App() {
       </div>
 
       <QuestionImportWorkspace
-        open={questionImportOpen}
+        open={questionImportOpen && activeWorkspacePage === "questions"}
         hasBank={!!bank}
         selectedTestLabel={
           testDrafts.find((detail) => detail.test.id === selectedTestId)?.test.title ?? null
@@ -3443,6 +3464,9 @@ function App() {
                 : "Add to All"
             }
             onAddToAllTests={() => void handleAddSelectedQuestionToAllOpenTests()}
+            showImportToggle={activeWorkspacePage === "questions"}
+            importOpen={questionImportOpen}
+            onToggleImport={() => setQuestionImportOpen((current) => !current)}
           />
         ) : null}
 

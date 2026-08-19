@@ -267,14 +267,23 @@ textarea {
   font-size: 1rem;
 }
 
+/* Three slots so the view pill sits centered on the window itself, not on
+   whatever the side groups happen to measure. */
 .topbar {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 1rem;
-  align-items: flex-start;
+  align-items: center;
   padding: 1rem 1.25rem;
   background: linear-gradient(135deg, #ffffff, #ddeaf6);
   border-bottom: 1px solid #d1dbe5;
+}
+
+.topbar-page-slot {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .topbar h1 {
@@ -294,6 +303,7 @@ textarea {
 }
 
 .topbar-controls {
+  justify-self: end;
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
@@ -2139,8 +2149,10 @@ textarea {
   max-width: 120px;
 }
 
-.question-add-to-test {
-  margin-left: auto;
+/* .question-actions is a 3-column grid, so the import toggle takes a full row
+   of its own beneath New / Duplicate / Delete. */
+.question-import-toggle {
+  grid-column: 1 / -1;
 }
 
 .test-json-panel {
@@ -2349,16 +2361,17 @@ textarea {
 
 .standards-workspace {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: none;
+  align-content: start;
   gap: 1rem;
-  height: 100%;
+  min-height: 100%;
+  overflow-y: auto;
   padding: 1rem 1.25rem;
   background: #eef3f8;
-  min-height: 0;
 }
 
 .standards-workspace.picker {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: none;
 }
 
 .standards-window-shell {
@@ -2429,10 +2442,117 @@ textarea {
   overflow-x: auto;
 }
 
+/* Browse tables share the manual-entry column template so a standard reads the
+   same whether you are typing it or looking at it. */
+.standards-library-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px dashed #9cb0c4;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.standards-library-empty p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.standards-table {
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.standards-table-row {
+  display: grid;
+  gap: 0.5rem;
+  align-items: start;
+  grid-template-columns:
+    minmax(110px, 0.8fr) minmax(90px, 0.6fr) minmax(220px, 2.2fr)
+    minmax(90px, 0.6fr) minmax(70px, 0.5fr) minmax(120px, 1fr) auto;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #d7e1eb;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.standards-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eef3f8;
+  border-color: transparent;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  padding-bottom: 0.3rem;
+}
+
+.standards-table-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.standards-cell-id,
+.standards-cell-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.standards-cell-statement {
+  color: #1f2937;
+}
+
+.standards-cell-subject,
+.standards-cell-grade,
+.standards-cell-muted {
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.standards-cell-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-content: start;
+}
+
+.standards-cell-source {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.standards-cell-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .standards-table-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .standards-cell-statement,
+  .standards-cell-tags,
+  .standards-cell-actions {
+    grid-column: 1 / -1;
+  }
+
+  .standards-table-head {
+    display: none;
+  }
+}
+
 .standards-manual-rows {
   display: grid;
   gap: 0.5rem;
-  min-width: 900px;
+  min-width: 0;
 }
 
 .standards-manual-row {
@@ -2440,8 +2560,23 @@ textarea {
   gap: 0.5rem;
   align-items: start;
   grid-template-columns:
-    minmax(130px, 0.9fr) minmax(110px, 0.7fr) minmax(240px, 2fr)
-    minmax(100px, 0.7fr) minmax(90px, 0.6fr) minmax(140px, 1fr) auto;
+    minmax(110px, 0.8fr) minmax(90px, 0.6fr) minmax(220px, 2.2fr)
+    minmax(90px, 0.6fr) minmax(70px, 0.5fr) minmax(120px, 1fr) auto;
+}
+
+@media (max-width: 1100px) {
+  .standards-manual-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .standards-manual-row textarea,
+  .standards-manual-remove {
+    grid-column: 1 / -1;
+  }
+
+  .standards-manual-head {
+    display: none;
+  }
 }
 
 .standards-manual-head {
@@ -2516,13 +2651,14 @@ textarea {
 }
 
 .standards-inline-section .standards-source-list {
-  max-height: 170px;
+  max-height: none;
 }
 
 .standards-results-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  gap: 0.6rem;
 }
 
 .standards-source-list,
@@ -2530,7 +2666,6 @@ textarea {
   display: grid;
   gap: 0.6rem;
   min-height: 0;
-  overflow: auto;
 }
 
 .standards-record-list.compact,
@@ -2938,7 +3073,12 @@ textarea {
 
 @media (max-width: 980px) {
   .topbar {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topbar-page-slot,
+  .topbar-controls {
+    justify-self: stretch;
   }
 
   .topbar-controls {

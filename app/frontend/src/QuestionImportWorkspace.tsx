@@ -539,7 +539,7 @@ export default function QuestionImportWorkspace({
             Refresh
           </button>
           <button type="button" onClick={onClose}>
-            Close
+            Return to Editor
           </button>
         </div>
       </header>
