@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0029",
+  "type": "multiple_choice",
+  "topic": "Biology",
+  "difficulty": 2,
+  "prompt": "A mutation changes one base in a gene, and the resulting protein no longer folds correctly. Which sequence best explains how the mutation produced this outcome?",
+  "subtopic": "Protein Synthesis",
+  "tags": [
+    "dna",
+    "transcription",
+    "translation",
+    "protein-structure"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS1-1"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Sickle cell anemia is a good follow-up example of a single substitution with a large structural effect.",
+  "answer": {
+    "choices": [
+      "The mutation changed the protein directly, which then changed the DNA",
+      "The changed DNA sequence altered the mRNA codon, which changed an amino acid, which changed the protein's shape",
+      "The mutation changed the ribosome, which then built a different protein",
+      "The mutation changed the cell membrane, which blocked the protein from folding"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Information flows from DNA to mRNA to protein. A changed base alters a codon during transcription, translation then places a different amino acid in the chain, and because folding is driven by interactions among the amino acid side chains, one substitution can change the final three-dimensional shape. DNA is not rewritten by proteins, and neither ribosomes nor membranes are altered by a mutation in this gene.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

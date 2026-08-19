@@ -1,0 +1,30 @@
+{
+  "id": "q_sa_0005",
+  "type": "short_answer",
+  "topic": "AP English Literature",
+  "difficulty": 3,
+  "prompt": "In one well-developed paragraph, identify a character from a novel or play you have studied whose stated motives differ from their actual motives. Using at least two specific details from the text, explain what that gap reveals about the character.",
+  "subtopic": "Character and Motive",
+  "tags": [
+    "character",
+    "motivation",
+    "textual-evidence",
+    "open-text",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-1.A"
+    }
+  ],
+  "estimated_time_sec": 300,
+  "points": 4.0,
+  "status": "draft",
+  "teacher_notes": "Open-text item that works with whichever core novel or play the class has finished. Score on the specificity of the evidence and the interpretive claim, not on which text the student chooses.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "Responses vary by text. A strong response names a specific character, distinguishes the motive the character claims from the motive the text reveals, and cites at least two concrete details such as an action, a line of dialogue, or a narrated thought that establish the gap. The interpretation must explain what the discrepancy reveals about the character, for example self-deception, calculated manipulation, or the pressure of social expectation, rather than restating plot events in order.",
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -81,8 +81,27 @@ import type {
 type EditorMode = "form" | "json";
 type AutosaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 type PersistReason = "autosave" | "manual" | "switch" | "save-bank" | "open-bank";
-type PaneKind = "questions" | "assets" | "standards" | "test-preview";
-type WorkspacePage = "questions" | "tests";
+type PaneKind =
+  | "questions"
+  | "assets"
+  | "standards"
+  | "test-preview"
+  | "editor"
+  | "tests";
+type WorkspacePage = "questions" | "tests" | "standards";
+
+// The three top-level views, and the pop-out window each one opens.
+const WORKSPACE_PAGES: WorkspacePage[] = ["questions", "tests", "standards"];
+const WORKSPACE_PAGE_PANE: Record<WorkspacePage, PaneKind> = {
+  questions: "editor",
+  tests: "tests",
+  standards: "standards",
+};
+const WORKSPACE_PAGE_LABEL: Record<WorkspacePage, string> = {
+  questions: "Question Editor",
+  tests: "Test Builder",
+  standards: "Standards",
+};
 
 interface QuestionPaneSnapshot {
   hasBank: boolean;
@@ -265,11 +284,38 @@ function normalizeQuestionForView(payload: Record<string, unknown>): QuestionMod
   };
 }
 
+const PANE_KINDS: PaneKind[] = [
+  "questions",
+  "assets",
+  "standards",
+  "test-preview",
+  "editor",
+  "tests",
+];
+
 function getPaneMode(): PaneKind | null {
   const pane = new URLSearchParams(window.location.search).get("pane");
-  return pane === "questions" || pane === "assets" || pane === "standards" || pane === "test-preview"
-    ? pane
-    : null;
+  return PANE_KINDS.includes(pane as PaneKind) ? (pane as PaneKind) : null;
+}
+
+function PoppedOutPagePlaceholder({
+  label,
+  onDock,
+}: {
+  label: string;
+  onDock: () => void;
+}) {
+  return (
+    <main className="popped-out-placeholder">
+      <div>
+        <h2>{label} is open in its own window</h2>
+        <p>Keep working there, or bring the view back into this window.</p>
+        <button type="button" onClick={onDock}>
+          Bring Back {label}
+        </button>
+      </div>
+    </main>
+  );
 }
 
 const FILTER_OPTION_LABEL_MAX_LENGTH = 28;
@@ -805,6 +851,13 @@ function App() {
   const paneMode = getPaneMode();
   const isPaneWindow = paneMode !== null;
   const isMainWindow = paneMode === null;
+  // "editor" and "tests" windows render a full workspace page, so they load bank
+  // state themselves instead of mirroring a snapshot from the main window.
+  const hostsBankState = isMainWindow || paneMode === "editor" || paneMode === "tests";
+  // The question-standards picker reuses the "standards" pane kind with mode=picker.
+  const isStandardsPicker =
+    paneMode === "standards" &&
+    new URLSearchParams(window.location.search).get("mode") === "picker";
 
   const [desktopContext, setDesktopContext] = useState<DesktopContext | null>(
     desktopMode
@@ -850,6 +903,14 @@ function App() {
   const [assetPanePoppedOut, setAssetPanePoppedOut] = useState(false);
   const [questionImportOpen, setQuestionImportOpen] = useState(false);
   const [workspacePage, setWorkspacePage] = useState<WorkspacePage>("questions");
+  const [poppedOutPages, setPoppedOutPages] = useState<Record<WorkspacePage, boolean>>({
+    questions: false,
+    tests: false,
+    standards: false,
+  });
+  const activeWorkspacePage: WorkspacePage =
+    paneMode === "editor" ? "questions" : paneMode === "tests" ? "tests" : workspacePage;
+  const activePageIsPoppedOut = isMainWindow && poppedOutPages[activeWorkspacePage];
   const [testDrafts, setTestDrafts] = useState<TestDraftDetailModel[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
@@ -937,7 +998,7 @@ function App() {
   useEffect(() => {
     if (!desktopMode) {
       setApiBaseUrl(null);
-      if (isMainWindow) {
+      if (hostsBankState) {
         void refreshCurrentBank();
       }
       return;
@@ -955,7 +1016,7 @@ function App() {
 
       if (context.backendReady) {
         setStatusMessage("Desktop backend ready.");
-        if (isMainWindow) {
+        if (hostsBankState) {
           await refreshCurrentBank();
         }
         if (intervalId !== null) {
@@ -983,7 +1044,7 @@ function App() {
         window.clearInterval(intervalId);
       }
     };
-  }, [desktopMode, isMainWindow]);
+  }, [desktopMode, hostsBankState, isMainWindow]);
 
   useEffect(() => {
     if (!desktopMode || !isMainWindow) return;
@@ -1020,13 +1081,13 @@ function App() {
   }, [desktopMode, isMainWindow, bank, bankDirectory, showFullPaths]);
 
   useEffect(() => {
-    if (!isMainWindow) return;
+    if (!hostsBankState) return;
     if (!bank) return;
     void refreshQuestionList();
-  }, [bank, search, topicFilter, typeFilter, isMainWindow]);
+  }, [bank, search, topicFilter, typeFilter, hostsBankState]);
 
   useEffect(() => {
-    if (!isMainWindow) return;
+    if (!hostsBankState) return;
     if (!selectedId) {
       isHydratingRef.current = true;
       setDraftQuestion(null);
@@ -1040,10 +1101,10 @@ function App() {
     }
 
     void loadQuestion(selectedId);
-  }, [selectedId, isMainWindow]);
+  }, [selectedId, hostsBankState]);
 
   useEffect(() => {
-    if (!isMainWindow) return;
+    if (!hostsBankState) return;
     if (
       !selectedId ||
       !draftQuestion ||
@@ -1068,10 +1129,10 @@ function App() {
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [selectedId, draftQuestion, rawJson, editorMode, jsonError, isMainWindow]);
+  }, [selectedId, draftQuestion, rawJson, editorMode, jsonError, hostsBankState]);
 
   useEffect(() => {
-    if (!isMainWindow) return;
+    if (!hostsBankState) return;
     if (!draftQuestion) {
       setAssetInspections([]);
       return;
@@ -1107,7 +1168,7 @@ function App() {
         setAssetInspections(inspections);
       }
     })();
-  }, [draftQuestion, isMainWindow]);
+  }, [draftQuestion, hostsBankState]);
 
   useEffect(() => {
     void setArchiveDirtyInShell(workspaceDirty);
@@ -2133,16 +2194,37 @@ function App() {
     }
   }
 
-  async function handleOpenStandardsWorkspace() {
+  function setPagePoppedOut(page: WorkspacePage, poppedOut: boolean) {
+    setPoppedOutPages((current) => ({ ...current, [page]: poppedOut }));
+  }
+
+  async function handlePopOutWorkspacePage(page: WorkspacePage) {
+    if (!isMainWindow) return;
+
     try {
-      await openPaneWindow("standards", "Standards", {
-        mode: "workspace",
-        width: 1280,
+      await openPaneWindow(WORKSPACE_PAGE_PANE[page], WORKSPACE_PAGE_LABEL[page], {
+        mode: page === "standards" ? "workspace" : undefined,
+        width: page === "standards" ? 1280 : 1320,
         height: 900,
       });
+      setPagePoppedOut(page, true);
+      setStatusMessage(`Opened ${WORKSPACE_PAGE_LABEL[page]} in a separate window.`);
     } catch (error) {
+      setPagePoppedOut(page, false);
       setErrorMessage((error as Error).message);
     }
+  }
+
+  async function handleDockWorkspacePage(page: WorkspacePage) {
+    if (isMainWindow) {
+      setPagePoppedOut(page, false);
+      return;
+    }
+
+    paneChannelRef.current?.postMessage({ type: "dock-pane", pane: WORKSPACE_PAGE_PANE[page] });
+    await closeCurrentPaneWindow().catch(() => {
+      window.close();
+    });
   }
 
   async function handleOpenTestPrintPreview() {
@@ -2293,21 +2375,24 @@ function App() {
           removeStandardFromQuestion(message.standardId);
           return;
         }
-        if (message.type === "dock-pane") {
-          if (message.pane === "questions") {
-            setQuestionPanePoppedOut(false);
-            setQuestionDrawerOpen(true);
-          } else {
-            setAssetPanePoppedOut(false);
-            setAssetDrawerOpen(true);
+        if (message.type === "dock-pane" || message.type === "pane-closed") {
+          const dockedPage = WORKSPACE_PAGES.find(
+            (page) => WORKSPACE_PAGE_PANE[page] === message.pane,
+          );
+          if (dockedPage) {
+            setPagePoppedOut(dockedPage, false);
+            if (message.type === "dock-pane") {
+              setWorkspacePage(dockedPage);
+            }
+            return;
           }
-          return;
-        }
-        if (message.type === "pane-closed") {
+
           if (message.pane === "questions") {
             setQuestionPanePoppedOut(false);
-          } else {
+            if (message.type === "dock-pane") setQuestionDrawerOpen(true);
+          } else if (message.pane === "assets") {
             setAssetPanePoppedOut(false);
+            if (message.type === "dock-pane") setAssetDrawerOpen(true);
           }
         }
         return;
@@ -2347,6 +2432,7 @@ function App() {
 
   useEffect(() => {
     if (!isPaneWindow || !paneChannelRef.current) return;
+    if (isStandardsPicker) return;
 
     const channel = paneChannelRef.current;
     const notifyClosed = () => {
@@ -2355,7 +2441,7 @@ function App() {
 
     window.addEventListener("beforeunload", notifyClosed);
     return () => window.removeEventListener("beforeunload", notifyClosed);
-  }, [isPaneWindow, paneMode]);
+  }, [isPaneWindow, isStandardsPicker, paneMode]);
 
   useEffect(() => {
     return () => {
@@ -2624,32 +2710,64 @@ function App() {
               Open Demo Bank
             </button>
           ) : null}
-          <div className="topbar-page-toggle" role="group" aria-label="Workspace page">
-            <button
-              type="button"
-              className={workspacePage === "questions" ? "active" : ""}
-              aria-pressed={workspacePage === "questions"}
-              onClick={() => setWorkspacePage("questions")}
-              disabled={!bank}
-            >
-              Question Editor
-            </button>
-            <button
-              type="button"
-              className={workspacePage === "tests" ? "active" : ""}
-              aria-pressed={workspacePage === "tests"}
-              onClick={() => {
-                setQuestionImportOpen(false);
-                setWorkspacePage("tests");
-              }}
-              disabled={!bank}
-            >
-              Test Builder
-            </button>
-          </div>
-          <button onClick={() => void handleOpenStandardsWorkspace()} disabled={loading || !bank}>
-            Standards
-          </button>
+          {isMainWindow ? (
+            <>
+              <div className="topbar-page-toggle" role="tablist" aria-label="Workspace view">
+                <span
+                  className="topbar-page-thumb"
+                  style={{
+                    transform: `translateX(${WORKSPACE_PAGES.indexOf(workspacePage) * 100}%)`,
+                  }}
+                  aria-hidden="true"
+                />
+                {WORKSPACE_PAGES.map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    role="tab"
+                    aria-selected={workspacePage === page}
+                    className={workspacePage === page ? "active" : ""}
+                    onClick={() => {
+                      if (page !== "questions") setQuestionImportOpen(false);
+                      setWorkspacePage(page);
+                    }}
+                    disabled={!bank}
+                  >
+                    {WORKSPACE_PAGE_LABEL[page]}
+                    {poppedOutPages[page] ? (
+                      <span className="topbar-page-badge" title="Open in its own window">
+                        &#9099;
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  poppedOutPages[workspacePage]
+                    ? void handleDockWorkspacePage(workspacePage)
+                    : void handlePopOutWorkspacePage(workspacePage)
+                }
+                disabled={loading || !bank}
+                title={`${
+                  poppedOutPages[workspacePage] ? "Bring back" : "Open"
+                } ${WORKSPACE_PAGE_LABEL[workspacePage]}`}
+              >
+                {poppedOutPages[workspacePage] ? "Bring Back" : "Pop Out"}
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="topbar-pane-label">{WORKSPACE_PAGE_LABEL[activeWorkspacePage]}</span>
+              <button
+                type="button"
+                onClick={() => void handleDockWorkspacePage(activeWorkspacePage)}
+              >
+                Return to Main Window
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => setQuestionImportOpen((current) => !current)}
@@ -2721,8 +2839,12 @@ function App() {
         }
       />
 
-      <div className={`workspace ${workspacePage === "tests" ? "test-builder-workspace" : ""}`}>
-        {!questionPanePoppedOut ? (
+      <div
+        className={`workspace ${activeWorkspacePage === "tests" ? "test-builder-workspace" : ""} ${
+          activeWorkspacePage === "standards" ? "standards-page-workspace" : ""
+        }`}
+      >
+        {activeWorkspacePage !== "standards" && !questionPanePoppedOut ? (
           <QuestionPane
             open={questionDrawerOpen}
             poppedOut={false}
@@ -2760,7 +2882,12 @@ function App() {
           />
         ) : null}
 
-        {workspacePage === "questions" ? (
+        {activeWorkspacePage === "questions" && activePageIsPoppedOut ? (
+          <PoppedOutPagePlaceholder
+            label={WORKSPACE_PAGE_LABEL.questions}
+            onDock={() => void handleDockWorkspacePage("questions")}
+          />
+        ) : activeWorkspacePage === "questions" ? (
         <main className="editor-pane">
           <div className={`editor-main ${editorShouldFill ? "full-width" : ""}`}>
             {draftQuestion ? (
@@ -3398,28 +3525,48 @@ function App() {
           )}
           </div>
         </main>
-        ) : (
-          <main className="test-page-pane">
-            <TestBuilderPane
-              open
-              pageMode
-              hasBank={!!bank}
-              loading={loading}
-              selectedQuestionId={selectedId}
-              selectedTestId={selectedTestId}
-              tests={testDrafts}
-              onOpen={() => undefined}
-              onClose={() => setWorkspacePage("questions")}
-              onCreateTest={() => void handleCreateTestDraft()}
-              onSelectTest={setSelectedTestId}
-              onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
-              onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
-              onUpdateTest={(test) => void handleUpdateTestDraft(test)}
+        ) : activeWorkspacePage === "tests" ? (
+          activePageIsPoppedOut ? (
+            <PoppedOutPagePlaceholder
+              label={WORKSPACE_PAGE_LABEL.tests}
+              onDock={() => void handleDockWorkspacePage("tests")}
             />
+          ) : (
+            <main className="test-page-pane">
+              <TestBuilderPane
+                open
+                pageMode
+                hasBank={!!bank}
+                loading={loading}
+                selectedQuestionId={selectedId}
+                selectedTestId={selectedTestId}
+                tests={testDrafts}
+                onOpen={() => undefined}
+                onClose={() =>
+                  isMainWindow
+                    ? setWorkspacePage("questions")
+                    : void handleDockWorkspacePage("tests")
+                }
+                onCreateTest={() => void handleCreateTestDraft()}
+                onSelectTest={setSelectedTestId}
+                onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
+                onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
+                onUpdateTest={(test) => void handleUpdateTestDraft(test)}
+              />
+            </main>
+          )
+        ) : activePageIsPoppedOut ? (
+          <PoppedOutPagePlaceholder
+            label={WORKSPACE_PAGE_LABEL.standards}
+            onDock={() => void handleDockWorkspacePage("standards")}
+          />
+        ) : (
+          <main className="standards-page-pane">
+            <StandardsWorkspace />
           </main>
         )}
 
-        {workspacePage === "questions" && !assetPanePoppedOut ? (
+        {activeWorkspacePage === "questions" && !assetPanePoppedOut ? (
           <AssetPane
             open={assetDrawerOpen}
             poppedOut={false}

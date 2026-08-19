@@ -82,6 +82,25 @@ export interface StandardImportResponseModel {
   imported_path?: string | null;
 }
 
+export interface ManualStandardRowModel {
+  id: string;
+  code?: string | null;
+  statement: string;
+  subject?: string | null;
+  grade_band?: string | null;
+  tags: string[];
+}
+
+export interface CreateStandardsManuallyRequest {
+  source_list_id?: string | null;
+  title?: string | null;
+  issuer?: string | null;
+  subject?: string | null;
+  version?: string | null;
+  description?: string | null;
+  standards: ManualStandardRowModel[];
+}
+
 export interface RubricRowModel {
   criterion: string;
   points: number;

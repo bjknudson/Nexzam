@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from app.backend.models import TestSectionItemModel
+from app.backend.models import (
+    CreateStandardsManuallyRequest,
+    ManualStandardRowModel,
+    TestSectionItemModel,
+)
 from app.backend.service import BankWorkspaceError, BankWorkspaceService
 
 
@@ -16,11 +20,20 @@ def test_open_bank_lists_and_filters_questions(
 ) -> None:
     summary = bank_service.open_bank(str(demo_bok))
 
-    assert summary.manifest.title == "Demo Physics Bank"
+    assert summary.manifest.title == "Demo Bank"
     assert summary.bank.question_ids == [
         "q_fr_0001",
         "q_fr_0002",
         "q_fr_0003",
+        "q_fr_0004",
+        "q_fr_0005",
+        "q_fr_0006",
+        "q_fr_0007",
+        "q_fr_0008",
+        "q_fr_0009",
+        "q_fr_0010",
+        "q_fr_0011",
+        "q_fr_0012",
         "q_mc_0001",
         "q_mc_0002",
         "q_mc_0003",
@@ -31,8 +44,61 @@ def test_open_bank_lists_and_filters_questions(
         "q_mc_0008",
         "q_mc_0009",
         "q_mc_0010",
+        "q_mc_0011",
+        "q_mc_0012",
+        "q_mc_0013",
+        "q_mc_0014",
+        "q_mc_0015",
+        "q_mc_0016",
+        "q_mc_0017",
+        "q_mc_0018",
+        "q_mc_0019",
+        "q_mc_0020",
+        "q_mc_0021",
+        "q_mc_0022",
+        "q_mc_0023",
+        "q_mc_0024",
+        "q_mc_0025",
+        "q_mc_0026",
+        "q_mc_0027",
+        "q_mc_0028",
+        "q_mc_0029",
+        "q_mc_0030",
+        "q_mc_0031",
+        "q_mc_0032",
+        "q_mc_0033",
+        "q_mc_0034",
+        "q_mc_0035",
+        "q_mc_0036",
+        "q_mc_0037",
+        "q_mc_0038",
+        "q_mc_0039",
+        "q_mc_0040",
+        "q_mc_0041",
+        "q_mc_0042",
+        "q_mc_0043",
+        "q_mc_0044",
+        "q_mc_0045",
+        "q_mc_0046",
+        "q_mc_0047",
+        "q_mc_0048",
         "q_num_0001",
+        "q_num_0002",
+        "q_num_0003",
+        "q_num_0004",
+        "q_num_0005",
+        "q_num_0006",
+        "q_num_0007",
         "q_sa_0001",
+        "q_sa_0002",
+        "q_sa_0003",
+        "q_sa_0004",
+        "q_sa_0005",
+        "q_sa_0006",
+        "q_sa_0007",
+        "q_sa_0008",
+        "q_sa_0009",
+        "q_sa_0010",
     ]
 
     result = bank_service.list_questions(
@@ -42,7 +108,21 @@ def test_open_bank_lists_and_filters_questions(
     )
 
     assert [item.id for item in result.items] == ["q_mc_0001"]
-    assert result.available_topics == ["Calculus", "Electricity", "Mechanics", "Waves"]
+    assert result.available_topics == [
+        "AP English Literature",
+        "AP U.S. History",
+        "Algebra 1",
+        "Biology",
+        "Calculus",
+        "Chemistry",
+        "Cinematography",
+        "Electricity",
+        "Government",
+        "Mechanics",
+        "Medical Careers",
+        "Spanish 2",
+        "Waves",
+    ]
     assert result.available_types == [
         "free_response",
         "multiple_choice",
@@ -98,10 +178,10 @@ def test_create_question_from_json_assigns_unique_id(
     created = bank_service.create_question_from_json(source)
     summary = bank_service.get_summary()
 
-    assert created.id == "q_mc_0011"
+    assert created.id == "q_mc_0049"
     assert created.prompt == source["prompt"]
     assert "q_mc_0001" in summary.bank.question_ids
-    assert "q_mc_0011" in summary.bank.question_ids
+    assert "q_mc_0023" in summary.bank.question_ids
 
 
 def test_create_question_from_json_adds_missing_id(
@@ -114,7 +194,7 @@ def test_create_question_from_json_adds_missing_id(
 
     created = bank_service.create_question_from_json(source)
 
-    assert created.id == "q_sa_0002"
+    assert created.id == "q_sa_0011"
     assert created.type == "short_answer"
 
 
@@ -139,8 +219,8 @@ def test_stage_question_import_accepts_json_array_without_writing_questions(
     assert stage.rows[0].status == "valid"
     assert stage.rows[0].selected is True
     assert stage.rows[0].imported_id is None
-    assert stage.rows[0].proposed_id == "q_sa_0002"
-    assert "q_sa_0002" not in summary.bank.question_ids
+    assert stage.rows[0].proposed_id == "q_sa_0011"
+    assert "q_sa_0011" not in summary.bank.question_ids
 
     listed = bank_service.list_question_imports()
     fetched = bank_service.get_question_import(stage.id)
@@ -164,7 +244,7 @@ def test_stage_question_import_accepts_question_wrapper(
 
     assert len(stage.rows) == 1
     assert stage.rows[0].status == "valid"
-    assert stage.rows[0].proposed_id == "q_num_0002"
+    assert stage.rows[0].proposed_id == "q_num_0008"
 
 
 def test_stage_question_import_reports_validation_errors(
@@ -277,7 +357,7 @@ def test_stage_question_import_accepts_csv_rows(
     assert row.question["tags"] == ["circuits", "ohm"]
     assert row.question["standards"] == [{"standard_id": "PHY-ELE-01"}]
     assert row.question["points"] == 2.0
-    assert row.proposed_id == "q_sa_0002"
+    assert row.proposed_id == "q_sa_0011"
 
 
 def test_stage_question_import_keeps_malformed_csv_rows_visible(
@@ -321,16 +401,16 @@ def test_promote_question_import_rows_uses_proposed_ids_and_refreshes_index(
 
     response = bank_service.promote_question_import_rows(stage.id)
     summary = bank_service.get_summary()
-    promoted = bank_service.get_question("q_sa_0002")
+    promoted = bank_service.get_question("q_sa_0011")
     updated_stage = bank_service.get_question_import(stage.id)
 
     assert response.promoted_count == 1
-    assert response.promoted_question_ids == ["q_sa_0002"]
+    assert response.promoted_question_ids == ["q_sa_0011"]
     assert promoted.prompt == "Promoted staged short answer."
-    assert "q_sa_0002" in summary.bank.question_ids
+    assert "q_sa_0011" in summary.bank.question_ids
     assert updated_stage.rows[0].status == "promoted"
     assert updated_stage.rows[0].selected is False
-    assert updated_stage.rows[0].promoted_question_id == "q_sa_0002"
+    assert updated_stage.rows[0].promoted_question_id == "q_sa_0011"
 
 
 def test_update_question_import_row_revalidates_invalid_row(
@@ -359,7 +439,7 @@ def test_update_question_import_row_revalidates_invalid_row(
     assert updated_row.status == "valid"
     assert updated_row.selected is True
     assert updated_row.issues == []
-    assert updated_row.proposed_id == "q_sa_0002"
+    assert updated_row.proposed_id == "q_sa_0011"
 
 
 def test_promote_question_import_rows_can_keep_unique_imported_ids(
@@ -456,9 +536,9 @@ def test_promoted_question_import_rows_are_saved_in_repacked_bank(
 
     with zipfile.ZipFile(destination) as archive:
         names = set(archive.namelist())
-        promoted_question = json.loads(archive.read("questions/q_sa_0002.json"))
+        promoted_question = json.loads(archive.read("questions/q_sa_0011.json"))
 
-    assert "questions/q_sa_0002.json" in names
+    assert "questions/q_sa_0011.json" in names
     assert f"imports/{stage.id}/questions.json" in names
     assert f"imports/{stage.id}/stage.json" in names
     assert promoted_question["prompt"] == "Promoted imports persist into the archive."
@@ -561,10 +641,10 @@ def test_next_question_id_uses_type_prefix_and_serial(
 ) -> None:
     bank_service.open_bank(str(demo_bok))
 
-    assert bank_service.next_question_id("multiple_choice") == "q_mc_0011"
-    assert bank_service.next_question_id("numeric_response") == "q_num_0002"
-    assert bank_service.next_question_id("short_answer") == "q_sa_0002"
-    assert bank_service.next_question_id("free_response") == "q_fr_0004"
+    assert bank_service.next_question_id("multiple_choice") == "q_mc_0049"
+    assert bank_service.next_question_id("numeric_response") == "q_num_0008"
+    assert bank_service.next_question_id("short_answer") == "q_sa_0011"
+    assert bank_service.next_question_id("free_response") == "q_fr_0013"
 
 
 def test_asset_paths_must_stay_inside_workspace(
@@ -589,3 +669,150 @@ def test_svg_placeholders_include_calc_variables() -> None:
         service.render_svg(source, {"label": "Force", "length": "12", "scale": "2.5"})
         == '<svg><text>Force</text><line x2="30"/></svg>'
     )
+
+
+def test_create_standards_manually_creates_source_list_and_records(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    response = bank_service.create_standards_manually(
+        CreateStandardsManuallyRequest(
+            source_list_id="site-core-2026",
+            title="Site Core Standards",
+            issuer="Local District",
+            subject="Physics",
+            standards=[
+                ManualStandardRowModel(
+                    id="SITE-01",
+                    statement="Explain conservation of momentum in a closed system.",
+                    tags=["mechanics", "momentum"],
+                ),
+                ManualStandardRowModel(
+                    id="SITE-02",
+                    code="SITE-2",
+                    statement="Model energy transfer during a collision.",
+                    subject="Physical Science",
+                    grade_band="9-12",
+                ),
+            ],
+        )
+    )
+
+    assert response.imported_count == 2
+    assert response.source_list.id == "site-core-2026"
+    assert response.imported_path is None
+
+    source_list_ids = {item.id for item in bank_service.list_source_standard_lists().items}
+    assert "site-core-2026" in source_list_ids
+
+    saved = {
+        item.id: item
+        for item in bank_service.list_standards(source_list_id="site-core-2026").items
+    }
+    assert set(saved) == {"SITE-01", "SITE-02"}
+    assert saved["SITE-01"].code == "SITE-01"
+    assert saved["SITE-01"].subject == "Physics"
+    assert saved["SITE-01"].tags == ["mechanics", "momentum"]
+    assert saved["SITE-02"].code == "SITE-2"
+    assert saved["SITE-02"].subject == "Physical Science"
+    assert saved["SITE-02"].grade_band == "9-12"
+
+
+def test_create_standards_manually_appends_to_existing_source_list(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    source_list_count = len(bank_service.list_source_standard_lists().items)
+
+    response = bank_service.create_standards_manually(
+        CreateStandardsManuallyRequest(
+            source_list_id="physics-core-2026",
+            standards=[
+                ManualStandardRowModel(
+                    id="PHY-MOM-01",
+                    statement="Apply conservation of momentum to one-dimensional collisions.",
+                )
+            ],
+        )
+    )
+
+    assert response.source_list.title == "Physics Core Standards"
+    assert len(bank_service.list_source_standard_lists().items) == source_list_count
+
+    standard_ids = {
+        item.id for item in bank_service.list_standards(source_list_id="physics-core-2026").items
+    }
+    assert {"PHY-KIN-01", "PHY-MOM-01"} <= standard_ids
+
+
+def test_create_standards_manually_rejects_duplicate_ids(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_standards_manually(
+            CreateStandardsManuallyRequest(
+                source_list_id="physics-core-2026",
+                standards=[
+                    ManualStandardRowModel(
+                        id="PHY-KIN-01",
+                        statement="Collides with a standard that is already saved.",
+                    )
+                ],
+            )
+        )
+
+    assert exc_info.value.status_code == 409
+    assert "PHY-KIN-01" in exc_info.value.message
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_standards_manually(
+            CreateStandardsManuallyRequest(
+                source_list_id="physics-core-2026",
+                standards=[
+                    ManualStandardRowModel(id="PHY-DUP-01", statement="First row."),
+                    ManualStandardRowModel(id="PHY-DUP-01", statement="Second row, same id."),
+                ],
+            )
+        )
+
+    assert exc_info.value.status_code == 409
+    assert "PHY-DUP-01" not in {
+        item.id for item in bank_service.list_standards(source_list_id="physics-core-2026").items
+    }
+
+
+def test_create_standards_manually_validates_required_input(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_standards_manually(
+            CreateStandardsManuallyRequest(source_list_id="physics-core-2026", standards=[])
+        )
+    assert exc_info.value.status_code == 422
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_standards_manually(
+            CreateStandardsManuallyRequest(
+                source_list_id="brand-new-list",
+                standards=[ManualStandardRowModel(id="NEW-01", statement="Needs a title and issuer.")],
+            )
+        )
+    assert exc_info.value.status_code == 422
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_standards_manually(
+            CreateStandardsManuallyRequest(
+                source_list_id="physics-core-2026",
+                standards=[ManualStandardRowModel(id="NEW-02", statement="   ")],
+            )
+        )
+    assert exc_info.value.status_code == 422

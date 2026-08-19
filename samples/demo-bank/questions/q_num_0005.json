@@ -1,0 +1,33 @@
+{
+  "id": "q_num_0005",
+  "type": "numeric_response",
+  "topic": "Chemistry",
+  "difficulty": 4,
+  "prompt": "Hydrogen reacts with oxygen to form water:\n\n$2\\text{H}_2+\\text{O}_2\\rightarrow2\\text{H}_2\\text{O}$\n\nIf $8.0\\text{ g}$ of $\\text{H}_2$ reacts completely with excess oxygen, what mass of water is produced? Use $M(\\text{H}_2)=2.0\\text{ g/mol}$ and $M(\\text{H}_2\\text{O})=18.0\\text{ g/mol}$.",
+  "subtopic": "Stoichiometry",
+  "tags": [
+    "stoichiometry",
+    "molar-mass",
+    "mole-ratio",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-7"
+    }
+  ],
+  "estimated_time_sec": 300,
+  "points": 3.0,
+  "status": "review",
+  "teacher_notes": "Students who skip the mole ratio and scale by mass alone report 72 g by luck here; ask them to redo it with the oxygen mass to expose the shortcut.",
+  "answer": {
+    "value": 72,
+    "unit": "g",
+    "tolerance": 0.5
+  },
+  "explanation": "Convert to moles: $n(\\text{H}_2)=\\frac{8.0\\text{ g}}{2.0\\text{ g/mol}}=4.0\\text{ mol}$. The balanced equation gives a $2:2$, or $1:1$, mole ratio of $\\text{H}_2$ to $\\text{H}_2\\text{O}$, so $4.0\\text{ mol}$ of water forms. Convert back to mass: $m=(4.0\\text{ mol})(18.0\\text{ g/mol})=72\\text{ g}$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

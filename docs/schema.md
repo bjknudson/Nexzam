@@ -131,6 +131,12 @@ JSON imports may be:
 
 Imported source files may be copied into `imports/` for reference alongside the normalized standards collections.
 
+Standards can also be entered by hand instead of uploaded. Manual entry posts rows to
+`/api/standards/manual` and writes the same `standards/source_lists.json` and
+`standards/records.json` records as a file import, with two differences: no file is copied into
+`imports/`, and rows may be appended to a source list that already exists. A row needs `id` and
+`statement`; `code` defaults to `id`, and `subject` falls back to the source list subject.
+
 ## Asset metadata (draft)
 
 Support static and parameterized SVG metadata:

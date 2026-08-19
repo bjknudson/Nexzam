@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0016",
+  "type": "multiple_choice",
+  "topic": "Chemistry",
+  "difficulty": 2,
+  "prompt": "Which of these elements has the largest atomic radius?",
+  "subtopic": "Periodic Trends",
+  "tags": [
+    "periodic-trends",
+    "atomic-radius",
+    "periodic-table"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-1"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Students should reason from position on the table rather than recall values.",
+  "answer": {
+    "choices": [
+      "$\\text{Na}$",
+      "$\\text{Mg}$",
+      "$\\text{K}$",
+      "$\\text{Ca}$"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Atomic radius increases down a group because each period adds a higher principal energy level, and decreases across a period because the growing nuclear charge pulls the same energy level inward. Of these four, $\\text{K}$ is both the lowest and the farthest to the left, so it has the largest radius.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

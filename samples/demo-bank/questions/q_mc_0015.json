@@ -1,0 +1,38 @@
+{
+  "id": "q_mc_0015",
+  "type": "multiple_choice",
+  "topic": "AP English Literature",
+  "difficulty": 4,
+  "prompt": "In Shakespeare's Sonnet 130, the speaker spends twelve lines denying that his mistress resembles the sun, coral, snow, or roses, and then concludes:\n\n    And yet, by heaven, I think my love as rare\n    As any she belied with false compare.\n\nThe structural shift in the final couplet functions to",
+  "subtopic": "Structure and the Volta",
+  "tags": [
+    "sonnet",
+    "volta",
+    "structure",
+    "irony",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-3.B"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Good anchor text for teaching the volta. Pair with a conventional Petrarchan sonnet so the satire has a target students can see.",
+  "answer": {
+    "choices": [
+      "reverse the poem's apparent criticism, revealing the catalogue as satire of conventional praise",
+      "confirm the speaker's disappointment with his mistress's appearance",
+      "shift the poem's setting from an interior space to the natural world",
+      "introduce a second speaker who contradicts the first"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "The volta redirects everything that precedes it. The twelve lines of denial are not insults but a refusal of the inflated comparisons other poets rely on, and the couplet asserts that his love is \"as rare\" as any woman misrepresented by \"false compare.\" Withholding that argument until the end is exactly what gives the couplet its force, and the reversal is unavailable to a reading that takes the catalogue at face value.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

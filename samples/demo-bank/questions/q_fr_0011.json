@@ -1,0 +1,55 @@
+{
+  "id": "q_fr_0011",
+  "type": "free_response",
+  "topic": "AP U.S. History",
+  "difficulty": 5,
+  "prompt": "Evaluate the extent to which the civil rights movement between 1945 and 1970 changed the role of the federal government in protecting individual rights.\n\nIn your response you should do the following:\n- Respond to the prompt with a historically defensible thesis or claim that establishes a line of reasoning.\n- Describe a broader historical context relevant to the prompt.\n- Support an argument in response to the prompt using at least two pieces of specific and relevant evidence.\n- Use historical reasoning, such as comparison, causation, or continuity and change, to frame or structure an argument.\n- Demonstrate a complex understanding of the historical development that is the focus of the prompt.",
+  "subtopic": "Long Essay Question",
+  "tags": [
+    "civil-rights",
+    "leq",
+    "essay",
+    "federal-power",
+    "ap-rubric",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-8.2.I"
+    },
+    {
+      "standard_id": "APUSH-P6"
+    }
+  ],
+  "estimated_time_sec": 2400,
+  "points": 6.0,
+  "status": "draft",
+  "teacher_notes": "Timed at the 40 minutes allotted to the long essay question. Scored on the six-point long essay rubric. Remind students that the complexity point is rarely earned by a formulaic counterargument paragraph.",
+  "answer": null,
+  "explanation": "Strong responses take a position on extent rather than narrating the movement. Usable evidence includes Brown v. Board of Education in 1954, the Civil Rights Act of 1964, the Voting Rights Act of 1965, Executive Order 9981 desegregating the armed forces in 1948, and the federal enforcement at Little Rock in 1957. Context can come from Reconstruction-era amendments and their retreat, from the Second World War and the Double V campaign, or from the Great Migration. Complexity often comes from qualifying the change: federal action was frequently reactive to local organizing and to televised violence, and it addressed legal segregation more effectively than economic inequality.",
+  "rubric": [
+    {
+      "criterion": "Thesis or claim: presents a historically defensible thesis that establishes a line of reasoning",
+      "points": 1.0
+    },
+    {
+      "criterion": "Contextualization: describes a broader historical context relevant to the prompt",
+      "points": 1.0
+    },
+    {
+      "criterion": "Evidence: supports the argument with at least two specific and relevant pieces of evidence",
+      "points": 2.0
+    },
+    {
+      "criterion": "Analysis and reasoning: uses historical reasoning to frame or structure the argument",
+      "points": 1.0
+    },
+    {
+      "criterion": "Complexity: demonstrates a complex understanding of the historical development",
+      "points": 1.0
+    }
+  ],
+  "sample_solution": "A defensible thesis argues that federal power to protect individual rights expanded substantially but unevenly between 1945 and 1970. Evidence for expansion includes Brown v. Board of Education in 1954, the use of federal troops at Little Rock in 1957, the Civil Rights Act of 1964, and the Voting Rights Act of 1965 with its federal examiners and preclearance requirements. Contextualization can reach back to the Fourteenth and Fifteenth Amendments and the federal retreat after 1877, or to the Second World War's Double V campaign. Reasoning is usually continuity and change over time or causation. The complexity point typically comes from arguing that federal action followed rather than led grassroots organizing, or that legal segregation was dismantled far more successfully than economic and housing inequality, which persisted after 1968.",
+  "exemplar_answer": null,
+  "assets": []
+}

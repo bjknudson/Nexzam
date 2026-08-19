@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0048",
+  "type": "multiple_choice",
+  "topic": "Waves",
+  "difficulty": 1,
+  "prompt": "In a sound wave traveling through air, the air molecules vibrate back and forth along the same direction the wave travels. What type of wave is this?",
+  "subtopic": "Wave types",
+  "tags": [
+    "waves",
+    "longitudinal",
+    "sound",
+    "conceptual"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-WAV-02"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "A stretched spring demonstrates both wave types quickly.",
+  "answer": {
+    "choices": [
+      "Transverse",
+      "Longitudinal",
+      "Electromagnetic",
+      "Standing"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "In a longitudinal wave the oscillation of the medium is parallel to the direction of energy transfer, producing the compressions and rarefactions of a sound wave. In a transverse wave, such as a wave on a string, the medium moves perpendicular to the direction of travel. Sound requires a medium, so it is not electromagnetic.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

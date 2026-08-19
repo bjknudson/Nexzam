@@ -1,0 +1,29 @@
+{
+  "id": "q_sa_0004",
+  "type": "short_answer",
+  "topic": "Algebra 1",
+  "difficulty": 3,
+  "prompt": "A phone plan is modeled by $C=0.15m+25$, where $C$ is the monthly cost in dollars and $m$ is the number of minutes used.\n\nExplain what the 0.15 and the 25 represent in this situation, and state the cost of a month in which 200 minutes are used.",
+  "subtopic": "Interpreting Linear Models",
+  "tags": [
+    "linear-models",
+    "slope-intercept",
+    "modeling",
+    "interpretation"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSF-LE.B.5"
+    }
+  ],
+  "estimated_time_sec": 180,
+  "points": 3.0,
+  "status": "review",
+  "teacher_notes": "Watch for students who identify 0.15 as 15 cents without attaching it to a rate per minute. Full credit needs both parameters interpreted in context plus the correct evaluation.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "The 0.15 is the slope, or rate of change: each additional minute of use adds 15 cents to the monthly bill. The 25 is the initial value, or the $C$-intercept: it is the fixed monthly charge that applies even when $m=0$ minutes are used. Evaluating at $m=200$ gives $C=0.15(200)+25=30+25=55$, so the month costs 55 dollars.",
+  "exemplar_answer": null,
+  "assets": []
+}

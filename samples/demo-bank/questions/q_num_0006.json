@@ -1,0 +1,33 @@
+{
+  "id": "q_num_0006",
+  "type": "numeric_response",
+  "topic": "Biology",
+  "difficulty": 3,
+  "prompt": "In pea plants, purple flower color ($P$) is dominant to white flower color ($p$). Two heterozygous purple-flowered plants are crossed: $Pp \\times Pp$.\n\nWhat percentage of the offspring is expected to have white flowers?",
+  "subtopic": "Mendelian Genetics",
+  "tags": [
+    "genetics",
+    "punnett-square",
+    "probability",
+    "inheritance"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS3-3"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 2.0,
+  "status": "ready",
+  "teacher_notes": "Ask a follow-up about why an actual cross of twelve offspring may not show exactly three purple to one white.",
+  "answer": {
+    "value": 25,
+    "unit": "%",
+    "tolerance": 0
+  },
+  "explanation": "A $Pp \\times Pp$ cross produces the genotypes $PP$, $Pp$, $Pp$, and $pp$ in equal proportions. Only the homozygous recessive $pp$ genotype produces white flowers, so 1 of 4, or $25\\%$, is expected. This is a probability for a large sample, not a guarantee for any single litter of offspring.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

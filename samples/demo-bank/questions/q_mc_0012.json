@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0012",
+  "type": "multiple_choice",
+  "topic": "Cinematography",
+  "difficulty": 1,
+  "prompt": "A director wants a shot that reads a character's emotional reaction clearly while still keeping the audience aware of the room around them. Which shot is the best choice?",
+  "subtopic": "Shot Composition",
+  "tags": [
+    "shot-composition",
+    "framing",
+    "camera",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A3.4"
+    }
+  ],
+  "estimated_time_sec": 45,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Warm-up item for a shot-size vocabulary unit.",
+  "answer": {
+    "choices": [
+      "Extreme close-up",
+      "Medium close-up",
+      "Extreme wide shot",
+      "Over-the-shoulder two-shot"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A medium close-up frames roughly from the chest up, so facial expression reads clearly while part of the background stays visible. An extreme close-up strips away the setting, an extreme wide shot loses facial detail, and an over-the-shoulder two-shot emphasizes the relationship between two characters rather than one character's reaction.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

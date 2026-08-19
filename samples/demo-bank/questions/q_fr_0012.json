@@ -1,0 +1,54 @@
+{
+  "id": "q_fr_0012",
+  "type": "free_response",
+  "topic": "Government",
+  "difficulty": 4,
+  "prompt": "In Tinker v. Des Moines (1969), the Supreme Court held that students who wore black armbands to protest the Vietnam War were engaged in protected symbolic speech, and that students do not shed their constitutional rights to freedom of speech or expression at the schoolhouse gate. The Court also held that schools may restrict expression that would materially and substantially disrupt the operation of the school.\n\nWrite a response that addresses all three parts:\n(a) state the constitutional right at issue and its source,\n(b) explain the standard the Court established,\n(c) apply that standard to one hypothetical situation at your own school and defend your conclusion.",
+  "subtopic": "Landmark Supreme Court Cases",
+  "tags": [
+    "first-amendment",
+    "supreme-court",
+    "tinker",
+    "student-speech",
+    "case-analysis"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.5"
+    },
+    {
+      "standard_id": "HSS-12.1"
+    }
+  ],
+  "estimated_time_sec": 600,
+  "points": 8.0,
+  "status": "draft",
+  "teacher_notes": "The application in part (c) is where responses separate. Students who restate the standard without testing their hypothetical against it should not earn the application criterion.",
+  "answer": null,
+  "explanation": "The right at issue is freedom of speech and expression under the First Amendment, applied to public school officials through the Fourteenth Amendment's due process clause. The Tinker standard permits school regulation of student expression only when officials can reasonably forecast that it would materially and substantially interfere with school operations or invade the rights of others; a mere desire to avoid discomfort or unpopularity is not enough. A strong application states specific facts, predicts the level of disruption, and ties the conclusion back to the standard rather than to whether the speech is popular.",
+  "rubric": [
+    {
+      "criterion": "Identifies the First Amendment right to free speech and expression and its source",
+      "points": 1.5
+    },
+    {
+      "criterion": "Explains the material and substantial disruption standard accurately",
+      "points": 2.0
+    },
+    {
+      "criterion": "Presents a plausible, specific hypothetical involving student expression",
+      "points": 1.5
+    },
+    {
+      "criterion": "Applies the Tinker standard to the hypothetical rather than restating it",
+      "points": 2.0
+    },
+    {
+      "criterion": "Defends the conclusion with reasoning tied to the standard",
+      "points": 1.0
+    }
+  ],
+  "sample_solution": "The right at issue is freedom of speech and expression, protected by the First Amendment and applied to state and local officials, including public schools, through the Fourteenth Amendment. Tinker established that school officials may restrict student expression only when they can reasonably forecast material and substantial disruption of school operations or invasion of the rights of others; discomfort, unpopularity, or disagreement with the message is not sufficient. Applied to a hypothetical in which students wear buttons supporting a candidate during a school election season, the buttons are silent, passive expression that does not interfere with instruction, so under Tinker the school could not prohibit them. If instead students blocked a hallway and chanted through a class period, the disruption would be material and substantial, and restriction would be permitted.",
+  "exemplar_answer": "The constitutional right at issue is freedom of speech and expression, guaranteed by the First Amendment and made applicable to public schools, which are state actors, through the Fourteenth Amendment. Tinker treats symbolic conduct such as wearing an armband as speech, and it sets a demanding standard for restricting it: officials must be able to point to facts supporting a reasonable forecast of material and substantial disruption of school operations or interference with the rights of other students. The Court was explicit that an undifferentiated fear of disturbance, or the wish to avoid an unpopular viewpoint, does not meet that bar. Consider a hypothetical at my school in which a group of students wears T-shirts criticizing a new attendance policy. The shirts are silent, are worn during ordinary passing periods and classes, and carry no threats or profanity. Under Tinker, administrator discomfort with the criticism is not a legitimate basis for a ban, and there is no evidence of disruption to point to, so the shirts are protected. My conclusion would change if the same students left class in the middle of instruction and shouted the slogan through the halls. At that point the conduct itself, not the viewpoint, materially and substantially interferes with the operation of the school, and Tinker permits the school to act.",
+  "assets": []
+}

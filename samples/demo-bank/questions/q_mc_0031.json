@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0031",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 3,
+  "prompt": "Find $\\frac{dy}{dx}$ for $y=x^2\\sin x$.",
+  "subtopic": "Differentiation: Product and Chain Rules",
+  "tags": [
+    "derivative",
+    "product rule",
+    "trigonometric functions"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-DIFF-02"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Students who answer with a single term have applied the power rule and forgotten the product structure.",
+  "answer": {
+    "choices": [
+      "$2x\\cos x$",
+      "$2x\\sin x+x^2\\cos x$",
+      "$2x\\sin x-x^2\\cos x$",
+      "$x^2\\cos x$"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "This is a product of two functions, so apply the product rule $\\frac{d}{dx}[uv]=u'v+uv'$ with $u=x^2$ and $v=\\sin x$. Then $u'=2x$ and $v'=\\cos x$, giving $\\frac{dy}{dx}=2x\\sin x+x^2\\cos x$. The first and last options come from differentiating only one factor.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

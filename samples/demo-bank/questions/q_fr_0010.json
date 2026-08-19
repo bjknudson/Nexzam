@@ -1,0 +1,49 @@
+{
+  "id": "q_fr_0010",
+  "type": "free_response",
+  "topic": "Biology",
+  "difficulty": 5,
+  "prompt": "A population of beetles lives on light-colored tree bark. A pollution event darkens the bark. Over ten generations, researchers record the percentage of dark-bodied beetles in the population:\n\n    Generation 1: 8 percent\n    Generation 4: 21 percent\n    Generation 7: 46 percent\n    Generation 10: 72 percent\n\nConstruct an explanation for this change. Your explanation must address all four parts:\n(a) the source of the original variation in body color,\n(b) the selective pressure acting on the population,\n(c) how allele frequencies changed across generations,\n(d) why individual beetles did not change color during their own lifetimes.",
+  "subtopic": "Natural Selection",
+  "tags": [
+    "natural-selection",
+    "adaptation",
+    "allele-frequency",
+    "data-analysis"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS4-3"
+    },
+    {
+      "standard_id": "HS-LS4-4"
+    }
+  ],
+  "estimated_time_sec": 540,
+  "points": 8.0,
+  "status": "draft",
+  "teacher_notes": "Part (d) targets the most durable misconception in this unit, that individuals adapt. Do not award the fourth criterion for a response that only repeats that the population changed.",
+  "answer": null,
+  "explanation": "Variation in body color already existed in the population and arose from mutation, with sexual reproduction and recombination shuffling those alleles into new combinations. Once the bark darkened, light-bodied beetles were more visible to visual predators, so they were eaten at a higher rate. Dark-bodied beetles survived longer, reproduced more, and passed the dark allele to more offspring, so the frequency of that allele rose each generation, from 8 percent to 72 percent over ten generations. No individual beetle changed color: an individual's genotype is fixed at fertilization, and selection acts by changing which individuals reproduce, so the change is visible only at the population level across generations.",
+  "rubric": [
+    {
+      "criterion": "Identifies mutation, with recombination, as the source of the original variation",
+      "points": 2.0
+    },
+    {
+      "criterion": "Identifies predation on poorly camouflaged beetles as the selective pressure",
+      "points": 2.0
+    },
+    {
+      "criterion": "Explains differential survival and reproduction changing allele frequency across generations",
+      "points": 2.0
+    },
+    {
+      "criterion": "Explains that selection acts on populations and that individuals do not adapt within a lifetime",
+      "points": 2.0
+    }
+  ],
+  "sample_solution": "The dark-body allele was already present at low frequency because of earlier mutation, and sexual reproduction redistributed it among offspring. When pollution darkened the bark, light-bodied beetles stood out against it and were taken by predators more often, which is the selective pressure. Dark-bodied beetles therefore survived to reproduce at a higher rate and passed the dark allele to more offspring, so its frequency rose from 8 percent to 72 percent across ten generations. Individual beetles did not change color, because each beetle's genotype was set at fertilization. Selection changed the composition of the population, not the traits of any individual within it.",
+  "exemplar_answer": "The data show a population changing, not individuals changing. Before the pollution event, mutation had already produced a dark-body allele that existed at low frequency, and sexual reproduction and recombination distributed it unevenly among offspring; the 8 percent in generation 1 is that standing variation. Darkened bark reversed which phenotype was camouflaged, so light-bodied beetles became conspicuous to visually hunting predators and were removed from the population at a higher rate. Because survival determines who reproduces, dark-bodied beetles contributed a disproportionate share of alleles to each successive generation, and the frequency of the dark allele climbed steadily to 72 percent by generation 10. The steady rather than sudden climb is consistent with selection acting each generation rather than with any single dramatic event. No beetle darkened during its own life. Each beetle's color was fixed by the alleles it inherited at fertilization, and natural selection works by changing the proportions of those alleles in a population over generations.",
+  "assets": []
+}

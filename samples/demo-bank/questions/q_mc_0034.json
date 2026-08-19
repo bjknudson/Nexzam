@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0034",
+  "type": "multiple_choice",
+  "topic": "Chemistry",
+  "difficulty": 2,
+  "prompt": "A student mixes two solutions in a beaker and the outside of the beaker becomes warm to the touch. What can be concluded about the reaction?",
+  "subtopic": "Energy in Reactions",
+  "tags": [
+    "thermochemistry",
+    "exothermic",
+    "bond-energy"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-4"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "The third option is deliberately right for the wrong reason, which makes it useful for discussion.",
+  "answer": {
+    "choices": [
+      "It is endothermic, because the beaker absorbed energy from the student's hand",
+      "It is exothermic, because the products hold less total bond energy than the reactants and the difference was released",
+      "It is exothermic, because energy was created by the reaction",
+      "No conclusion is possible without measuring the mass of the products"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A warm beaker means energy moved from the reacting system into the surroundings, which defines an exothermic reaction. Energetically, more energy was released forming the bonds in the products than was absorbed breaking the bonds in the reactants. Energy is transferred, never created, which is why the third option is wrong even though it reaches the right classification.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

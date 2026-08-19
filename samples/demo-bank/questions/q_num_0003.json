@@ -1,0 +1,33 @@
+{
+  "id": "q_num_0003",
+  "type": "numeric_response",
+  "topic": "Cinematography",
+  "difficulty": 2,
+  "prompt": "A scene is captured at 24 frames per second and runs for 12.5 seconds in the final edit. How many individual frames does the finished scene contain?",
+  "subtopic": "Technical Specifications",
+  "tags": [
+    "frame-rate",
+    "technical-specifications",
+    "editing",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A7.3"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 2.0,
+  "status": "ready",
+  "teacher_notes": "Follow up by asking how the count changes at 30 fps and why that matters for storage estimates.",
+  "answer": {
+    "value": 300,
+    "unit": "frames",
+    "tolerance": 0
+  },
+  "explanation": "Multiply the frame rate by the duration: $(24\\text{ frames/s})(12.5\\text{ s})=300\\text{ frames}$. Frame counts matter when conforming an edit, ordering visual effects work, and estimating media storage.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

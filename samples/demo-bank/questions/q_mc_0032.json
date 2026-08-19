@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0032",
+  "type": "multiple_choice",
+  "topic": "Calculus",
+  "difficulty": 2,
+  "prompt": "Evaluate $\\lim_{x\\to3}\\frac{x^2-9}{x-3}$.",
+  "subtopic": "Limits and Continuity",
+  "tags": [
+    "limits",
+    "continuity",
+    "factoring",
+    "indeterminate form"
+  ],
+  "standards": [
+    {
+      "standard_id": "CALC-LIM-01"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Good place to distinguish the value of a limit from the value of the function at the point.",
+  "answer": {
+    "choices": [
+      "The limit does not exist",
+      "3",
+      "6",
+      "9"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Direct substitution gives the indeterminate form $\\frac{0}{0}$, so factor first: $\\frac{x^2-9}{x-3}=\\frac{(x-3)(x+3)}{x-3}=x+3$ for $x\\neq3$. The limit is therefore $3+3=6$. The function has a removable discontinuity at $x=3$, so the limit exists even though the function is undefined there.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

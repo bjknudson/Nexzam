@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0017",
+  "type": "multiple_choice",
+  "topic": "Spanish 2",
+  "difficulty": 3,
+  "prompt": "Completa la oraci\u00f3n con la forma correcta del verbo leer.\n\nMientras yo ........ (leer) en la sala, mi hermano entr\u00f3 y encendi\u00f3 la televisi\u00f3n.",
+  "subtopic": "Pret\u00e9rito e imperfecto",
+  "tags": [
+    "preterite",
+    "imperfect",
+    "past-tense",
+    "grammar"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-4.1"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Point students to the signal word mientras and to the two preterite verbs that interrupt the ongoing action.",
+  "answer": {
+    "choices": [
+      "le\u00ed",
+      "le\u00eda",
+      "he le\u00eddo",
+      "leer\u00e9"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The imperfect le\u00eda describes an ongoing background action that was already in progress when something else happened. The interrupting actions, entr\u00f3 and encendi\u00f3, are in the preterite because they are completed events. Mientras is a reliable signal for the imperfect in this pattern.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

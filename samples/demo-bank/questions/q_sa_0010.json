@@ -1,0 +1,29 @@
+{
+  "id": "q_sa_0010",
+  "type": "short_answer",
+  "topic": "Government",
+  "difficulty": 3,
+  "prompt": "Identify one power that belongs exclusively to the federal government, one power reserved to the states, and one power the two levels share. For each, briefly explain why the Constitution assigns it that way.",
+  "subtopic": "Federalism",
+  "tags": [
+    "federalism",
+    "delegated-powers",
+    "reserved-powers",
+    "tenth-amendment"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.7"
+    }
+  ],
+  "estimated_time_sec": 240,
+  "points": 4.0,
+  "status": "review",
+  "teacher_notes": "Full credit requires three correctly categorized powers plus a constitutional justification for each. A common error is listing making laws as exclusive to one level.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "An exclusive, delegated federal power is coining money, declaring war, or regulating interstate commerce. Article I, Section 8 assigns these to Congress because a single national policy is required, and the Articles of Confederation had failed in part because the national government lacked them. A reserved state power is conducting elections, establishing public schools, or issuing professional licenses; the Tenth Amendment reserves to the states powers not delegated to the federal government, leaving these to the level of government closest to local conditions. A concurrent power is levying taxes, building roads, or establishing courts, because both levels need revenue and enforcement machinery to carry out the responsibilities each has been given.",
+  "exemplar_answer": null,
+  "assets": []
+}

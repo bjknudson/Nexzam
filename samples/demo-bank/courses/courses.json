@@ -18,6 +18,198 @@
           "standard_id": "PHY-ELE-01"
         }
       ]
+    },
+    {
+      "id": "medical-careers-pathway",
+      "title": "Medical Careers Pathway",
+      "description": "CTE Health Science and Medical Technology sector, Patient Care pathway.",
+      "standard_refs": [
+        {
+          "standard_id": "HSMT-2.4"
+        },
+        {
+          "standard_id": "HSMT-6.2"
+        },
+        {
+          "standard_id": "HSMT-8.3"
+        },
+        {
+          "standard_id": "HSMT-B1.2"
+        }
+      ]
+    },
+    {
+      "id": "cinematography",
+      "title": "Cinematography",
+      "description": "CTE Arts, Media, and Entertainment sector, Design, Visual and Media Arts pathway.",
+      "standard_refs": [
+        {
+          "standard_id": "AME-A3.4"
+        },
+        {
+          "standard_id": "AME-A5.2"
+        },
+        {
+          "standard_id": "AME-A7.3"
+        },
+        {
+          "standard_id": "AME-A9.1"
+        }
+      ]
+    },
+    {
+      "id": "algebra-1",
+      "title": "Algebra 1",
+      "description": "First-year high school algebra aligned to the Common Core high school algebra and functions categories.",
+      "standard_refs": [
+        {
+          "standard_id": "HSA-REI.B.3"
+        },
+        {
+          "standard_id": "HSA-REI.C.6"
+        },
+        {
+          "standard_id": "HSA-CED.A.3"
+        },
+        {
+          "standard_id": "HSF-IF.B.6"
+        },
+        {
+          "standard_id": "HSF-LE.B.5"
+        }
+      ]
+    },
+    {
+      "id": "ap-english-literature",
+      "title": "AP English Literature and Composition",
+      "description": "Close reading and literary argumentation across poetry, prose, and drama.",
+      "standard_refs": [
+        {
+          "standard_id": "APLIT-1.A"
+        },
+        {
+          "standard_id": "APLIT-3.B"
+        },
+        {
+          "standard_id": "APLIT-5.C"
+        },
+        {
+          "standard_id": "APLIT-7.B"
+        }
+      ]
+    },
+    {
+      "id": "chemistry-1",
+      "title": "Chemistry",
+      "description": "Introductory high school chemistry aligned to NGSS physical science performance expectations.",
+      "standard_refs": [
+        {
+          "standard_id": "HS-PS1-1"
+        },
+        {
+          "standard_id": "HS-PS1-2"
+        },
+        {
+          "standard_id": "HS-PS1-4"
+        },
+        {
+          "standard_id": "HS-PS1-7"
+        }
+      ]
+    },
+    {
+      "id": "spanish-2",
+      "title": "Spanish 2",
+      "description": "Second-year Spanish organized around the three modes of communication.",
+      "standard_refs": [
+        {
+          "standard_id": "ACTFL-1.1"
+        },
+        {
+          "standard_id": "ACTFL-1.2"
+        },
+        {
+          "standard_id": "ACTFL-1.3"
+        },
+        {
+          "standard_id": "ACTFL-2.1"
+        },
+        {
+          "standard_id": "ACTFL-4.1"
+        }
+      ]
+    },
+    {
+      "id": "biology-1",
+      "title": "Biology",
+      "description": "Introductory high school biology aligned to NGSS life science performance expectations.",
+      "standard_refs": [
+        {
+          "standard_id": "HS-LS1-1"
+        },
+        {
+          "standard_id": "HS-LS1-3"
+        },
+        {
+          "standard_id": "HS-LS3-3"
+        },
+        {
+          "standard_id": "HS-LS4-3"
+        },
+        {
+          "standard_id": "HS-LS4-4"
+        }
+      ]
+    },
+    {
+      "id": "ap-us-history",
+      "title": "AP United States History",
+      "description": "Thematic survey organized around key concepts and historical reasoning practices.",
+      "standard_refs": [
+        {
+          "standard_id": "APUSH-P1"
+        },
+        {
+          "standard_id": "APUSH-P3"
+        },
+        {
+          "standard_id": "APUSH-P6"
+        },
+        {
+          "standard_id": "APUSH-KC-3.2.I"
+        },
+        {
+          "standard_id": "APUSH-KC-5.2.I"
+        },
+        {
+          "standard_id": "APUSH-KC-7.1.III"
+        },
+        {
+          "standard_id": "APUSH-KC-8.2.I"
+        }
+      ]
+    },
+    {
+      "id": "government",
+      "title": "Principles of American Democracy",
+      "description": "One-semester high school government course aligned to the California grade twelve standards.",
+      "standard_refs": [
+        {
+          "standard_id": "HSS-12.1"
+        },
+        {
+          "standard_id": "HSS-12.4"
+        },
+        {
+          "standard_id": "HSS-12.5"
+        },
+        {
+          "standard_id": "HSS-12.6"
+        },
+        {
+          "standard_id": "HSS-12.7"
+        }
+      ]
     }
   ]
 }

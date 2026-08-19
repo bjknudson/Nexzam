@@ -1,0 +1,29 @@
+{
+  "id": "q_sa_0008",
+  "type": "short_answer",
+  "topic": "Biology",
+  "difficulty": 3,
+  "prompt": "An enzyme works well at $37\\,^{\\circ}\\text{C}$. After the solution is heated to $80\\,^{\\circ}\\text{C}$ and then cooled back to $37\\,^{\\circ}\\text{C}$, the enzyme no longer functions.\n\nExplain why the enzyme does not recover its activity.",
+  "subtopic": "Enzymes and Protein Structure",
+  "tags": [
+    "enzymes",
+    "denaturation",
+    "protein-structure",
+    "active-site"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS1-1"
+    }
+  ],
+  "estimated_time_sec": 180,
+  "points": 3.0,
+  "status": "review",
+  "teacher_notes": "Full credit requires denaturation, loss of active site shape, and the link between shape and substrate binding. The phrase the enzyme died should be corrected, since enzymes are not alive.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "Heating disrupted the weak interactions, such as hydrogen bonds and other side chain interactions, that hold the polypeptide in its folded three-dimensional shape, so the enzyme denatured. The active site's shape is what allows a specific substrate to bind, so once that shape is lost the enzyme can no longer form an enzyme-substrate complex and cannot lower the activation energy of the reaction. Cooling does not restore function because the unfolded chain does not reliably refold into its original conformation.",
+  "exemplar_answer": null,
+  "assets": []
+}

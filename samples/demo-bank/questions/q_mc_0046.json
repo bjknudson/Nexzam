@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0046",
+  "type": "multiple_choice",
+  "topic": "Spanish 2",
+  "difficulty": 3,
+  "prompt": "Lee el di\u00e1logo y contesta la pregunta.\n\n    MARCOS: \u00bfVas al partido el viernes?\n    ELENA: Quiero ir, pero tengo que cuidar a mi hermanito. Mis padres trabajan esa noche.\n    MARCOS: \u00a1Qu\u00e9 l\u00e1stima! Te llamo despu\u00e9s del partido para contarte.\n\n\u00bfPor qu\u00e9 no va Elena al partido?",
+  "subtopic": "Comprensi\u00f3n interpretativa",
+  "tags": [
+    "interpretive-reading",
+    "comprehension",
+    "dialogue"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-1.2"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "The third distractor rewards careful attention to who the subject of trabajan is.",
+  "answer": {
+    "choices": [
+      "Porque no le gustan los deportes",
+      "Porque tiene que cuidar a su hermano menor",
+      "Porque trabaja esa noche en el trabajo de sus padres",
+      "Porque Marcos no la invit\u00f3"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Elena says quiero ir, so she does want to go, and the obstacle she names is tengo que cuidar a mi hermanito. It is her parents who work that night, not Elena, and Marcos does invite her at the start of the conversation.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

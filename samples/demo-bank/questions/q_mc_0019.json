@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0019",
+  "type": "multiple_choice",
+  "topic": "Biology",
+  "difficulty": 2,
+  "prompt": "A plant cell is placed in a concentrated salt solution. Which outcome is expected, and why?",
+  "subtopic": "Cell Transport",
+  "tags": [
+    "osmosis",
+    "cell-transport",
+    "homeostasis",
+    "plasmolysis"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS1-3"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Follow up by asking what would happen in distilled water, and why the cell wall keeps the plant cell from bursting.",
+  "answer": {
+    "choices": [
+      "The cell swells, because water moves toward the region of lower solute concentration",
+      "The membrane pulls away from the cell wall, because water moves out toward the higher solute concentration",
+      "Nothing changes, because the cell wall prevents all water movement",
+      "The cell shrinks, because salt is actively pumped out of the cell"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The salt solution is hypertonic to the cytoplasm, so water leaves the cell by osmosis, moving down its own concentration gradient toward the higher solute concentration. The membrane shrinks away from the rigid cell wall, which is plasmolysis. The wall is porous and does not block water, and the change is driven by passive water movement rather than active transport of salt.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

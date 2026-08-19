@@ -3,7 +3,13 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 
 import type { DesktopContext } from "./types";
 
-type PaneKind = "questions" | "assets" | "standards" | "test-preview";
+type PaneKind =
+  | "questions"
+  | "assets"
+  | "standards"
+  | "test-preview"
+  | "editor"
+  | "tests";
 
 interface OpenPaneWindowOptions {
   mode?: string;

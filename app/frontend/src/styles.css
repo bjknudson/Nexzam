@@ -243,8 +243,9 @@ textarea {
 }
 
 .topbar-page-toggle {
+  position: relative;
   display: inline-grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  grid-template-columns: repeat(3, minmax(118px, 1fr));
   gap: 0;
   padding: 0.18rem;
   border: 1px solid #9cb0c4;
@@ -252,18 +253,83 @@ textarea {
   background: #ffffff;
 }
 
+.topbar-page-thumb {
+  position: absolute;
+  top: 0.18rem;
+  bottom: 0.18rem;
+  left: 0.18rem;
+  width: calc((100% - 0.36rem) / 3);
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  transition: transform 0.18s ease;
+  pointer-events: none;
+}
+
 .topbar-page-toggle button {
+  position: relative;
+  z-index: 1;
   border: 0;
   border-radius: 999px;
   background: transparent;
   padding: 0.48rem 0.8rem;
   font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.18s ease;
 }
 
 .topbar-page-toggle button.active {
-  background: #2563eb;
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+}
+
+.topbar-page-badge {
+  margin-left: 0.35rem;
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.topbar-pane-label {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-page-thumb,
+  .topbar-page-toggle button {
+    transition: none;
+  }
+}
+
+.standards-page-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.standards-page-pane {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #eef3f8;
+  border-radius: 12px;
+}
+
+.popped-out-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  min-height: 0;
+  background: #ffffff;
+  border: 1px dashed #9cb0c4;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.popped-out-placeholder h2 {
+  margin: 0 0 0.35rem;
+}
+
+.popped-out-placeholder p {
+  margin: 0 0 1rem;
+  color: #475569;
 }
 
 .archive-strip {
@@ -2092,6 +2158,40 @@ textarea {
   display: grid;
   gap: 0.9rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.standards-manual-scroll {
+  overflow-x: auto;
+}
+
+.standards-manual-rows {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 900px;
+}
+
+.standards-manual-row {
+  display: grid;
+  gap: 0.5rem;
+  align-items: start;
+  grid-template-columns:
+    minmax(130px, 0.9fr) minmax(110px, 0.7fr) minmax(240px, 2fr)
+    minmax(100px, 0.7fr) minmax(90px, 0.6fr) minmax(140px, 1fr) auto;
+}
+
+.standards-manual-head {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.standards-manual-row textarea {
+  resize: vertical;
+  min-height: 2.4rem;
+}
+
+.standards-manual-remove {
+  align-self: start;
 }
 
 .standards-layout {

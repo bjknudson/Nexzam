@@ -1,0 +1,50 @@
+{
+  "id": "q_fr_0005",
+  "type": "free_response",
+  "topic": "Cinematography",
+  "difficulty": 4,
+  "prompt": "Two characters sit across a table from each other during a tense conversation. While reviewing the footage, the editor notices that between some shots the characters appear to swap sides of the screen.\n\nExplain what continuity error has most likely occurred and why it disorients the audience. Then describe two specific things the crew could have done on set to prevent it, and name a preproduction document you would use to plan the coverage.",
+  "subtopic": "Continuity and Coverage",
+  "tags": [
+    "continuity",
+    "180-degree-rule",
+    "screen-direction",
+    "preproduction",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A3.4"
+    },
+    {
+      "standard_id": "AME-A9.1"
+    }
+  ],
+  "estimated_time_sec": 420,
+  "points": 6.0,
+  "status": "draft",
+  "teacher_notes": "Best assigned after students have shot and cut their own dialogue scene, so the error is one they have seen in their own footage.",
+  "answer": null,
+  "explanation": "Crossing the axis of action, the imaginary line drawn between the two characters, reverses screen direction and makes each character appear to jump to the other side of the frame. Audiences use consistent screen direction to hold the geography of a space in mind, so the reversal reads as a mistake rather than a choice. Prevention includes drawing an overhead diagram that marks the line before the first setup, keeping all cameras on one side of it, shooting a deliberate neutral or crossing shot when the line must be broken, and checking eyelines during coverage.",
+  "rubric": [
+    {
+      "criterion": "Identifies the 180-degree rule, or axis of action, as the violated convention",
+      "points": 1.5
+    },
+    {
+      "criterion": "Explains the effect on audience spatial orientation and screen direction",
+      "points": 1.5
+    },
+    {
+      "criterion": "Describes two concrete on-set actions that would prevent the error",
+      "points": 2.0
+    },
+    {
+      "criterion": "Names an appropriate preproduction document such as an overhead diagram or shot list",
+      "points": 1.0
+    }
+  ],
+  "sample_solution": "The crew crossed the 180-degree line. Once the camera moves to the other side of the axis drawn between the two characters, screen direction flips, so a character who was frame left in the wide shot is frame right in the reverse. Audiences track space through consistent screen direction, so the swap breaks the geography of the scene and pulls attention to the edit. On set the crew could have marked the axis on an overhead diagram during blocking and kept every setup on one side of it, and could have shot a neutral shot along the line to use as a bridge if the line had to be crossed. An overhead floor diagram attached to the shot list is the document that plans this.",
+  "exemplar_answer": "The scene violates the 180-degree rule. The axis of action runs between the two characters, and as long as the camera stays on one side of it each character keeps a consistent side of the frame and a consistent eyeline. When one setup is placed across that line, the characters trade screen positions on the cut and the audience momentarily loses the layout of the room. Two preventable causes: the camera was repositioned without re-checking the line, and the eyelines were not matched during coverage. The crew should have drawn the axis on an overhead diagram during blocking and kept all setups on one side, and should have recorded a neutral, straight-down-the-line shot to use as a bridge if a reverse angle was truly needed. The overhead diagram and the shot list together are the preproduction documents that make this planning visible to the whole crew.",
+  "assets": []
+}

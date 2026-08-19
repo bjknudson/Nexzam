@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0036",
+  "type": "multiple_choice",
+  "topic": "Cinematography",
+  "difficulty": 2,
+  "prompt": "A director wants the audience to feel that they are walking alongside a character down a hallway. Which choice best creates that effect?",
+  "subtopic": "Camera Movement",
+  "tags": [
+    "camera-movement",
+    "dolly",
+    "blocking",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A3.4"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Screening a dolly shot and a zoom of the same hallway back to back makes the difference obvious.",
+  "answer": {
+    "choices": [
+      "A zoom in from a fixed camera position",
+      "A dolly shot that physically moves the camera with the character",
+      "A whip pan across the hallway",
+      "A static wide shot held for the length of the walk"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A dolly physically moves the camera through the space, so the relationship between foreground and background shifts as the shot progresses and the viewer reads it as travel. A zoom only magnifies from a fixed point, which flattens the space and feels like looking closer rather than moving. A whip pan is a fast transition, and a static wide shot keeps the audience as an observer.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

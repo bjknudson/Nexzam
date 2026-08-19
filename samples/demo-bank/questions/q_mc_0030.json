@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0030",
+  "type": "multiple_choice",
+  "topic": "Biology",
+  "difficulty": 3,
+  "prompt": "A bacterial population is treated with an antibiotic. Most bacteria die, but the population recovers within days and is now largely resistant. Which explanation is best supported by evolutionary theory?",
+  "subtopic": "Evolution and Antibiotic Resistance",
+  "tags": [
+    "natural-selection",
+    "antibiotic-resistance",
+    "variation",
+    "data-analysis"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-LS4-3"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "The need-based wording in the first option is the single most common misconception in this unit.",
+  "answer": {
+    "choices": [
+      "The antibiotic caused the surviving bacteria to develop resistance in order to survive",
+      "Resistant variants were already present, survived the treatment, and reproduced to make up most of the recovered population",
+      "The bacteria learned to resist the antibiotic and passed that learning to their offspring",
+      "The antibiotic became weaker over time, so it no longer affected the bacteria"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Random mutation generates variation before the antibiotic is ever applied. The antibiotic does not create resistance; it removes the bacteria that lack it, leaving the resistant variants to reproduce and dominate the population. Bacteria do not acquire traits by need or by learning, and the recovery is explained by the change in the population rather than by any change in the drug.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

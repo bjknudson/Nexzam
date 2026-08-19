@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0011",
+  "type": "multiple_choice",
+  "topic": "Medical Careers",
+  "difficulty": 2,
+  "prompt": "A medical assistant is preparing to draw blood from a patient. Under standard precautions, when should the assistant perform hand hygiene?",
+  "subtopic": "Infection Control",
+  "tags": [
+    "infection-control",
+    "standard-precautions",
+    "patient-care",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-6.2"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Common misconception: students treat gloves as a substitute for hand hygiene.",
+  "answer": {
+    "choices": [
+      "Only after removing gloves, because the gloves keep the hands clean",
+      "Before putting on gloves and again after removing them",
+      "Only before putting on gloves, because the gloves are sterile",
+      "Only when the patient is known to have a bloodborne infection"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Standard precautions treat every patient's blood and body fluids as potentially infectious, so the timing never depends on a known diagnosis. Gloves are not a substitute for hand hygiene: they can have unseen defects, and hands are easily contaminated during removal. Hand hygiene is performed both before donning and after doffing.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -17,6 +17,7 @@ from .models import (
     AddQuestionToTestRequest,
     CreateBankRequest,
     CreateStandardPlaceholdersRequest,
+    CreateStandardsManuallyRequest,
     CreateQuestionRequest,
     CreateTestDraftRequest,
     NextQuestionIdResponse,
@@ -191,6 +192,11 @@ async def import_standards(
         version=version,
         description=description,
     )
+
+
+@app.post("/api/standards/manual")
+def create_standards_manually(request: CreateStandardsManuallyRequest):
+    return service.create_standards_manually(request)
 
 
 @app.put("/api/standards/{standard_id}")

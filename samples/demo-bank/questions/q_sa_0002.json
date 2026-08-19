@@ -1,0 +1,30 @@
+{
+  "id": "q_sa_0002",
+  "type": "short_answer",
+  "topic": "Medical Careers",
+  "difficulty": 3,
+  "prompt": "A certified nursing assistant is stopped in the hallway by a family friend who asks about a neighbor on the unit. The friend says she only wants to know whether the neighbor is doing okay.\n\nExplain what the nursing assistant should do and name the legal protection that applies.",
+  "subtopic": "Confidentiality and Scope of Practice",
+  "tags": [
+    "hipaa",
+    "confidentiality",
+    "scope-of-practice",
+    "ethics",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-8.3"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 3.0,
+  "status": "ready",
+  "teacher_notes": "Strong answers note that confirming a person is even admitted is itself protected information. Watch for students who think a verbal reassurance is harmless.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "The nursing assistant should decline to share anything, including whether the neighbor is a patient at all, and should politely redirect the friend to the patient or to the charge nurse. The HIPAA Privacy Rule protects individually identifiable health information, and a patient's admission status is part of that protected information. Releasing patient information is also outside a nursing assistant's scope of practice.",
+  "exemplar_answer": null,
+  "assets": []
+}

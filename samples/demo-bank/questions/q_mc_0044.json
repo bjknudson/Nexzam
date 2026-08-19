@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0044",
+  "type": "multiple_choice",
+  "topic": "Medical Careers",
+  "difficulty": 3,
+  "prompt": "A patient's chart lists the term bradycardia. Using word parts, what does this term mean?",
+  "subtopic": "Medical Terminology",
+  "tags": [
+    "medical-terminology",
+    "word-parts",
+    "communication",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-2.4"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Have students build tachycardia, carditis, and cardioplasty from the same root to reinforce the pattern.",
+  "answer": {
+    "choices": [
+      "Rapid heart rate",
+      "Slow heart rate",
+      "Inflammation of the heart muscle",
+      "Surgical repair of a heart valve"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The prefix brady- means slow, the root cardi- refers to the heart, and the suffix -ia denotes a condition, so bradycardia is the condition of a slow heart rate. Rapid heart rate is tachycardia, inflammation would use the suffix -itis as in carditis, and surgical repair would use -plasty.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

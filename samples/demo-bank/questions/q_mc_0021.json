@@ -1,0 +1,41 @@
+{
+  "id": "q_mc_0021",
+  "type": "multiple_choice",
+  "topic": "AP U.S. History",
+  "difficulty": 2,
+  "prompt": "Which of the following best explains why the question of slavery in the territories became increasingly divisive between 1846 and 1860?",
+  "subtopic": "Sectionalism and Causation",
+  "tags": [
+    "sectionalism",
+    "slavery",
+    "causation",
+    "manifest-destiny",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-5.2.I"
+    },
+    {
+      "standard_id": "APUSH-P1"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Ask students to place the Wilmot Proviso, the Compromise of 1850, and the Kansas-Nebraska Act on a timeline to see the pattern of repeated reopening.",
+  "answer": {
+    "choices": [
+      "Territorial expansion after the Mexican-American War forced Congress to decide the status of slavery in newly acquired land",
+      "The invention of the cotton gin made slavery unprofitable across the South",
+      "Immigration from Ireland and Germany eliminated sectional differences over labor",
+      "The Supreme Court refused to hear any case involving enslaved people"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "Victory in the Mexican-American War added vast territory, and every attempt to organize it, from the Wilmot Proviso through the Compromise of 1850 to the Kansas-Nebraska Act, reopened the question of whether slavery would expand. The cotton gin made slavery more profitable, not less; immigration intensified rather than resolved labor tensions; and the Court did rule on such cases, most consequentially in Dred Scott v. Sandford in 1857.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

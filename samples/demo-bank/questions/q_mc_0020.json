@@ -1,0 +1,41 @@
+{
+  "id": "q_mc_0020",
+  "type": "multiple_choice",
+  "topic": "AP U.S. History",
+  "difficulty": 3,
+  "prompt": "Read the excerpt and answer the question.\n\n    \"Society in every state is a blessing, but government, even in its best state, is but a necessary evil; in its worst state, an intolerable one.\"\n    - Thomas Paine, Common Sense, 1776\n\nPaine's argument in this excerpt was most directly used to support",
+  "subtopic": "Revolution and Republicanism",
+  "tags": [
+    "american-revolution",
+    "common-sense",
+    "republicanism",
+    "stimulus-based",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-3.2.I"
+    },
+    {
+      "standard_id": "APUSH-P3"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Use as a bridge to the Articles of Confederation: ask which features of that government follow from Paine's premise.",
+  "answer": {
+    "choices": [
+      "the expansion of royal authority over colonial assemblies",
+      "colonial independence and the creation of a limited republican government",
+      "the immediate abolition of slavery in all thirteen colonies",
+      "a permanent military alliance between Britain and France"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Common Sense argued that hereditary monarchy was illegitimate and that the colonies should govern themselves. Treating government as at best a necessary evil supported both independence from Britain and the republican preference for limited government that shaped the early state constitutions and the Articles of Confederation. Paine did not argue for royal authority, the pamphlet did not call for immediate abolition, and no British alliance is implied.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

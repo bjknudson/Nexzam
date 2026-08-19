@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0045",
+  "type": "multiple_choice",
+  "topic": "Spanish 2",
+  "difficulty": 2,
+  "prompt": "Elige la forma correcta para completar la oraci\u00f3n.\n\nMi hermana ....... muy cansada hoy porque trabaj\u00f3 doce horas.",
+  "subtopic": "Ser y estar",
+  "tags": [
+    "ser-estar",
+    "grammar",
+    "adjectives"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-4.1"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Contrast with es cansada, which changes the meaning to tiresome rather than tired.",
+  "answer": {
+    "choices": [
+      "es",
+      "est\u00e1",
+      "ser",
+      "estar"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Estar is used for conditions that can change, and being tired today after a long shift is a temporary state rather than a defining characteristic. Ser would describe an inherent trait. The last two options are infinitives and cannot be conjugated forms in this sentence.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

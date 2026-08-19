@@ -1,0 +1,38 @@
+{
+  "id": "q_mc_0024",
+  "type": "multiple_choice",
+  "topic": "AP English Literature",
+  "difficulty": 4,
+  "prompt": "Read the excerpt from Shakespeare's Macbeth, spoken after Macbeth learns of his wife's death.\n\n    Tomorrow, and tomorrow, and tomorrow,\n    Creeps in this petty pace from day to day,\n    To the last syllable of recorded time;\n    And all our yesterdays have lighted fools\n    The way to dusty death.\n\nThe repetition in the first line most directly reveals that Macbeth",
+  "subtopic": "Character and Motive",
+  "tags": [
+    "character",
+    "repetition",
+    "soliloquy",
+    "close-reading",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-1.A"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Pairs well with Macbeth's Act 1 soliloquies so students can track the collapse of his ambition.",
+  "answer": {
+    "choices": [
+      "expects his fortunes to improve if he waits long enough",
+      "experiences time as an exhausting sameness that has drained meaning from his ambition",
+      "is planning a specific course of action for the following day",
+      "blames his wife for the murders he has committed"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The triple repetition enacts what it describes: one identical day after another, creeping rather than advancing. Coming immediately after the news of his wife's death, it shows a Macbeth for whom the future holds no prize worth seizing, which is a reversal of the ambition that drove the play. No plan, no hope of improvement, and no accusation appears in the lines.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0027",
+  "type": "multiple_choice",
+  "topic": "Algebra 1",
+  "difficulty": 2,
+  "prompt": "A line is graphed through the points $(0,\\,-3)$ and $(2,\\,1)$. Which equation represents this line?",
+  "subtopic": "Graphs of Linear Functions",
+  "tags": [
+    "linear-functions",
+    "slope-intercept",
+    "graphing"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSF-IF.B.6"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Students who pick the fourth option have the right slope but read the intercept sign from the graph incorrectly.",
+  "answer": {
+    "choices": [
+      "$y=2x-3$",
+      "$y=-2x-3$",
+      "$y=\\frac{1}{2}x-3$",
+      "$y=2x+3$"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "The slope is $m=\\frac{1-(-3)}{2-0}=\\frac{4}{2}=2$. The point $(0,\\,-3)$ is on the $y$-axis, so the $y$-intercept is $b=-3$. Substituting into $y=mx+b$ gives $y=2x-3$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

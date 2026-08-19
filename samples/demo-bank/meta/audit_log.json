@@ -3,5 +3,15 @@
     "timestamp": "2026-04-11T00:00:00Z",
     "event": "bank_created",
     "details": "Initial demo bank scaffolded"
+  },
+  {
+    "timestamp": "2026-08-18T00:00:00Z",
+    "event": "questions_added",
+    "details": "Added 36 sample questions across nine high school courses with matching standards and course curations"
+  },
+  {
+    "timestamp": "2026-08-18T00:00:00Z",
+    "event": "questions_added",
+    "details": "Renamed the bank to Demo Bank and added two more multiple choice questions per topic"
   }
 ]

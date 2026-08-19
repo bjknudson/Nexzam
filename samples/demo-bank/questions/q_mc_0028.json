@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0028",
+  "type": "multiple_choice",
+  "topic": "Algebra 1",
+  "difficulty": 3,
+  "prompt": "A food truck sells tacos for 3 dollars each and burritos for 7 dollars each. On Friday it sold 90 items and took in 470 dollars. Let $t$ be the number of tacos and $b$ be the number of burritos. Which system models this situation?",
+  "subtopic": "Modeling with Systems",
+  "tags": [
+    "systems-of-equations",
+    "modeling",
+    "word-problem"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSA-CED.A.3"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Asking students to name the units of each equation catches most of the errors here before any solving happens.",
+  "answer": {
+    "choices": [
+      "$t+b=470$ and $3t+7b=90$",
+      "$t+b=90$ and $3t+7b=470$",
+      "$t+b=90$ and $7t+3b=470$",
+      "$3t+7b=90$ and $t+b=470$"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "One equation must count items and the other must total money. The item count gives $t+b=90$. Each taco contributes 3 dollars and each burrito 7 dollars, so the revenue equation is $3t+7b=470$. The third option swaps the prices, and the others swap the meaning of the two totals entirely.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

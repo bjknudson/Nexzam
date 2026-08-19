@@ -1,0 +1,28 @@
+{
+  "id": "q_sa_0007",
+  "type": "short_answer",
+  "topic": "Spanish 2",
+  "difficulty": 3,
+  "prompt": "Escribe cuatro oraciones completas en espa\u00f1ol que describan tu rutina diaria. Usa un verbo reflexivo diferente en cada oraci\u00f3n e incluye una expresi\u00f3n de tiempo en cada una, por ejemplo primero, luego, a las siete.",
+  "subtopic": "Verbos reflexivos",
+  "tags": [
+    "reflexive-verbs",
+    "daily-routine",
+    "presentational-writing"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-1.3"
+    }
+  ],
+  "estimated_time_sec": 240,
+  "points": 4.0,
+  "status": "draft",
+  "teacher_notes": "Score for four distinct reflexive verbs, correct pronoun and verb agreement, and a time expression in every sentence. At this level, accent errors that do not obscure meaning should not cost credit.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "Las respuestas var\u00edan. Ejemplo: Primero me despierto a las seis y media. Luego me ducho y me lavo el pelo. A las siete me visto r\u00e1pidamente. Finalmente me voy a la escuela en autob\u00fas. Cada oraci\u00f3n usa un verbo reflexivo distinto, conjugado en primera persona con el pronombre correcto, e incluye una expresi\u00f3n de tiempo.",
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -1,0 +1,50 @@
+{
+  "id": "q_fr_0008",
+  "type": "free_response",
+  "topic": "Chemistry",
+  "difficulty": 5,
+  "prompt": "When ammonium nitrate dissolves in water, the beaker becomes noticeably colder. When magnesium ribbon reacts with hydrochloric acid, the beaker becomes noticeably warmer.\n\nUsing the idea that breaking bonds absorbs energy and forming bonds releases energy, explain the temperature change in each case. Classify each process as endothermic or exothermic, and compare the total bond energy of the products with that of the reactants in each case.",
+  "subtopic": "Energy and Bond Enthalpy",
+  "tags": [
+    "thermochemistry",
+    "bond-energy",
+    "endothermic",
+    "exothermic"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-4"
+    }
+  ],
+  "estimated_time_sec": 480,
+  "points": 6.0,
+  "status": "draft",
+  "teacher_notes": "The persistent misconception is that a cold beaker means energy disappeared. Push students to say where the energy went.",
+  "answer": null,
+  "explanation": "Dissolving ammonium nitrate is endothermic: more energy is absorbed separating the ionic lattice and the water molecules than is released when the ions are hydrated, so the system draws energy from the surroundings and the beaker feels cold. The products hold more total bond and interaction energy than the reactants. The magnesium reaction is exothermic: the bonds formed in the products release more energy than was required to break the reactant bonds, so the excess is transferred to the surroundings as thermal energy and the beaker feels warm. Here the products hold less total bond energy than the reactants. In both cases energy is conserved; only its location changes.",
+  "rubric": [
+    {
+      "criterion": "Classifies the ammonium nitrate process as endothermic",
+      "points": 1.0
+    },
+    {
+      "criterion": "Classifies the magnesium reaction as exothermic",
+      "points": 1.0
+    },
+    {
+      "criterion": "Explains the temperature change using energy absorbed to break bonds and released to form bonds",
+      "points": 2.0
+    },
+    {
+      "criterion": "Compares total bond energy of products and reactants for both cases",
+      "points": 1.5
+    },
+    {
+      "criterion": "States that energy is conserved and transferred to or from the surroundings",
+      "points": 0.5
+    }
+  ],
+  "sample_solution": "Ammonium nitrate dissolving is endothermic. Breaking the ionic lattice and the hydrogen bonding between water molecules absorbs more energy than is released when water molecules surround the separated ions, so the system takes the difference from the surrounding water and the beaker cools. The products therefore hold more total energy in their bonds and interactions than the reactants did. The magnesium and hydrochloric acid reaction is exothermic. Breaking the reactant bonds costs energy, but the bonds formed in the magnesium chloride and hydrogen products release more than that, and the surplus leaves the system as thermal energy, warming the beaker. Here the products hold less total bond energy than the reactants. Energy is conserved in both cases; the difference is only whether it flows into the system or out of it.",
+  "exemplar_answer": "Both beakers change temperature because energy moves between the chemical system and its surroundings, not because energy is created or destroyed. Dissolving ammonium nitrate requires pulling apart the ionic lattice and opening space in the hydrogen-bonded water, and both steps absorb energy. The hydration of the separated ions releases energy, but less than was absorbed, so the net process is endothermic and the shortfall is taken from the surrounding water, which is why the beaker feels cold. Because the system ended up holding energy it took in, the total bond and interaction energy of the products is greater than that of the reactants. The magnesium reaction runs the other way. Breaking the bonds in the magnesium and in the hydrochloric acid absorbs energy, but forming the bonds in magnesium chloride and hydrogen gas releases more, so the reaction is exothermic and the surplus warms the beaker. The products hold less total bond energy than the reactants. In both cases the total energy is unchanged; only its location shifts between the system and the surroundings.",
+  "assets": []
+}

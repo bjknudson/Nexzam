@@ -1,0 +1,33 @@
+{
+  "id": "q_sa_0009",
+  "type": "short_answer",
+  "topic": "AP U.S. History",
+  "difficulty": 3,
+  "prompt": "Answer parts (a), (b), and (c).\n\n(a) Briefly describe ONE specific goal of the New Deal between 1933 and 1939.\n(b) Briefly explain ONE specific way a New Deal program changed the relationship between the federal government and American citizens.\n(c) Briefly explain ONE specific criticism of the New Deal made during the 1930s.",
+  "subtopic": "The New Deal",
+  "tags": [
+    "new-deal",
+    "great-depression",
+    "saq",
+    "federal-power",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-7.1.III"
+    },
+    {
+      "standard_id": "APUSH-P1"
+    }
+  ],
+  "estimated_time_sec": 720,
+  "points": 3.0,
+  "status": "ready",
+  "teacher_notes": "Standard AP short-answer scoring: one point per part, no thesis required. Each part needs a specific historical example rather than a general statement.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "(a) Relief, recovery, or reform, for example providing direct work relief to the unemployed through the Works Progress Administration. (b) Social Security created a permanent federal old-age pension and unemployment insurance system, establishing an ongoing direct relationship between individuals and the federal government; the FDIC similarly made the federal government the guarantor of individual bank deposits. (c) Critics on the left such as Huey Long argued the New Deal did too little to redistribute wealth, while conservatives and the American Liberty League argued it unconstitutionally expanded federal power, a view partly echoed when the Supreme Court struck down the National Recovery Administration in Schechter Poultry Corp. v. United States in 1935.",
+  "exemplar_answer": null,
+  "assets": []
+}

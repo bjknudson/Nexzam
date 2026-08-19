@@ -114,6 +114,25 @@ class CreateStandardPlaceholdersRequest(BaseModel):
     standard_ids: list[str]
 
 
+class ManualStandardRowModel(BaseModel):
+    id: str
+    code: str | None = None
+    statement: str
+    subject: str | None = None
+    grade_band: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class CreateStandardsManuallyRequest(BaseModel):
+    source_list_id: str | None = None
+    title: str | None = None
+    issuer: str | None = None
+    subject: str | None = None
+    version: str | None = None
+    description: str | None = None
+    standards: list[ManualStandardRowModel] = Field(default_factory=list)
+
+
 class QuestionImportValidationIssueModel(BaseModel):
     code: str
     message: str

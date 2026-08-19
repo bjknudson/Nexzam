@@ -1,0 +1,38 @@
+{
+  "id": "q_mc_0014",
+  "type": "multiple_choice",
+  "topic": "AP English Literature",
+  "difficulty": 3,
+  "prompt": "Read the following stanza from Emily Dickinson's \"Because I could not stop for Death.\"\n\n    Because I could not stop for Death -\n    He kindly stopped for me -\n    The Carriage held but just Ourselves -\n    And Immortality.\n\nThe personification of Death in this stanza functions primarily to",
+  "subtopic": "Figurative Language",
+  "tags": [
+    "personification",
+    "poetry",
+    "tone",
+    "close-reading",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-5.C"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Students who choose the first option are reading the subject matter rather than the diction. Ask them which words in the stanza would have to change for that reading to hold.",
+  "answer": {
+    "choices": [
+      "portray death as a violent interruption of the speaker's plans",
+      "recast death as a courteous companion, producing an unsettling calm",
+      "establish the speaker's religious objections to mortality",
+      "signal that the speaker is an unreliable narrator"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Death is given the manners of a suitor: he \"kindly stopped\" and shares a carriage with the speaker. The diction reframes an event usually associated with fear as something civil and unhurried, and that gentleness is what unsettles, since the tone stays composed while the subject remains mortality. Nothing in the stanza is violent, no religious objection is raised, and there is no evidence of unreliability.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

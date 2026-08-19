@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0043",
+  "type": "multiple_choice",
+  "topic": "Medical Careers",
+  "difficulty": 2,
+  "prompt": "A medical assistant records a resting adult pulse of 52 beats per minute in a patient who reports feeling dizzy. What is the most appropriate next step?",
+  "subtopic": "Vital Signs",
+  "tags": [
+    "vital-signs",
+    "patient-care",
+    "scope-of-practice",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-B1.2"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Note that trained athletes can have a normal resting pulse below 60; the dizziness is what makes this reportable.",
+  "answer": {
+    "choices": [
+      "Record the reading and continue, since any pulse above 50 is normal",
+      "Recheck the pulse, then report the reading and the dizziness to the supervising licensed provider",
+      "Advise the patient to begin an exercise program to raise the heart rate",
+      "Adjust the patient's medication dose to correct the low pulse"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A resting adult pulse below 60 beats per minute is bradycardia, and paired with dizziness it is a finding that needs a licensed provider's judgment. Confirming the measurement and reporting both the value and the symptom is within a medical assistant's role. Giving medical advice or adjusting a medication is outside that scope of practice.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

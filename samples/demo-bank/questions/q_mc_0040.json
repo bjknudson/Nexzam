@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0040",
+  "type": "multiple_choice",
+  "topic": "Government",
+  "difficulty": 3,
+  "prompt": "Marbury v. Madison (1803) is considered a landmark case primarily because it",
+  "subtopic": "Judicial Review",
+  "tags": [
+    "supreme-court",
+    "judicial-review",
+    "landmark-cases",
+    "separation-of-powers"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.5"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Pairs naturally with the Tinker free-response item on how the Court applies the Constitution.",
+  "answer": {
+    "choices": [
+      "established the Supreme Court's power to declare acts of Congress unconstitutional",
+      "gave the President authority to remove federal judges from office",
+      "created the federal system of district and appellate courts",
+      "granted Congress the power to regulate interstate commerce"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "Chief Justice Marshall's opinion held that a provision of the Judiciary Act of 1789 conflicted with the Constitution and was therefore void, establishing judicial review. That principle is what makes the judiciary a genuine check on the other branches. The lower federal courts were created by the Judiciary Act of 1789, and the commerce power comes from Article I rather than from this case.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

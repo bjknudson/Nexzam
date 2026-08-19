@@ -48,11 +48,11 @@ def test_api_creates_question_from_json_with_automatic_id(
     create_response = client.post("/api/questions/from-json", json=payload)
 
     assert create_response.status_code == 200
-    assert create_response.json()["id"] == "q_sa_0002"
+    assert create_response.json()["id"] == "q_sa_0011"
 
     list_response = client.get("/api/questions", params={"search": "AI-generated"})
     assert list_response.status_code == 200
-    assert [item["id"] for item in list_response.json()["items"]] == ["q_sa_0002"]
+    assert [item["id"] for item in list_response.json()["items"]] == ["q_sa_0011"]
 
 
 def test_api_returns_next_question_id_for_type(client: TestClient, demo_bok: Path) -> None:
@@ -62,7 +62,7 @@ def test_api_returns_next_question_id_for_type(client: TestClient, demo_bok: Pat
     response = client.get("/api/questions/next-id", params={"type": "numeric_response"})
 
     assert response.status_code == 200
-    assert response.json() == {"id": "q_num_0002"}
+    assert response.json() == {"id": "q_num_0008"}
 
 
 def test_api_rejects_invalid_question_json(client: TestClient, demo_bok: Path) -> None:
@@ -102,7 +102,7 @@ def test_api_stages_question_json_import(client: TestClient, demo_bok: Path) -> 
     assert stage_response.status_code == 200
     stage = stage_response.json()
     assert stage["rows"][0]["status"] == "valid"
-    assert stage["rows"][0]["proposed_id"] == "q_num_0002"
+    assert stage["rows"][0]["proposed_id"] == "q_num_0008"
 
     list_response = client.get("/api/question-imports")
     assert list_response.status_code == 200
@@ -135,7 +135,7 @@ def test_api_stages_question_csv_import(client: TestClient, demo_bok: Path) -> N
     stage = stage_response.json()
     assert stage["source_filename"] == "questions.csv"
     assert stage["rows"][0]["status"] == "valid"
-    assert stage["rows"][0]["proposed_id"] == "q_sa_0002"
+    assert stage["rows"][0]["proposed_id"] == "q_sa_0011"
 
 
 def test_api_promotes_staged_question_import(client: TestClient, demo_bok: Path) -> None:
@@ -167,10 +167,10 @@ def test_api_promotes_staged_question_import(client: TestClient, demo_bok: Path)
 
     assert promote_response.status_code == 200
     promoted = promote_response.json()
-    assert promoted["promoted_question_ids"] == ["q_sa_0002"]
+    assert promoted["promoted_question_ids"] == ["q_sa_0011"]
     assert promoted["stage"]["rows"][0]["status"] == "promoted"
 
-    question_after_response = client.get("/api/questions/q_sa_0002")
+    question_after_response = client.get("/api/questions/q_sa_0011")
     assert question_after_response.status_code == 200
     assert question_after_response.json()["prompt"] == "API promotion writes staged rows to questions."
 
@@ -208,3 +208,63 @@ def test_api_updates_staged_question_import_row(client: TestClient, demo_bok: Pa
     assert updated_stage["rows"][0]["status"] == "valid"
     assert updated_stage["rows"][0]["selected"] is True
     assert updated_stage["rows"][0]["issues"] == []
+
+
+def test_api_creates_standards_manually(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    create_response = client.post(
+        "/api/standards/manual",
+        json={
+            "source_list_id": "hand-entered-2026",
+            "title": "Hand Entered Standards",
+            "issuer": "Classroom Teacher",
+            "subject": "Physics",
+            "standards": [
+                {
+                    "id": "HAND-01",
+                    "statement": "Describe the relationship between force and acceleration.",
+                    "tags": ["forces"],
+                },
+                {
+                    "id": "HAND-02",
+                    "code": "HAND-2",
+                    "statement": "Interpret a position versus time graph.",
+                    "grade_band": "9-12",
+                    "tags": [],
+                },
+            ],
+        },
+    )
+
+    assert create_response.status_code == 200
+    created = create_response.json()
+    assert created["imported_count"] == 2
+    assert created["source_list"]["id"] == "hand-entered-2026"
+
+    list_response = client.get("/api/standards", params={"source_list_id": "hand-entered-2026"})
+    assert list_response.status_code == 200
+    items = {item["id"]: item for item in list_response.json()["items"]}
+    assert set(items) == {"HAND-01", "HAND-02"}
+    assert items["HAND-01"]["code"] == "HAND-01"
+    assert items["HAND-01"]["subject"] == "Physics"
+    assert items["HAND-02"]["code"] == "HAND-2"
+
+
+def test_api_rejects_manual_standards_with_duplicate_id(client: TestClient, demo_bok: Path) -> None:
+    open_response = client.post("/api/banks/open", json={"path": str(demo_bok)})
+    assert open_response.status_code == 200
+
+    response = client.post(
+        "/api/standards/manual",
+        json={
+            "source_list_id": "physics-core-2026",
+            "standards": [
+                {"id": "PHY-KIN-01", "statement": "Duplicate of a saved standard.", "tags": []}
+            ],
+        },
+    )
+
+    assert response.status_code == 409
+    assert "PHY-KIN-01" in response.json()["detail"]

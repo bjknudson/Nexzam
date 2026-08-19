@@ -1,0 +1,41 @@
+{
+  "id": "q_mc_0025",
+  "type": "multiple_choice",
+  "topic": "AP U.S. History",
+  "difficulty": 3,
+  "prompt": "Read the excerpt and answer the question.\n\n    \"If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.\"\n    - James Madison, Federalist No. 51, 1788\n\nMadison uses this reasoning most directly to justify",
+  "subtopic": "Constitutional Foundations",
+  "tags": [
+    "constitution",
+    "federalist-papers",
+    "checks-and-balances",
+    "stimulus-based",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-3.2.I"
+    },
+    {
+      "standard_id": "APUSH-P3"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Connect to the Government course items on checks and balances for a cross-course review.",
+  "answer": {
+    "choices": [
+      "the separation of powers and a system of checks among the branches",
+      "the immediate abolition of the office of the presidency",
+      "restricting the vote to property-owning men",
+      "returning governing authority to the Articles of Confederation"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "Madison's premise is that officeholders are ordinary, self-interested people. From that premise he argues that a government must be structured so ambition checks ambition, which is the case for dividing power among branches and giving each the means to resist the others. He is defending the proposed Constitution, not the Articles it replaced, and the passage says nothing about suffrage requirements.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

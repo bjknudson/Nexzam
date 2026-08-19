@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   attachStandardToCourse,
+  createStandardsManually,
   detachStandardFromCourse,
   importStandards,
   listCourses,
@@ -13,6 +14,7 @@ import {
 import type { CourseModel, SourceStandardListModel, StandardRecordModel } from "./types";
 
 const PANE_SYNC_CHANNEL = "nexzam-pane-sync";
+const NEW_SOURCE_LIST_OPTION = "__new__";
 
 type StandardsWorkspaceMode = "workspace" | "picker";
 
@@ -41,6 +43,42 @@ interface StandardEditDraft {
   subject: string;
   grade_band: string;
   tagsText: string;
+}
+
+interface ManualStandardRow {
+  key: string;
+  id: string;
+  code: string;
+  statement: string;
+  subject: string;
+  grade_band: string;
+  tagsText: string;
+}
+
+let manualRowSerial = 0;
+
+function buildManualStandardRow(): ManualStandardRow {
+  manualRowSerial += 1;
+  return {
+    key: `manual-row-${manualRowSerial}`,
+    id: "",
+    code: "",
+    statement: "",
+    subject: "",
+    grade_band: "",
+    tagsText: "",
+  };
+}
+
+function isManualRowEmpty(row: ManualStandardRow): boolean {
+  return !(
+    row.id.trim() ||
+    row.code.trim() ||
+    row.statement.trim() ||
+    row.subject.trim() ||
+    row.grade_band.trim() ||
+    row.tagsText.trim()
+  );
 }
 
 function buildStandardEditDraft(standard: StandardRecordModel): StandardEditDraft {
@@ -93,6 +131,14 @@ export default function StandardsWorkspace({
   const [importSubject, setImportSubject] = useState("");
   const [importVersion, setImportVersion] = useState("");
   const [importDescription, setImportDescription] = useState("");
+  const [manualSourceListId, setManualSourceListId] = useState(NEW_SOURCE_LIST_OPTION);
+  const [manualListId, setManualListId] = useState("");
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualIssuer, setManualIssuer] = useState("");
+  const [manualSubject, setManualSubject] = useState("");
+  const [manualVersion, setManualVersion] = useState("");
+  const [manualDescription, setManualDescription] = useState("");
+  const [manualRows, setManualRows] = useState<ManualStandardRow[]>([buildManualStandardRow()]);
   const [editingStandardId, setEditingStandardId] = useState<string | null>(null);
   const [standardEditDraft, setStandardEditDraft] = useState<StandardEditDraft | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,6 +146,7 @@ export default function StandardsWorkspace({
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showImportPanel, setShowImportPanel] = useState(false);
+  const [showManualPanel, setShowManualPanel] = useState(false);
   const [showSourceDrawer, setShowSourceDrawer] = useState(false);
   const [showSourceListsPanel, setShowSourceListsPanel] = useState(false);
   const [questionStandardsState, setQuestionStandardsState] = useState<QuestionStandardsSnapshot>({
@@ -392,6 +439,110 @@ export default function StandardsWorkspace({
     }
   }
 
+  function updateManualRow<K extends keyof ManualStandardRow>(
+    key: string,
+    field: K,
+    value: ManualStandardRow[K],
+  ) {
+    setManualRows((rows) =>
+      rows.map((row) => (row.key === key ? { ...row, [field]: value } : row)),
+    );
+  }
+
+  function handleAddManualRow() {
+    setManualRows((rows) => [...rows, buildManualStandardRow()]);
+  }
+
+  function handleRemoveManualRow(key: string) {
+    setManualRows((rows) => {
+      const remaining = rows.filter((row) => row.key !== key);
+      return remaining.length > 0 ? remaining : [buildManualStandardRow()];
+    });
+  }
+
+  function resetManualStandards() {
+    setManualSourceListId(NEW_SOURCE_LIST_OPTION);
+    setManualListId("");
+    setManualTitle("");
+    setManualIssuer("");
+    setManualSubject("");
+    setManualVersion("");
+    setManualDescription("");
+    setManualRows([buildManualStandardRow()]);
+  }
+
+  function handleCancelManualStandards() {
+    resetManualStandards();
+    setShowManualPanel(false);
+    setErrorMessage("");
+  }
+
+  function handleOpenManualPanel() {
+    setShowImportPanel(false);
+    setShowManualPanel((current) => {
+      if (current) {
+        resetManualStandards();
+        return false;
+      }
+      return true;
+    });
+    setErrorMessage("");
+  }
+
+  async function handleSaveManualStandards() {
+    const filledRows = manualRows.filter((row) => !isManualRowEmpty(row));
+    if (filledRows.length === 0) {
+      setErrorMessage("Fill in at least one standard row before saving.");
+      return;
+    }
+
+    const incomplete = filledRows.find((row) => !row.id.trim() || !row.statement.trim());
+    if (incomplete) {
+      setErrorMessage("Every standard row needs a standard id and standard text.");
+      return;
+    }
+
+    const creatingSourceList = manualSourceListId === NEW_SOURCE_LIST_OPTION;
+    if (creatingSourceList && !(manualListId.trim() && manualTitle.trim() && manualIssuer.trim())) {
+      setErrorMessage("A new source list needs an id, a title, and an issuer.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const response = await createStandardsManually({
+        source_list_id: creatingSourceList ? manualListId : manualSourceListId,
+        title: creatingSourceList ? manualTitle : undefined,
+        issuer: creatingSourceList ? manualIssuer : undefined,
+        subject: creatingSourceList ? manualSubject || undefined : undefined,
+        version: creatingSourceList ? manualVersion || undefined : undefined,
+        description: creatingSourceList ? manualDescription || undefined : undefined,
+        standards: filledRows.map((row) => ({
+          id: row.id.trim(),
+          code: row.code.trim() || undefined,
+          statement: row.statement.trim(),
+          subject: row.subject.trim() || undefined,
+          grade_band: row.grade_band.trim() || undefined,
+          tags: parseTags(row.tagsText),
+        })),
+      });
+
+      setStatusMessage(
+        `Added ${response.imported_count} standards to ${response.source_list.title}.`,
+      );
+      setErrorMessage("");
+      setSelectedSourceListId(response.source_list.id);
+      resetManualStandards();
+      setShowManualPanel(false);
+      channelRef.current?.postMessage({ type: "standards-data-changed" });
+      await refreshData();
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function handleQuestionStandardToggle(standardId: string) {
     if (!questionStandardsState.questionId) {
       setErrorMessage("Select a question in the main window before attaching standards.");
@@ -501,8 +652,17 @@ export default function StandardsWorkspace({
               >
                 {showSourceListsPanel ? "Hide Source Lists" : "Manage Source Lists"}
               </button>
-              <button type="button" onClick={() => setShowImportPanel((current) => !current)}>
-                {showImportPanel ? "Close Import" : "Import Standards"}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowManualPanel(false);
+                  setShowImportPanel((current) => !current);
+                }}
+              >
+                {showImportPanel ? "Close Upload" : "Upload Standards"}
+              </button>
+              <button type="button" onClick={handleOpenManualPanel}>
+                {showManualPanel ? "Close Manual Entry" : "Input Manually"}
               </button>
               <button
                 type="button"
@@ -604,7 +764,7 @@ export default function StandardsWorkspace({
       {!pickerMode && showImportPanel ? (
       <section className="standards-import-panel">
         <div className="standards-import-copy">
-          <h2>Import Standards</h2>
+          <h2>Upload Standards</h2>
           <p>
             CSV headers: <code>id</code> or <code>standard_id</code>, <code>code</code>,{" "}
             <code>statement</code>, optional <code>subject</code>, <code>grade_band</code>,{" "}
@@ -683,6 +843,173 @@ export default function StandardsWorkspace({
           {importFile ? <span>{importFile.name}</span> : null}
         </div>
       </section>
+      ) : null}
+
+      {!pickerMode && showManualPanel ? (
+        <section className="standards-import-panel standards-manual-panel">
+          <div className="standards-panel-header">
+            <div>
+              <h2>Add Standards Manually</h2>
+              <p>
+                Type one standard per row. Leave Short Name blank to reuse the standard id, and
+                separate topic tags with commas.
+              </p>
+            </div>
+            <div className="standards-course-actions">
+              <button type="button" onClick={handleCancelManualStandards} disabled={busy}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveManualStandards()}
+                disabled={busy}
+              >
+                {busy ? "Saving..." : "Save Standards"}
+              </button>
+            </div>
+          </div>
+
+          <div className="standards-import-grid">
+            <label>
+              Source List
+              <select
+                value={manualSourceListId}
+                onChange={(event) => setManualSourceListId(event.target.value)}
+              >
+                <option value={NEW_SOURCE_LIST_OPTION}>Create a new source list</option>
+                {sourceLists.map((sourceList) => (
+                  <option key={sourceList.id} value={sourceList.id}>
+                    {sourceList.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {manualSourceListId === NEW_SOURCE_LIST_OPTION ? (
+              <>
+                <label>
+                  Source List ID
+                  <input
+                    value={manualListId}
+                    onChange={(event) => setManualListId(normalizeId(event.target.value))}
+                    placeholder="physics-core-2026"
+                  />
+                </label>
+                <label>
+                  Title
+                  <input
+                    value={manualTitle}
+                    onChange={(event) => setManualTitle(event.target.value)}
+                    placeholder="Physics Core Standards"
+                  />
+                </label>
+                <label>
+                  Issuer
+                  <input
+                    value={manualIssuer}
+                    onChange={(event) => setManualIssuer(event.target.value)}
+                    placeholder="State Curriculum Office"
+                  />
+                </label>
+                <label>
+                  Subject
+                  <input
+                    value={manualSubject}
+                    onChange={(event) => setManualSubject(event.target.value)}
+                    placeholder="Physics"
+                  />
+                </label>
+                <label>
+                  Version
+                  <input
+                    value={manualVersion}
+                    onChange={(event) => setManualVersion(event.target.value)}
+                    placeholder="2026.1"
+                  />
+                </label>
+                <label className="metadata-span-full">
+                  Description
+                  <input
+                    value={manualDescription}
+                    onChange={(event) => setManualDescription(event.target.value)}
+                    placeholder="Standards typed in by hand"
+                  />
+                </label>
+              </>
+            ) : null}
+          </div>
+
+          <div className="standards-manual-scroll">
+            <div className="standards-manual-rows">
+              <div className="standards-manual-row standards-manual-head">
+                <span>Standard ID</span>
+                <span>Short Name</span>
+                <span>Standard Text</span>
+                <span>Subject</span>
+                <span>Grade Band</span>
+                <span>Topic Tags</span>
+                <span />
+              </div>
+              {manualRows.map((row, index) => (
+                <div className="standards-manual-row" key={row.key}>
+                  <input
+                    value={row.id}
+                    onChange={(event) => updateManualRow(row.key, "id", event.target.value)}
+                    placeholder="PHY-KIN-01"
+                    aria-label={`Standard id for row ${index + 1}`}
+                  />
+                  <input
+                    value={row.code}
+                    onChange={(event) => updateManualRow(row.key, "code", event.target.value)}
+                    placeholder="PHY-KIN-01"
+                    aria-label={`Short name for row ${index + 1}`}
+                  />
+                  <textarea
+                    value={row.statement}
+                    onChange={(event) => updateManualRow(row.key, "statement", event.target.value)}
+                    placeholder="Full standard text"
+                    rows={2}
+                    aria-label={`Standard text for row ${index + 1}`}
+                  />
+                  <input
+                    value={row.subject}
+                    onChange={(event) => updateManualRow(row.key, "subject", event.target.value)}
+                    placeholder="Physics"
+                    aria-label={`Subject for row ${index + 1}`}
+                  />
+                  <input
+                    value={row.grade_band}
+                    onChange={(event) => updateManualRow(row.key, "grade_band", event.target.value)}
+                    placeholder="9-12"
+                    aria-label={`Grade band for row ${index + 1}`}
+                  />
+                  <input
+                    value={row.tagsText}
+                    onChange={(event) => updateManualRow(row.key, "tagsText", event.target.value)}
+                    placeholder="mechanics, kinematics"
+                    aria-label={`Topic tags for row ${index + 1}`}
+                  />
+                  <button
+                    type="button"
+                    className="standards-manual-remove"
+                    onClick={() => handleRemoveManualRow(row.key)}
+                    disabled={busy}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="standards-import-actions">
+            <button type="button" onClick={handleAddManualRow} disabled={busy}>
+              Add Row
+            </button>
+            <span>
+              {manualRows.length} {manualRows.length === 1 ? "row" : "rows"}
+            </span>
+          </div>
+        </section>
       ) : null}
 
       {!pickerMode ? (

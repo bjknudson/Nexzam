@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0018",
+  "type": "multiple_choice",
+  "topic": "Spanish 2",
+  "difficulty": 2,
+  "prompt": "Lee el anuncio y contesta la pregunta.\n\n    \u00a1Gran apertura! La panader\u00eda La Espiga abre sus puertas el s\u00e1bado 12 de marzo a las 8:00 de la ma\u00f1ana. Los primeros cincuenta clientes reciben un caf\u00e9 gratis. Cerramos los domingos.\n\n\u00bfQu\u00e9 recibe un cliente que llega temprano el s\u00e1bado?",
+  "subtopic": "Comprensi\u00f3n de lectura",
+  "tags": [
+    "interpretive-reading",
+    "comprehension",
+    "realia",
+    "vocabulary"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-1.2"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "The distractor about a fifty percent discount checks whether students are reading cincuenta as a count of customers rather than a percentage.",
+  "answer": {
+    "choices": [
+      "Un pan gratis",
+      "Un caf\u00e9 gratis",
+      "Un descuento del cincuenta por ciento",
+      "Una entrada para el domingo"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The ad says that los primeros cincuenta clientes reciben un caf\u00e9 gratis, so the first fifty customers receive a free coffee. Cincuenta counts the customers and is not a discount percentage, no free bread is offered, and the bakery is closed on Sundays.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

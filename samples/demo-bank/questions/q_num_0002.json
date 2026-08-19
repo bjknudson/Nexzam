@@ -1,0 +1,33 @@
+{
+  "id": "q_num_0002",
+  "type": "numeric_response",
+  "topic": "Medical Careers",
+  "difficulty": 3,
+  "prompt": "A patient weighs $154\\text{ lb}$. Medication orders on this unit are written per kilogram of body weight. Using $1\\text{ kg}=2.2\\text{ lb}$, what is the patient's mass in kilograms?",
+  "subtopic": "Patient Measurements",
+  "tags": [
+    "dosage-calculation",
+    "unit-conversion",
+    "patient-care",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-B1.2"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 2.0,
+  "status": "review",
+  "teacher_notes": "Students who multiply instead of divide will report 338.8 kg, which is a useful reasonableness check to discuss.",
+  "answer": {
+    "value": 70,
+    "unit": "kg",
+    "tolerance": 0.5
+  },
+  "explanation": "Divide the weight in pounds by the conversion factor: $\\frac{154\\text{ lb}}{2.2\\text{ lb/kg}}=70\\text{ kg}$. Converting before calculating a weight-based dose is a routine patient safety step.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

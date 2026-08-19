@@ -6,6 +6,7 @@ import type {
   BankSummaryModel,
   CourseListResponseModel,
   CourseModel,
+  CreateStandardsManuallyRequest,
   QuestionImportListResponseModel,
   QuestionImportPromoteResponseModel,
   QuestionImportStageModel,
@@ -174,6 +175,18 @@ export async function importStandards(payload: {
     await fetch(buildApiUrl("/api/standards/import"), {
       method: "POST",
       body: formData,
+    }),
+  );
+}
+
+export async function createStandardsManually(
+  payload: CreateStandardsManuallyRequest,
+): Promise<StandardImportResponseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/standards/manual"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     }),
   );
 }

@@ -1,0 +1,33 @@
+{
+  "id": "q_num_0007",
+  "type": "numeric_response",
+  "topic": "Government",
+  "difficulty": 2,
+  "prompt": "There are 538 electoral votes in the Electoral College. What is the minimum number of electoral votes a presidential candidate must receive to win outright, without the election going to the House of Representatives?",
+  "subtopic": "Elections and the Electoral College",
+  "tags": [
+    "electoral-college",
+    "elections",
+    "presidency",
+    "majority"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.6"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 2.0,
+  "status": "ready",
+  "teacher_notes": "Discuss why a majority rather than a plurality is required, and what happens in a 269 to 269 tie.",
+  "answer": {
+    "value": 270,
+    "unit": "electoral votes",
+    "tolerance": 0
+  },
+  "explanation": "A candidate needs an absolute majority, meaning more than half of 538, which is more than 269. The smallest whole number greater than 269 is 270. A 269 to 269 tie sends the presidential election to the House of Representatives, where each state delegation casts a single vote.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

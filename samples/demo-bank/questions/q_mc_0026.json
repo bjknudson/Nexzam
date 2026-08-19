@@ -1,0 +1,40 @@
+{
+  "id": "q_mc_0026",
+  "type": "multiple_choice",
+  "topic": "AP U.S. History",
+  "difficulty": 2,
+  "prompt": "Which statement best describes the significance of Brown v. Board of Education (1954)?",
+  "subtopic": "Civil Rights Movement",
+  "tags": [
+    "civil-rights",
+    "supreme-court",
+    "segregation",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APUSH-KC-8.2.I"
+    },
+    {
+      "standard_id": "APUSH-P1"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "The distractor about immediate desegregation is worth discussing alongside Little Rock in 1957.",
+  "answer": {
+    "choices": [
+      "It overturned the separate but equal doctrine in public education and gave the movement a federal legal foundation",
+      "It immediately desegregated every public school in the United States within one year",
+      "It established the constitutionality of segregated railroad cars",
+      "It ended the poll tax in federal elections"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "Brown held that separate educational facilities are inherently unequal, reversing the doctrine Plessy v. Ferguson had established in 1896. Its practical effect was slow, since the Court's 1955 implementation ruling called only for desegregation with all deliberate speed and resistance persisted for years, which is precisely why the second option is wrong. The poll tax was addressed by the Twenty-fourth Amendment.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

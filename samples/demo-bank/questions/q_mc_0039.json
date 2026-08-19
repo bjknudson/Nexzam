@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0039",
+  "type": "multiple_choice",
+  "topic": "Government",
+  "difficulty": 2,
+  "prompt": "A state law requires police to search a home without a warrant whenever they suspect a crime. Which constitutional protection does this most directly violate?",
+  "subtopic": "Civil Liberties",
+  "tags": [
+    "bill-of-rights",
+    "fourth-amendment",
+    "civil-liberties"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.1"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Follow up by asking which recognized exceptions to the warrant requirement would change the analysis.",
+  "answer": {
+    "choices": [
+      "The First Amendment protection of free speech",
+      "The Fourth Amendment protection against unreasonable searches and seizures",
+      "The Sixth Amendment right to a speedy trial",
+      "The Tenth Amendment reservation of powers to the states"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The Fourth Amendment requires that warrants be supported by probable cause and describe the place to be searched, so a blanket rule authorizing warrantless home searches on suspicion alone conflicts with it directly. Free speech, trial timing, and the division of state and federal powers are not what a search of a home implicates.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

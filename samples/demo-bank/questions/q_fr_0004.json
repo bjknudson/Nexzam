@@ -1,0 +1,50 @@
+{
+  "id": "q_fr_0004",
+  "type": "free_response",
+  "topic": "Medical Careers",
+  "difficulty": 5,
+  "prompt": "A patient who speaks limited English is scheduled for a procedure later today and appears visibly anxious. An adult family member offers to interpret for the care team.\n\nDescribe how you would respond as a member of the health care team. Address all three parts:\n(a) the communication barrier and its effect on informed consent,\n(b) why a qualified medical interpreter is preferred over a family member,\n(c) two specific professional behaviors you would use to reduce the patient's anxiety.",
+  "subtopic": "Therapeutic Communication",
+  "tags": [
+    "communication",
+    "patient-centered-care",
+    "informed-consent",
+    "ethics",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSMT-2.4"
+    },
+    {
+      "standard_id": "HSMT-8.3"
+    }
+  ],
+  "estimated_time_sec": 600,
+  "points": 8.0,
+  "status": "draft",
+  "teacher_notes": "Pairs well with a role-play activity. Look for behaviors that are observable and specific rather than general statements about being kind.",
+  "answer": null,
+  "explanation": "Informed consent requires that the patient understand the procedure, the risks, and the alternatives, so a language barrier is a consent problem and not only a comfort problem. Qualified medical interpreters are trained in clinical vocabulary, are bound by confidentiality, and are neutral. Family members may soften bad news, lack the vocabulary, or have their own interests in the decision. Anxiety-reducing behaviors include sitting at eye level, speaking to the patient rather than to the interpreter, explaining each step before it happens, and checking understanding with teach-back.",
+  "rubric": [
+    {
+      "criterion": "Identifies the language barrier and connects it to valid informed consent",
+      "points": 2.0
+    },
+    {
+      "criterion": "Explains why a qualified medical interpreter is preferred over a family member",
+      "points": 2.0
+    },
+    {
+      "criterion": "Describes two specific, observable anxiety-reducing behaviors",
+      "points": 2.0
+    },
+    {
+      "criterion": "Uses professional, patient-centered language throughout the response",
+      "points": 2.0
+    }
+  ],
+  "sample_solution": "I would thank the family member and explain that the facility provides a qualified medical interpreter at no cost to the patient. The patient must understand the procedure, its risks, and the alternatives for consent to be informed, so accuracy matters more than convenience. A trained interpreter knows the clinical vocabulary, is bound by confidentiality, and is neutral, while a relative may edit or soften what is said. To reduce anxiety I would sit at eye level and speak directly to the patient rather than to the interpreter, and I would explain each step before it happens and use teach-back to confirm understanding.",
+  "exemplar_answer": "Because the patient speaks limited English, the team cannot assume that anything explained in English has been understood, and consent that is not understood is not informed consent. I would arrange a qualified medical interpreter rather than accept the family member's offer. Interpreters are trained in medical terminology, bound by confidentiality, and neutral, whereas a family member may unintentionally paraphrase, omit frightening details, or have a personal stake in the decision. While waiting, I would sit at eye level rather than standing over the patient, and I would narrate each step in short sentences before performing it, pausing to let the patient ask questions through the interpreter.",
+  "assets": []
+}

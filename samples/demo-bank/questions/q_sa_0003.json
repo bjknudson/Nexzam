@@ -1,0 +1,29 @@
+{
+  "id": "q_sa_0003",
+  "type": "short_answer",
+  "topic": "Cinematography",
+  "difficulty": 2,
+  "prompt": "Name the three lights in a standard three-point lighting setup and state the purpose of each one.",
+  "subtopic": "Lighting",
+  "tags": [
+    "lighting",
+    "three-point-lighting",
+    "production",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A5.2"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 3.0,
+  "status": "review",
+  "teacher_notes": "Accept rim light or hair light for back light. Full credit requires a distinct purpose for each of the three, not just the names.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "The key light is the main and brightest source; it establishes the direction and hardness of the light falling on the subject. The fill light sits opposite the key at a lower intensity and softens the shadows the key creates, which controls the contrast ratio. The back light is placed behind the subject, rims the head and shoulders, and separates the subject from the background so the frame reads with depth.",
+  "exemplar_answer": null,
+  "assets": []
+}

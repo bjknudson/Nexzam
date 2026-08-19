@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0041",
+  "type": "multiple_choice",
+  "topic": "Mechanics",
+  "difficulty": 2,
+  "prompt": "A book rests on a table. The table pushes up on the book with a normal force. According to Newton's third law, what is the reaction force to that normal force?",
+  "subtopic": "Newton's third law",
+  "tags": [
+    "forces",
+    "newtons-third-law",
+    "conceptual"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-NEW-01"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "The weight distractor catches nearly every student the first time; insist on naming both objects in each pair.",
+  "answer": {
+    "choices": [
+      "The weight of the book pulling down on the table",
+      "The book pushing down on the table",
+      "The weight of the table pressing on the floor",
+      "The friction between the book and the table"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A third-law pair always involves the same two objects with the forces reversed. The table pushes up on the book, so the reaction is the book pushing down on the table. The book's weight is a gravitational force exerted by Earth on the book, so its reaction partner is the book pulling up on Earth, not anything involving the table.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

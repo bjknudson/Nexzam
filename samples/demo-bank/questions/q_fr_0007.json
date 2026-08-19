@@ -1,0 +1,50 @@
+{
+  "id": "q_fr_0007",
+  "type": "free_response",
+  "topic": "AP English Literature",
+  "difficulty": 5,
+  "prompt": "Read the following poem carefully. Then, in a well-organized essay, analyze how Dickinson uses the extended metaphor of the bird to develop a complex understanding of hope. You may consider such elements as imagery, diction, and structure.\n\n    \"Hope\" is the thing with feathers -\n    That perches in the soul -\n    And sings the tune without the words -\n    And never stops - at all -\n\n    And sweetest - in the Gale - is heard -\n    And sore must be the storm -\n    That could abash the little Bird\n    That kept so many warm -\n\n    I've heard it in the chillest land -\n    And on the strangest Sea -\n    Yet - never - in Extremity,\n    It asked a crumb - of me.\n\n    - Emily Dickinson",
+  "subtopic": "Poetry Analysis Essay",
+  "tags": [
+    "poetry-analysis",
+    "extended-metaphor",
+    "essay",
+    "ap-rubric",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-7.B"
+    },
+    {
+      "standard_id": "APLIT-5.C"
+    }
+  ],
+  "estimated_time_sec": 2400,
+  "points": 6.0,
+  "status": "ready",
+  "teacher_notes": "Timed at the 40 minutes of a single AP free-response question. Scored on the six-point analytic rubric, so remind students that a summary of the poem earns no thesis point.",
+  "answer": null,
+  "explanation": "The metaphor is sustained across all three stanzas and shifts as it goes. In stanza one hope is small and untiring, singing wordlessly and never stopping. In stanza two the storm imagery raises the stakes: hope sings sweetest under pressure, and only a severe storm could \"abash\" it. In stanza three the speaker places hope in extreme locations, the \"chillest land\" and \"strangest Sea,\" and closes on the claim that hope has never asked \"a crumb\" of her. The complexity is in that final turn, since hope is fragile and feathered yet also unpaid and inexhaustible, which makes it both a comfort and something the speaker cannot quite account for.",
+  "rubric": [
+    {
+      "criterion": "Thesis: presents a defensible interpretation of the poem",
+      "points": 1.0
+    },
+    {
+      "criterion": "Evidence: selects specific and relevant details from the poem",
+      "points": 2.0
+    },
+    {
+      "criterion": "Commentary: explains how the evidence supports the line of reasoning",
+      "points": 2.0
+    },
+    {
+      "criterion": "Sophistication: demonstrates complexity of thought or a nuanced grasp of the poem",
+      "points": 1.0
+    }
+  ],
+  "sample_solution": "A successful essay argues a defensible claim about how the bird metaphor complicates hope rather than simply praising it. Usable evidence includes the fragility of \"feathers\" set against the endurance of \"never stops - at all,\" the storm imagery of stanza two in which hope sings \"sweetest - in the Gale,\" the geographic extremes of the \"chillest land\" and \"strangest Sea,\" and the final claim that hope \"asked a crumb\" of the speaker. Commentary should connect these to a reading of hope as small, involuntary, and unearned. The sophistication point rewards essays that hold the tension between hope's frailty and its persistence, or that notice the speaker's slight unease at owing nothing for something so sustaining.",
+  "exemplar_answer": "Dickinson's extended metaphor makes hope less a virtue than a small, uninvited tenant, and the poem's complexity comes from how little the speaker controls it. Hope is \"the thing with feathers,\" a phrase that withholds the name of the bird and keeps it faintly strange, and it \"perches in the soul\" rather than being summoned there. Its song has no words, so it offers no argument and no reason, only persistence: it \"never stops - at all.\" The second stanza raises the pressure, since hope is \"sweetest - in the Gale\" and only a \"sore\" storm could \"abash\" it, a verb that imagines hope as capable of embarrassment rather than defeat. By the third stanza the speaker has tested it in the \"chillest land\" and \"on the strangest Sea,\" and the poem closes on the strangest fact of all: hope \"asked a crumb\" of her, never anything more. That final understatement is where the poem turns complex. A thing that costs nothing should be a pure gift, yet the speaker records the debt she does not owe, as if unsure what to make of a comfort that arrives without being earned.",
+  "assets": []
+}

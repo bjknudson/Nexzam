@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0035",
+  "type": "multiple_choice",
+  "topic": "Cinematography",
+  "difficulty": 3,
+  "prompt": "A cinematographer wants a shallow depth of field so the subject is sharp and the background falls out of focus. Which change to the lens best achieves this?",
+  "subtopic": "Exposure and Depth of Field",
+  "tags": [
+    "depth-of-field",
+    "aperture",
+    "exposure",
+    "cte"
+  ],
+  "standards": [
+    {
+      "standard_id": "AME-A7.3"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "The inverse relationship between f-number and aperture width is the sticking point worth drilling.",
+  "answer": {
+    "choices": [
+      "Open the aperture to a wider setting, such as moving from f/11 to f/2.8",
+      "Close the aperture to a narrower setting, such as moving from f/2.8 to f/11",
+      "Increase the frame rate from 24 to 60 frames per second",
+      "Switch the white balance from daylight to tungsten"
+    ],
+    "correct_choice_index": 0
+  },
+  "explanation": "Depth of field narrows as the aperture opens, and smaller f-numbers mean wider apertures, so f/2.8 gives a much shallower field than f/11. Closing down does the opposite and brings the background into focus. Frame rate governs motion rendering and white balance governs color, so neither affects depth of field.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0013",
+  "type": "multiple_choice",
+  "topic": "Algebra 1",
+  "difficulty": 1,
+  "prompt": "Solve for $x$: $3(x-4)=2x+5$.",
+  "subtopic": "Solving Linear Equations",
+  "tags": [
+    "linear-equations",
+    "distributive-property",
+    "solving"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSA-REI.B.3"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "The distractor $x=-17$ catches students who distribute the 3 to only the first term.",
+  "answer": {
+    "choices": [
+      "$x=-17$",
+      "$x=1$",
+      "$x=9$",
+      "$x=17$"
+    ],
+    "correct_choice_index": 3
+  },
+  "explanation": "Distribute on the left: $3x-12=2x+5$. Subtract $2x$ from both sides: $x-12=5$. Add 12 to both sides: $x=17$. Checking, $3(17-4)=39$ and $2(17)+5=39$.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

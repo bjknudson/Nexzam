@@ -1,0 +1,38 @@
+{
+  "id": "q_mc_0023",
+  "type": "multiple_choice",
+  "topic": "AP English Literature",
+  "difficulty": 3,
+  "prompt": "Read the opening sentence of Jane Austen's Pride and Prejudice.\n\n    It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.\n\nThe phrase \"universally acknowledged\" functions primarily to",
+  "subtopic": "Irony and Diction",
+  "tags": [
+    "irony",
+    "diction",
+    "narration",
+    "close-reading",
+    "ap"
+  ],
+  "standards": [
+    {
+      "standard_id": "APLIT-5.C"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Ask students which single word would have to change for the sentence to read as sincere.",
+  "answer": {
+    "choices": [
+      "establish the narrator as an unreliable participant in the story",
+      "signal irony by presenting a local social assumption as though it were a universal law",
+      "introduce the novel's central conflict between two rival families",
+      "confirm that wealthy men in the novel are actively seeking marriage"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "The grandeur of \"universally acknowledged\" is deliberately out of proportion to the claim it introduces, which is not a truth at all but the assumption of a particular neighborhood at a particular moment. The gap between the lofty framing and the parochial content is the irony, and it establishes the narrator's amused distance from the marriage market before any character has appeared.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

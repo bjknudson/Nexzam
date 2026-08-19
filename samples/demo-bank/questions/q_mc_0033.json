@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0033",
+  "type": "multiple_choice",
+  "topic": "Chemistry",
+  "difficulty": 3,
+  "prompt": "Balance the combustion of propane:\n\n$\\text{C}_3\\text{H}_8+\\underline{\\phantom{x}}\\ \\text{O}_2\\rightarrow3\\,\\text{CO}_2+4\\,\\text{H}_2\\text{O}$\n\nWhat coefficient belongs in front of $\\text{O}_2$?",
+  "subtopic": "Balancing Equations",
+  "tags": [
+    "balancing-equations",
+    "combustion",
+    "conservation-of-mass",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-7"
+    }
+  ],
+  "estimated_time_sec": 120,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Have students verify carbon and hydrogen counts as well, not just oxygen.",
+  "answer": {
+    "choices": [
+      "3",
+      "4",
+      "5",
+      "7"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Count the oxygen atoms on the product side: $3\\,\\text{CO}_2$ contributes 6 oxygen atoms and $4\\,\\text{H}_2\\text{O}$ contributes 4, for 10 in total. Since each $\\text{O}_2$ molecule supplies 2 oxygen atoms, 5 molecules are required. The balanced equation is $\\text{C}_3\\text{H}_8+5\\,\\text{O}_2\\rightarrow3\\,\\text{CO}_2+4\\,\\text{H}_2\\text{O}$, and mass is conserved.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

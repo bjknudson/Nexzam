@@ -1,0 +1,28 @@
+{
+  "id": "q_sa_0006",
+  "type": "short_answer",
+  "topic": "Chemistry",
+  "difficulty": 2,
+  "prompt": "Sodium and chlorine react to form sodium chloride. Using the outermost electrons of each atom, explain why the compound has the formula $\\text{NaCl}$ rather than $\\text{Na}_2\\text{Cl}$.",
+  "subtopic": "Ionic Bonding",
+  "tags": [
+    "ionic-bonding",
+    "valence-electrons",
+    "chemical-formulas"
+  ],
+  "standards": [
+    {
+      "standard_id": "HS-PS1-2"
+    }
+  ],
+  "estimated_time_sec": 150,
+  "points": 3.0,
+  "status": "ready",
+  "teacher_notes": "Expect valence electron counts and a charge-balance argument. Students who only say the atoms swap electrons have not addressed the ratio.",
+  "answer": null,
+  "explanation": null,
+  "rubric": [],
+  "sample_solution": "Sodium has one valence electron and loses it to reach a stable octet, forming $\\text{Na}^+$. Chlorine has seven valence electrons and gains one to complete its octet, forming $\\text{Cl}^-$. Because each sodium atom donates exactly one electron and each chlorine atom accepts exactly one, the ions must combine in a one-to-one ratio for the compound to be electrically neutral. $\\text{Na}_2\\text{Cl}$ would leave a net charge of $+1$, which is why that formula does not occur.",
+  "exemplar_answer": null,
+  "assets": []
+}

@@ -24,6 +24,7 @@ from .models import (
     CourseCollectionModel,
     CourseListResponseModel,
     CourseModel,
+    CreateStandardsManuallyRequest,
     ManifestModel,
     QuestionListItemModel,
     QuestionListResponseModel,
@@ -290,7 +291,7 @@ class BankWorkspaceService:
         else:
             imported_rows = self._parse_csv_standard_import(raw_text)
 
-        source_list = self._build_source_list_for_import(
+        source_list = self._build_source_standard_list(
             embedded_source_list=embedded_source_list,
             source_list_id=source_list_id,
             title=title,
@@ -308,36 +309,11 @@ class BankWorkspaceService:
             )
 
         records = self._read_standard_records()
-        existing_standard_ids = {item.id for item in records.items}
-        imported_standard_ids: set[str] = set()
-        imported_standards: list[StandardRecordModel] = []
-        for row in imported_rows:
-            standard_id = str(row.get("id") or row.get("standard_id") or "").strip()
-            code = str(row.get("code") or standard_id).strip()
-            statement = str(row.get("statement") or "").strip()
-            if not standard_id or not code or not statement:
-                raise BankWorkspaceError(
-                    "Imported standards must include id, code, and statement values.",
-                    status_code=422,
-                )
-            if standard_id in existing_standard_ids or standard_id in imported_standard_ids:
-                raise BankWorkspaceError(
-                    f"Duplicate standard id in import: {standard_id}",
-                    status_code=409,
-                )
-
-            imported_standard_ids.add(standard_id)
-            imported_standards.append(
-                StandardRecordModel(
-                    id=standard_id,
-                    source_list_id=source_list.id,
-                    code=code,
-                    statement=statement,
-                    subject=self._normalize_optional_text(row.get("subject")) or source_list.subject,
-                    grade_band=self._normalize_optional_text(row.get("grade_band")),
-                    tags=self._normalize_tags(row.get("tags")),
-                )
-            )
+        imported_standards = self._build_standard_records(
+            source_list=source_list,
+            rows=imported_rows,
+            existing_standard_ids={item.id for item in records.items},
+        )
 
         source_lists.items.append(source_list)
         source_lists.items.sort(key=lambda item: item.id)
@@ -351,6 +327,58 @@ class BankWorkspaceService:
             source_list=source_list,
             imported_count=len(imported_standards),
             imported_path=imported_path,
+        )
+
+    def create_standards_manually(
+        self,
+        request: CreateStandardsManuallyRequest,
+    ) -> StandardImportResponseModel:
+        self.ensure_open()
+        if not request.standards:
+            raise BankWorkspaceError(
+                "Add at least one standard row before saving.",
+                status_code=422,
+            )
+
+        source_lists = self._read_source_standard_lists()
+        requested_source_list_id = self._normalize_optional_text(request.source_list_id)
+        existing_source_list = next(
+            (item for item in source_lists.items if item.id == requested_source_list_id),
+            None,
+        )
+
+        if existing_source_list is not None:
+            source_list = existing_source_list
+        else:
+            source_list = self._build_source_standard_list(
+                embedded_source_list=None,
+                source_list_id=request.source_list_id,
+                title=request.title,
+                issuer=request.issuer,
+                subject=request.subject,
+                version=request.version,
+                description=request.description,
+            )
+
+        records = self._read_standard_records()
+        new_standards = self._build_standard_records(
+            source_list=source_list,
+            rows=[row.model_dump() for row in request.standards],
+            existing_standard_ids={item.id for item in records.items},
+        )
+
+        records.items.extend(new_standards)
+        records.items.sort(key=lambda item: item.id)
+        if existing_source_list is None:
+            source_lists.items.append(source_list)
+            source_lists.items.sort(key=lambda item: item.id)
+            self._write_source_standard_lists(source_lists)
+        self._write_standard_records(records)
+
+        return StandardImportResponseModel(
+            source_list=source_list,
+            imported_count=len(new_standards),
+            imported_path=None,
         )
 
     def update_standard_record(
@@ -1941,7 +1969,47 @@ class BankWorkspaceService:
             )
         return rows
 
-    def _build_source_list_for_import(
+    def _build_standard_records(
+        self,
+        *,
+        source_list: SourceStandardListModel,
+        rows: list[dict[str, object]],
+        existing_standard_ids: set[str],
+    ) -> list[StandardRecordModel]:
+        """Validate incoming standard rows from an upload or from manual entry."""
+        seen_standard_ids: set[str] = set()
+        standards: list[StandardRecordModel] = []
+        for row in rows:
+            standard_id = str(row.get("id") or row.get("standard_id") or "").strip()
+            code = str(row.get("code") or standard_id).strip()
+            statement = str(row.get("statement") or "").strip()
+            if not standard_id or not code or not statement:
+                raise BankWorkspaceError(
+                    "Standards must include id, code, and statement values.",
+                    status_code=422,
+                )
+            if standard_id in existing_standard_ids or standard_id in seen_standard_ids:
+                raise BankWorkspaceError(
+                    f"Duplicate standard id: {standard_id}",
+                    status_code=409,
+                )
+
+            seen_standard_ids.add(standard_id)
+            standards.append(
+                StandardRecordModel(
+                    id=standard_id,
+                    source_list_id=source_list.id,
+                    code=code,
+                    statement=statement,
+                    subject=self._normalize_optional_text(row.get("subject")) or source_list.subject,
+                    grade_band=self._normalize_optional_text(row.get("grade_band")),
+                    tags=self._normalize_tags(row.get("tags")),
+                )
+            )
+
+        return standards
+
+    def _build_source_standard_list(
         self,
         *,
         embedded_source_list: dict[str, object] | None,
@@ -1974,7 +2042,7 @@ class BankWorkspaceService:
 
         if not resolved_id or not resolved_title or not resolved_issuer:
             raise BankWorkspaceError(
-                "Standards imports require source_list_id, title, and issuer metadata.",
+                "A standards source list requires an id, a title, and an issuer.",
                 status_code=422,
             )
 

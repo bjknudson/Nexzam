@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0022",
+  "type": "multiple_choice",
+  "topic": "Government",
+  "difficulty": 1,
+  "prompt": "Congress passes a bill and the President vetoes it. Which action can still make the bill law?",
+  "subtopic": "Checks and Balances",
+  "tags": [
+    "checks-and-balances",
+    "veto",
+    "legislative-process",
+    "separation-of-powers"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSS-12.4"
+    }
+  ],
+  "estimated_time_sec": 60,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Quick recall item. The state ratification distractor catches students who confuse legislation with the amendment process.",
+  "answer": {
+    "choices": [
+      "A Supreme Court ruling declaring the veto unconstitutional",
+      "A two-thirds vote in both the House and the Senate",
+      "A simple majority vote in the Senate alone",
+      "Ratification by three-fourths of the state legislatures"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "A presidential veto can be overridden by a two-thirds vote in both chambers of Congress, which is a core legislative check on the executive. The Court does not review vetoes, a simple Senate majority is not sufficient, and ratification by three-fourths of the states applies to constitutional amendments rather than to ordinary legislation.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

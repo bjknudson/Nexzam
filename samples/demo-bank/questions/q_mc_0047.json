@@ -1,0 +1,37 @@
+{
+  "id": "q_mc_0047",
+  "type": "multiple_choice",
+  "topic": "Waves",
+  "difficulty": 2,
+  "prompt": "A pendulum completes one full swing every $0.25\\text{ s}$. What is its frequency?",
+  "subtopic": "Period and frequency",
+  "tags": [
+    "waves",
+    "frequency",
+    "period",
+    "formatted-equations"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-WAV-02"
+    }
+  ],
+  "estimated_time_sec": 75,
+  "points": 1.0,
+  "status": "ready",
+  "teacher_notes": "Reinforce that period is measured in seconds per cycle and frequency in cycles per second.",
+  "answer": {
+    "choices": [
+      "$0.25\\text{ Hz}$",
+      "$0.75\\text{ Hz}$",
+      "$4.0\\text{ Hz}$",
+      "$25\\text{ Hz}$"
+    ],
+    "correct_choice_index": 2
+  },
+  "explanation": "Frequency is the reciprocal of the period: $f=\\frac{1}{T}=\\frac{1}{0.25\\text{ s}}=4.0\\text{ Hz}$. The pendulum completes four full swings each second. Reporting 0.25 Hz confuses the period with the frequency.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

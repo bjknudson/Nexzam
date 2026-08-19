@@ -1,0 +1,32 @@
+{
+  "id": "q_num_0004",
+  "type": "numeric_response",
+  "topic": "Algebra 1",
+  "difficulty": 2,
+  "prompt": "A line passes through the points $(-2,\\,5)$ and $(4,\\,-7)$. What is the slope of the line?",
+  "subtopic": "Slope and Rate of Change",
+  "tags": [
+    "slope",
+    "linear-functions",
+    "rate-of-change"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSF-IF.B.6"
+    }
+  ],
+  "estimated_time_sec": 90,
+  "points": 2.0,
+  "status": "ready",
+  "teacher_notes": "Sign errors in the numerator are the most common mistake here.",
+  "answer": {
+    "value": -2,
+    "unit": null,
+    "tolerance": 0.001
+  },
+  "explanation": "Use the slope formula: $m=\\frac{y_2-y_1}{x_2-x_1}=\\frac{-7-5}{4-(-2)}=\\frac{-12}{6}=-2$. The negative slope means the line falls two units for every one unit it moves to the right.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

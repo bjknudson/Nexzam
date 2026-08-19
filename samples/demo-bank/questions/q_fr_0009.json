@@ -1,0 +1,53 @@
+{
+  "id": "q_fr_0009",
+  "type": "free_response",
+  "topic": "Spanish 2",
+  "difficulty": 4,
+  "prompt": "Recibes este mensaje de Luc\u00eda, una estudiante de intercambio de Costa Rica:\n\n    \u00a1Hola! Llego a tu ciudad en dos semanas y estoy un poco nerviosa. \u00bfC\u00f3mo es tu familia? \u00bfQu\u00e9 hacen ustedes los fines de semana? \u00bfHay algo que debo traer?\n\nEscribe una respuesta de al menos ocho oraciones. Contesta sus tres preguntas, hazle una pregunta a ella, y usa un saludo y una despedida apropiados.",
+  "subtopic": "Comunicaci\u00f3n interpersonal",
+  "tags": [
+    "interpersonal-writing",
+    "email",
+    "family",
+    "cultural-comparison"
+  ],
+  "standards": [
+    {
+      "standard_id": "ACTFL-1.1"
+    },
+    {
+      "standard_id": "ACTFL-2.1"
+    }
+  ],
+  "estimated_time_sec": 600,
+  "points": 8.0,
+  "status": "draft",
+  "teacher_notes": "Read for communication first. A response that answers all three questions with minor grammatical errors should outscore a shorter, error-free response that ignores a question.",
+  "answer": null,
+  "explanation": "The task requires all three of Luc\u00eda's questions to be answered, a question directed back to her, an appropriate greeting and closing, and at least eight comprehensible sentences. Level-appropriate structures include the present tense, ir a plus an infinitive for near-future plans, gustar for preferences, and adjective agreement in family descriptions.",
+  "rubric": [
+    {
+      "criterion": "Contesta las tres preguntas de Luc\u00eda",
+      "points": 2.0
+    },
+    {
+      "criterion": "Incluye una pregunta dirigida a Luc\u00eda",
+      "points": 1.0
+    },
+    {
+      "criterion": "Usa un saludo y una despedida apropiados",
+      "points": 1.0
+    },
+    {
+      "criterion": "Escribe al menos ocho oraciones comprensibles",
+      "points": 2.0
+    },
+    {
+      "criterion": "Usa vocabulario variado y estructuras del nivel, como el presente, ir a con infinitivo y gustar",
+      "points": 2.0
+    }
+  ],
+  "sample_solution": "Querida Luc\u00eda: \u00a1Hola! Me alegro mucho de que vengas a mi ciudad. Mi familia es peque\u00f1a pero muy simp\u00e1tica. Vivo con mi madre, mi padrastro y mi hermana menor, que tiene once a\u00f1os. Los fines de semana normalmente vamos al parque o visitamos a mis abuelos, y los domingos cocinamos juntos. No necesitas traer mucho, pero te recomiendo una chaqueta porque hace fresco por la noche. \u00bfQu\u00e9 comida costarricense te gusta m\u00e1s? Vamos a prepararla contigo. \u00a1Hasta pronto! Un abrazo.",
+  "exemplar_answer": "Querida Luc\u00eda: \u00a1Hola! No est\u00e9s nerviosa, todo va a salir bien. Mi familia es bastante peque\u00f1a: vivo con mi madre, mi padrastro y mi hermana menor, que se llama Ana y tiene once a\u00f1os. Tambi\u00e9n tenemos un perro muy cari\u00f1oso que se llama Rufo. Los fines de semana nos gusta ir al parque por la ma\u00f1ana y, cuando hace calor, vamos a la playa con mis primos. Los domingos mi madre cocina y toda la familia come junta a las dos. No tienes que traer mucho, pero te recomiendo traer una chaqueta porque por la noche hace fresco aqu\u00ed. \u00bfHay alguna comida de Costa Rica que quieras ense\u00f1arnos a preparar? Nos encantar\u00eda probarla. \u00a1Hasta pronto! Un abrazo, Sam.",
+  "assets": []
+}

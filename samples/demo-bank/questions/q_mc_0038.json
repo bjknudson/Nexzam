@@ -1,0 +1,36 @@
+{
+  "id": "q_mc_0038",
+  "type": "multiple_choice",
+  "topic": "Electricity",
+  "difficulty": 1,
+  "prompt": "A plastic rod is rubbed with wool and becomes negatively charged. What happened during the rubbing?",
+  "subtopic": "Charge",
+  "tags": [
+    "charge",
+    "static-electricity",
+    "atomic-structure"
+  ],
+  "standards": [
+    {
+      "standard_id": "PHY-ELE-00"
+    }
+  ],
+  "estimated_time_sec": 45,
+  "points": 1.0,
+  "status": "review",
+  "teacher_notes": "Reinforce that the wool ends up with an equal and opposite charge.",
+  "answer": {
+    "choices": [
+      "Protons moved from the wool onto the rod",
+      "Electrons moved from the wool onto the rod",
+      "Electrons were created on the surface of the rod",
+      "Neutrons moved from the rod into the wool"
+    ],
+    "correct_choice_index": 1
+  },
+  "explanation": "Charging by friction transfers electrons, which are the mobile charges in ordinary matter. The rod gains electrons and becomes negative while the wool, having lost them, becomes positive. Protons are bound in the nucleus and do not move between objects, neutrons are uncharged, and charge is conserved rather than created.",
+  "rubric": [],
+  "sample_solution": null,
+  "exemplar_answer": null,
+  "assets": []
+}

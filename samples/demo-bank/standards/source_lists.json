@@ -17,6 +17,78 @@
       "version": "2026.1",
       "description": "Sample complete reference set for introductory calculus topics.",
       "imported_at": "2026-04-11T00:00:00Z"
+    },
+    {
+      "id": "ca-cte-hsmt-2013",
+      "title": "California CTE Model Curriculum Standards: Health Science and Medical Technology",
+      "issuer": "California Department of Education",
+      "subject": "Health Science and Medical Technology",
+      "version": "2013",
+      "description": "Demo reference subset of the Health Science and Medical Technology sector anchor and Patient Care pathway standards. Statements are summarized for sample content and should be replaced with the official wording before classroom use.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ca-cte-ame-2013",
+      "title": "California CTE Model Curriculum Standards: Arts, Media, and Entertainment",
+      "issuer": "California Department of Education",
+      "subject": "Arts, Media, and Entertainment",
+      "version": "2013",
+      "description": "Demo reference subset of the Arts, Media, and Entertainment sector standards for the Design, Visual and Media Arts pathway. Statements are summarized for sample content and should be replaced with the official wording before classroom use.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ccss-math-hs-2010",
+      "title": "Common Core State Standards for Mathematics, High School",
+      "issuer": "NGA Center for Best Practices and CCSSO",
+      "subject": "Mathematics",
+      "version": "2010",
+      "description": "Demo reference subset of the high school Algebra and Functions conceptual categories.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ap-english-literature-2019",
+      "title": "AP English Literature and Composition Course Framework",
+      "issuer": "College Board",
+      "subject": "English Literature",
+      "version": "2019",
+      "description": "Demo reference subset of AP English Literature and Composition skills. Statements are summarized for sample content and should be replaced with the official course and exam description wording before classroom use.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ngss-hs-2013",
+      "title": "Next Generation Science Standards, High School",
+      "issuer": "NGSS Lead States",
+      "subject": "Science",
+      "version": "2013",
+      "description": "Demo reference subset of high school physical science and life science performance expectations.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "actfl-world-readiness-2015",
+      "title": "World-Readiness Standards for Learning Languages",
+      "issuer": "ACTFL",
+      "subject": "World Languages",
+      "version": "4th edition",
+      "description": "Demo reference subset of the Communication, Cultures, and Comparisons goal areas.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ap-us-history-2019",
+      "title": "AP United States History Course Framework",
+      "issuer": "College Board",
+      "subject": "United States History",
+      "version": "2019",
+      "description": "Demo reference subset of AP United States History key concepts and reasoning practices. Statements are summarized for sample content and should be replaced with the official course and exam description wording before classroom use.",
+      "imported_at": "2026-08-18T00:00:00Z"
+    },
+    {
+      "id": "ca-hss-grade12-1998",
+      "title": "California History-Social Science Content Standards, Grade 12: Principles of American Democracy",
+      "issuer": "California Department of Education",
+      "subject": "History-Social Science",
+      "version": "1998",
+      "description": "Demo reference subset of the grade twelve Principles of American Democracy content standards.",
+      "imported_at": "2026-08-18T00:00:00Z"
     }
   ]
 }

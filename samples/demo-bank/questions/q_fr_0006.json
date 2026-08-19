@@ -1,0 +1,53 @@
+{
+  "id": "q_fr_0006",
+  "type": "free_response",
+  "topic": "Algebra 1",
+  "difficulty": 4,
+  "prompt": "A school sells tickets to the spring play. Student tickets cost 5 dollars each and adult tickets cost 8 dollars each. The school sold 220 tickets in total and collected 1,400 dollars.\n\nDefine your variables, write a system of two equations that models this situation, solve the system, and interpret the solution in the context of the problem. Show all of your work.",
+  "subtopic": "Systems of Linear Equations",
+  "tags": [
+    "systems-of-equations",
+    "modeling",
+    "substitution",
+    "word-problem"
+  ],
+  "standards": [
+    {
+      "standard_id": "HSA-REI.C.6"
+    },
+    {
+      "standard_id": "HSA-CED.A.3"
+    }
+  ],
+  "estimated_time_sec": 480,
+  "points": 6.0,
+  "status": "draft",
+  "teacher_notes": "Accept substitution, elimination, or a graphing approach with supporting work. Students who never define variables often lose track of which number answers the question.",
+  "answer": null,
+  "explanation": "Let $s$ be the number of student tickets and $a$ the number of adult tickets. The count gives $s+a=220$ and the revenue gives $5s+8a=1400$. Substituting $a=220-s$ into the second equation gives $5s+8(220-s)=1400$, so $5s+1760-8s=1400$, then $-3s=-360$ and $s=120$. Therefore $a=220-120=100$. Checking: $120(5)+100(8)=600+800=1400$.",
+  "rubric": [
+    {
+      "criterion": "Defines both variables clearly with units",
+      "points": 1.0
+    },
+    {
+      "criterion": "Writes a correct equation for the total number of tickets",
+      "points": 1.0
+    },
+    {
+      "criterion": "Writes a correct equation for the total revenue",
+      "points": 1.0
+    },
+    {
+      "criterion": "Solves the system with a valid method and shows the work",
+      "points": 2.0
+    },
+    {
+      "criterion": "Interprets the solution in context and checks it against both conditions",
+      "points": 1.0
+    }
+  ],
+  "sample_solution": "Let $s=$ the number of student tickets and $a=$ the number of adult tickets. Then $s+a=220$ and $5s+8a=1400$. Solving the first for $a$ gives $a=220-s$. Substituting: $5s+8(220-s)=1400$, so $-3s=-360$ and $s=120$, which gives $a=100$. The school sold 120 student tickets and 100 adult tickets, and $120(5)+100(8)=1400$ dollars as stated.",
+  "exemplar_answer": "I let $s$ stand for the number of student tickets sold and $a$ for the number of adult tickets sold. Because 220 tickets were sold altogether, $s+a=220$. Because each student ticket brings in 5 dollars and each adult ticket brings in 8 dollars for a total of 1,400 dollars, $5s+8a=1400$. I solved the first equation for $a=220-s$ and substituted into the second, giving $5s+1760-8s=1400$. Combining like terms gives $-3s=-360$, so $s=120$ and $a=100$. The school sold 120 student tickets and 100 adult tickets. This is reasonable because the two counts add to 220 and the revenue check gives 600 dollars plus 800 dollars, which is the reported 1,400 dollars.",
+  "assets": []
+}
