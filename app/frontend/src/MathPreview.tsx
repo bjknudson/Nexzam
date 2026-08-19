@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BlockMath, InlineMath } from "react-katex";
 
 import { getAssetFileUrl } from "./api";
-import type { AssetInspectionResponseModel, QuestionModel } from "./types";
+import type { AssetInspectionResponseModel, AssetModel, QuestionModel } from "./types";
 
 type MathToken =
   | { kind: "text"; value: string }
@@ -182,6 +182,25 @@ export function QuestionMathSummaryPreview({
       ) : (
         <p className="math-preview-empty">Nothing to preview yet.</p>
       )}
+      <QuestionAssetPreviewList assets={assets} assetInspections={assetInspections} />
+    </section>
+  );
+}
+
+/**
+ * Read-only asset rendering, shared by the JSON preview pane and by the
+ * question editor when Edit Fields is off. Shows the asset the way a reader
+ * sees it rather than the fields that produce it.
+ */
+export function QuestionAssetPreviewList({
+  assets,
+  assetInspections,
+}: {
+  assets: AssetModel[];
+  assetInspections?: AssetInspectionResponseModel[];
+}) {
+  return (
+    <>
       {assets.map((asset, index) => {
         const inspection = assetInspections?.[index];
         const svgMarkup = inspection?.rendered_svg;
@@ -202,7 +221,7 @@ export function QuestionMathSummaryPreview({
           </article>
         );
       })}
-    </section>
+    </>
   );
 }
 

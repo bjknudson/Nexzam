@@ -14,6 +14,8 @@ import re
 from pydantic import ValidationError
 
 from .models import (
+    AssetInspectionBatchRequest,
+    AssetInspectionBatchResponseModel,
     AssetInspectionRequest,
     AssetInspectionResponseModel,
     AssetListItemModel,
@@ -914,6 +916,57 @@ class BankWorkspaceService:
         self._refresh_bank_index()
         return question
 
+    def create_questions_from_json(
+        self,
+        payloads: list[dict[str, object]],
+    ) -> list[QuestionModel]:
+        """Create many questions in one pass.
+
+        Ids are assigned across the whole batch before anything is written, and
+        nothing is written until every payload validates -- a bad row in a large
+        paste should not leave a half-imported bank behind. The bank index is
+        refreshed once instead of once per question.
+        """
+        _, workspace_path = self.ensure_open()
+        if not payloads:
+            raise BankWorkspaceError(
+                "Provide at least one question to create.",
+                status_code=422,
+            )
+
+        reserved_ids: set[str] = set()
+        questions: list[QuestionModel] = []
+        for index, payload in enumerate(payloads):
+            if not isinstance(payload, dict):
+                raise BankWorkspaceError(
+                    f"Question {index + 1} must be a JSON object.",
+                    status_code=400,
+                )
+
+            next_payload = dict(payload)
+            next_payload["id"] = self._next_question_id_for_type_with_reserved(
+                next_payload.get("type"),
+                reserved_ids,
+            )
+            try:
+                question = QuestionModel.model_validate(next_payload)
+            except ValidationError as error:
+                detail = error.errors()[0].get("msg", "invalid question") if error.errors() else "invalid question"
+                raise BankWorkspaceError(
+                    f"Question {index + 1} is not valid: {detail}",
+                    status_code=422,
+                ) from error
+
+            reserved_ids.add(question.id)
+            questions.append(question)
+
+        for question in questions:
+            question_path = workspace_path / "questions" / f"{question.id}.json"
+            question_path.write_text(question.model_dump_json(indent=2) + "\n")
+
+        self._refresh_bank_index()
+        return questions
+
     def next_question_id(self, question_type: QuestionType) -> str:
         self.ensure_open()
         return self._next_question_id_for_type(question_type)
@@ -981,6 +1034,20 @@ class BankWorkspaceService:
             kind=payload.kind,
             svg_placeholders=placeholders,
             rendered_svg=rendered_svg,
+        )
+
+    def inspect_assets(
+        self,
+        payloads: list[AssetInspectionRequest],
+    ) -> AssetInspectionBatchResponseModel:
+        """Render several assets in one call.
+
+        A printable test can reference many assets, and a templated SVG only
+        resolves its {{tokens}} on the server, so the print preview needs the
+        rendered markup for all of them before it can lay the page out.
+        """
+        return AssetInspectionBatchResponseModel(
+            items=[self.inspect_asset(payload) for payload in payloads]
         )
 
     def resolve_asset_path(self, relative_path: str) -> Path:

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
-import { listTestDrafts } from "./api";
+import { getAssetFileUrl, inspectAssets, listTestDrafts } from "./api";
 import { MathTextPreview } from "./MathPreview";
 import type {
+  AssetInspectionResponseModel,
+  AssetModel,
   QuestionModel,
   QuestionType,
   TestDraftDetailModel,
@@ -32,6 +34,39 @@ function formatDate(value = new Date()) {
 function getPageSizeLabel(settings: TestPrintSettingsModel) {
   if (settings.page_size === "a4") return "A4";
   return settings.page_size === "legal" ? "Legal" : "Letter";
+}
+
+function assetRenderKey(questionId: string, index: number) {
+  return `${questionId}::${index}`;
+}
+
+function QuestionAssetFigures({
+  question,
+  renders,
+}: {
+  question: QuestionModel;
+  renders: Record<string, AssetInspectionResponseModel>;
+}) {
+  if (question.assets.length === 0) return null;
+
+  return (
+    <div className="print-question-assets">
+      {question.assets.map((asset, index) => {
+        const rendered = renders[assetRenderKey(question.id, index)]?.rendered_svg;
+        return (
+          <figure key={`${asset.path}-${index}`} className="print-question-asset">
+            {asset.kind === "svg" ? (
+              rendered ? (
+                <div dangerouslySetInnerHTML={{ __html: rendered }} />
+              ) : null
+            ) : (
+              <img src={getAssetFileUrl(asset.path)} alt="" />
+            )}
+          </figure>
+        );
+      })}
+    </div>
+  );
 }
 
 function questionById(test: TestDraftDetailModel) {
@@ -344,6 +379,11 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
   const [tests, setTests] = useState<TestDraftDetailModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [assetRenders, setAssetRenders] = useState<Record<string, AssetInspectionResponseModel>>({});
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  // Kept separate from errorMessage on purpose: failing to render a diagram
+  // must not replace the whole printable test with an error.
+  const [assetError, setAssetError] = useState("");
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -377,6 +417,53 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
     [selectedTest],
   );
 
+  useEffect(() => {
+    if (!selectedTest) return;
+
+    const entries: Array<{ key: string; asset: AssetModel }> = [];
+    for (const question of selectedTest.questions) {
+      question.assets.forEach((asset, index) => {
+        entries.push({ key: assetRenderKey(question.id, index), asset });
+      });
+    }
+
+    if (entries.length === 0) {
+      setAssetRenders({});
+      setAssetsLoading(false);
+      setAssetError("");
+      return;
+    }
+
+    let cancelled = false;
+    setAssetsLoading(true);
+    setAssetError("");
+
+    void (async () => {
+      try {
+        const response = await inspectAssets(entries.map((entry) => entry.asset));
+        if (cancelled) return;
+        const next: Record<string, AssetInspectionResponseModel> = {};
+        response.items.forEach((item, index) => {
+          const entry = entries[index];
+          if (entry) next[entry.key] = item;
+        });
+        setAssetRenders(next);
+      } catch (error) {
+        // Degrade to a test without figures rather than losing the preview.
+        if (!cancelled) {
+          setAssetRenders({});
+          setAssetError((error as Error).message);
+        }
+      } finally {
+        if (!cancelled) setAssetsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTest]);
+
   if (loading) {
     return (
       <div className="print-preview-shell">
@@ -396,6 +483,19 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
         </div>
       </div>
     );
+  }
+
+  async function handlePrint() {
+    const viewport = previewViewportRef.current;
+    if (viewport) {
+      const images = Array.from(viewport.querySelectorAll("img"));
+      await Promise.all(
+        images.map((image) =>
+          image.complete ? Promise.resolve() : image.decode().catch(() => undefined),
+        ),
+      );
+    }
+    window.print();
   }
 
   const settings = selectedTest.test.print_settings;
@@ -432,6 +532,11 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
             {settings.columns === 1 ? "" : "s"}
           </span>
         </div>
+        {assetError ? (
+          <span className="print-preview-warning" role="status">
+            Asset previews unavailable ({assetError}). The test below prints without figures.
+          </span>
+        ) : null}
         <div className="print-preview-actions">
           <button type="button" onClick={() => scrollPreviewPage(-1)}>
             Previous Page
@@ -439,8 +544,8 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
           <button type="button" onClick={() => scrollPreviewPage(1)}>
             Next Page
           </button>
-          <button type="button" onClick={() => window.print()}>
-            Print
+          <button type="button" onClick={() => void handlePrint()} disabled={assetsLoading}>
+            {assetsLoading ? "Preparing..." : "Print"}
           </button>
           <button type="button" onClick={onClose}>
             Close
@@ -590,13 +695,22 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
                       />
                     ) : null}
 
+                    {/* Number and prompt share one flex row so the text starts
+                        beside the number rather than beneath it. */}
                     <div className="print-question-header">
-                      <strong>{questionNumber}.</strong>
+                      <strong className="print-question-number">{questionNumber}.</strong>
+                      {question ? (
+                        <MathTextPreview text={question.prompt} className="print-question-prompt" />
+                      ) : (
+                        <p className="print-missing-question">
+                          Question not found: {item.question_id}
+                        </p>
+                      )}
                     </div>
 
                     {question ? (
                       <>
-                        <MathTextPreview text={question.prompt} className="print-question-prompt" />
+                        <QuestionAssetFigures question={question} renders={assetRenders} />
                         {choices.length > 0 ? (
                           <ol className="print-choice-list">
                             {choices.map((choice, choiceIndex) => (
@@ -615,9 +729,7 @@ function TestPrintPreview({ testId, onClose }: TestPrintPreviewProps) {
                           </div>
                         ) : null}
                       </>
-                    ) : (
-                      <p className="print-missing-question">Question not found: {item.question_id}</p>
-                    )}
+                    ) : null}
                   </article>
                 );
               });

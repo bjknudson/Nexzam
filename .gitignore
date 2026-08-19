@@ -219,3 +219,4 @@ app/frontend/dist/
 !app/frontend/dist/.gitkeep
 src-tauri/target/
 .DS_Store
+app/backend/_baked_version.py

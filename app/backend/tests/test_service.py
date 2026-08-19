@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.backend.models import (
+    AssetInspectionRequest,
     CreateStandardsManuallyRequest,
     ManualStandardRowModel,
     TestSectionItemModel,
@@ -815,4 +816,141 @@ def test_create_standards_manually_validates_required_input(
                 standards=[ManualStandardRowModel(id="NEW-02", statement="   ")],
             )
         )
+    assert exc_info.value.status_code == 422
+
+
+def test_inspect_assets_renders_a_batch_in_request_order(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    question = bank_service.get_question("q_fr_0001")
+    assert len(question.assets) == 2
+
+    response = bank_service.inspect_assets(
+        [
+            AssetInspectionRequest(
+                path=asset.path,
+                kind=asset.kind,
+                svg_variables=asset.svg_variables,
+            )
+            for asset in question.assets
+        ]
+    )
+
+    assert [item.path for item in response.items] == [asset.path for asset in question.assets]
+    for item in response.items:
+        assert item.kind == "svg"
+        assert item.rendered_svg
+        assert "{{" not in item.rendered_svg
+
+    # Variables from the question are substituted into the rendered markup.
+    assert "Weight W" in response.items[0].rendered_svg
+    assert "Crate" in response.items[1].rendered_svg
+
+
+def test_inspect_assets_accepts_an_empty_batch(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    assert bank_service.inspect_assets([]).items == []
+
+
+def test_backend_reports_its_version_from_the_tauri_config() -> None:
+    import json
+    from pathlib import Path as _Path
+
+    from app.backend.version import get_backend_version, is_frozen
+
+    repo_root = _Path(__file__).resolve().parents[3]
+    expected = json.loads((repo_root / "src-tauri" / "tauri.conf.json").read_text())["version"]
+
+    # Running from source, the version tracks the config with no manual syncing.
+    assert get_backend_version() == expected
+    assert is_frozen() is False
+
+
+def test_create_questions_from_json_assigns_ids_across_the_batch(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    created = bank_service.create_questions_from_json(
+        [
+            {
+                "type": "multiple_choice",
+                "topic": "Batch",
+                "difficulty": 1,
+                "prompt": "First batched question?",
+                "answer": {"choices": ["a", "b"], "correct_choice_index": 0},
+            },
+            {
+                "type": "multiple_choice",
+                "topic": "Batch",
+                "difficulty": 2,
+                "prompt": "Second batched question?",
+                "answer": {"choices": ["a", "b"], "correct_choice_index": 1},
+            },
+            {
+                "type": "short_answer",
+                "topic": "Batch",
+                "difficulty": 1,
+                "prompt": "Third batched question?",
+                "sample_solution": "A short answer.",
+            },
+        ]
+    )
+
+    # Ids are unique across the batch, not all resolved to the same next id.
+    assert [question.id for question in created] == ["q_mc_0049", "q_mc_0050", "q_sa_0011"]
+
+    summary = bank_service.get_summary()
+    for question in created:
+        assert question.id in summary.bank.question_ids
+
+
+def test_create_questions_from_json_writes_nothing_when_one_row_is_invalid(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+    before = set(bank_service.get_summary().bank.question_ids)
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_questions_from_json(
+            [
+                {
+                    "type": "multiple_choice",
+                    "topic": "Batch",
+                    "difficulty": 1,
+                    "prompt": "Valid question?",
+                    "answer": {"choices": ["a", "b"], "correct_choice_index": 0},
+                },
+                {
+                    "type": "multiple_choice",
+                    "topic": "Batch",
+                    "difficulty": 1,
+                    "prompt": "Missing its choices.",
+                },
+            ]
+        )
+
+    assert exc_info.value.status_code == 422
+    assert "Question 2" in exc_info.value.message
+    # The valid first row must not have been written.
+    assert set(bank_service.get_summary().bank.question_ids) == before
+
+
+def test_create_questions_from_json_rejects_an_empty_batch(
+    bank_service: BankWorkspaceService,
+    demo_bok: Path,
+) -> None:
+    bank_service.open_bank(str(demo_bok))
+
+    with pytest.raises(BankWorkspaceError) as exc_info:
+        bank_service.create_questions_from_json([])
+
     assert exc_info.value.status_code == 422

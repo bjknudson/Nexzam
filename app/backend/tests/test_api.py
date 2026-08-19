@@ -10,7 +10,7 @@ def test_healthcheck(client: TestClient) -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json()["status"] == "ok"
 
 
 def test_api_accepts_question_json_updates(client: TestClient, demo_bok: Path) -> None:
@@ -268,3 +268,15 @@ def test_api_rejects_manual_standards_with_duplicate_id(client: TestClient, demo
 
     assert response.status_code == 409
     assert "PHY-KIN-01" in response.json()["detail"]
+
+
+def test_api_health_reports_version_and_build(client: TestClient) -> None:
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["build"] == "source"
+    # A real version, not the "unknown" fallback the frontend stays quiet on.
+    assert payload["version"] != "unknown"
+    assert payload["version"].count(".") == 2

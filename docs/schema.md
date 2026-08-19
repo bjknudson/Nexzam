@@ -137,6 +137,12 @@ Standards can also be entered by hand instead of uploaded. Manual entry posts ro
 `imports/`, and rows may be appended to a source list that already exists. A row needs `id` and
 `statement`; `code` defaults to `id`, and `subject` falls back to the source list subject.
 
+## Passages
+
+Shared stimulus material (reading selections, data tables, documents, diagrams referenced
+by more than one question) is a proposed addition, not implemented. See
+`docs/passages-design.md` for the schema, test-grouping, and print-layout design.
+
 ## Asset metadata (draft)
 
 Support static and parameterized SVG metadata:

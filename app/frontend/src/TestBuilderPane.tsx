@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import type {
   QuestionType,
   TestDraftDetailModel,
@@ -13,18 +15,24 @@ interface TestBuilderPaneProps {
   open: boolean;
   hasBank: boolean;
   loading: boolean;
-  selectedQuestionId: string | null;
   selectedTestId: string | null;
   tests: TestDraftDetailModel[];
+  /** Ids of the tests currently "on the desk". Others stay archived. */
+  openTestIds: string[];
   pageMode?: boolean;
   onOpen: () => void;
   onClose: () => void;
   onCreateTest: () => void;
+  onCreateNewVersion: (testId: string) => void;
   onSelectTest: (testId: string) => void;
-  onAddSelectedQuestion: () => void;
+  onOpenTest: (testId: string) => void;
+  onArchiveTest: (testId: string) => void;
   onOpenPrintPreview: () => void;
   onUpdateTest: (test: TestDraftModel) => void;
+  onApplyTestJson: (testId: string, raw: string) => void;
 }
+
+type TestJsonMode = "full" | "questions";
 
 function formatMinutes(seconds: number) {
   if (seconds <= 0) return "0 min";
@@ -219,18 +227,26 @@ function TestBuilderPane({
   open,
   hasBank,
   loading,
-  selectedQuestionId,
   selectedTestId,
   tests,
+  openTestIds,
   pageMode = false,
   onOpen,
   onClose,
   onCreateTest,
+  onCreateNewVersion,
   onSelectTest,
-  onAddSelectedQuestion,
+  onOpenTest,
+  onArchiveTest,
   onOpenPrintPreview,
   onUpdateTest,
+  onApplyTestJson,
 }: TestBuilderPaneProps) {
+  const [testSearch, setTestSearch] = useState("");
+  const [jsonMode, setJsonMode] = useState<TestJsonMode>("full");
+  const [jsonDraft, setJsonDraft] = useState("");
+  const [jsonDirty, setJsonDirty] = useState(false);
+  const [jsonCopied, setJsonCopied] = useState(false);
   if (!open) {
     return (
       <section className="test-builder-collapsed">
@@ -241,15 +257,42 @@ function TestBuilderPane({
     );
   }
 
-  const selectedTest = tests.find((item) => item.test.id === selectedTestId) ?? tests[0] ?? null;
-  const selectedQuestionIsInTest =
-    !!selectedQuestionId &&
-    !!selectedTest?.test.items.some(
-      (item) => isQuestionItem(item) && item.question_id === selectedQuestionId,
-    );
+  const openTests = tests.filter((item) => openTestIds.includes(item.test.id));
+  const selectedTest =
+    openTests.find((item) => item.test.id === selectedTestId) ?? openTests[0] ?? null;
+  const trimmedTestSearch = testSearch.trim().toLowerCase();
+  const searchMatches = trimmedTestSearch
+    ? tests.filter((item) => {
+        const haystack =
+          `${item.test.title} ${item.test.version} ${item.test.id}`.toLowerCase();
+        return haystack.includes(trimmedTestSearch);
+      })
+    : [];
   const questionById = Object.fromEntries(
     (selectedTest?.questions ?? []).map((question) => [question.id, question]),
   );
+
+  const jsonForMode = (() => {
+    if (!selectedTest) return "";
+    if (jsonMode === "questions") {
+      return JSON.stringify({ questions: selectedTest.questions }, null, 2);
+    }
+    return JSON.stringify(
+      { test: selectedTest.test, questions: selectedTest.questions },
+      null,
+      2,
+    );
+  })();
+
+  useEffect(() => {
+    if (jsonDirty) return;
+    setJsonDraft(jsonForMode);
+  }, [jsonForMode, jsonDirty]);
+
+  useEffect(() => {
+    setJsonDirty(false);
+    setJsonCopied(false);
+  }, [selectedTest?.test.id, jsonMode]);
   const questionItemCount = selectedTest?.test.items.filter(isQuestionItem).length ?? 0;
 
   const updateItem = (index: number, patch: Partial<TestDraftModel["items"][number]>) => {
@@ -308,12 +351,20 @@ function TestBuilderPane({
     <section className={`test-builder-pane ${pageMode ? "page-mode" : ""}`}>
       <div className="test-builder-header">
         <div>
-          <h2>Test Builder</h2>
-          <p>{selectedTest ? `${selectedTest.test.title} ${selectedTest.test.version}` : "No test draft"}</p>
+          {pageMode ? null : <h2>Test Builder</h2>}
+          <p>{selectedTest ? `${selectedTest.test.title} ${selectedTest.test.version}` : "No test open"}</p>
         </div>
         <div className="test-builder-actions">
           <button type="button" onClick={onCreateTest} disabled={loading || !hasBank}>
             New Test
+          </button>
+          <button
+            type="button"
+            onClick={() => selectedTest && onCreateNewVersion(selectedTest.test.id)}
+            disabled={loading || !selectedTest}
+            title="Copy this test's settings and items into the next version"
+          >
+            New Version
           </button>
           {pageMode ? null : (
             <button type="button" onClick={onClose}>
@@ -325,29 +376,90 @@ function TestBuilderPane({
 
       {!hasBank ? (
         <p className="test-builder-empty">Open a bank to build tests.</p>
-      ) : tests.length === 0 || !selectedTest ? (
-        <div className="test-builder-empty-row">
-          <p>No test drafts yet.</p>
-          <button type="button" onClick={onCreateTest} disabled={loading}>
-            Create Test Draft
-          </button>
-        </div>
       ) : (
-        <div className="test-builder-layout">
+        <div className={`test-builder-layout ${selectedTest ? "" : "no-open-test"}`}>
           <aside className="test-builder-list">
-            {tests.map((detail) => (
-              <button
-                key={detail.test.id}
-                type="button"
-                className={detail.test.id === selectedTest.test.id ? "selected" : ""}
-                onClick={() => onSelectTest(detail.test.id)}
-              >
-                <strong>{detail.test.title}</strong>
-                <span>Version {detail.test.version}</span>
-                <span>{detail.test.items.filter(isQuestionItem).length} questions</span>
-              </button>
-            ))}
+            <div className="test-builder-search">
+              <input
+                value={testSearch}
+                onChange={(event) => setTestSearch(event.target.value)}
+                placeholder="Search tests to open"
+                aria-label="Search tests to open"
+              />
+              {trimmedTestSearch ? (
+                <div className="test-builder-search-results">
+                  {searchMatches.length === 0 ? (
+                    <p className="test-builder-search-empty">No tests match.</p>
+                  ) : (
+                    searchMatches.map((detail) => {
+                      const alreadyOpen = openTestIds.includes(detail.test.id);
+                      return (
+                        <button
+                          key={detail.test.id}
+                          type="button"
+                          className="test-builder-search-result"
+                          onClick={() => {
+                            onOpenTest(detail.test.id);
+                            setTestSearch("");
+                          }}
+                        >
+                          <strong>{detail.test.title}</strong>
+                          <span>
+                            Version {detail.test.version}
+                            {alreadyOpen ? " - already open" : ""}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            {openTests.length === 0 ? (
+              <p className="test-builder-list-empty">
+                No tests are open. Search above to open one, or create a new test.
+              </p>
+            ) : (
+              openTests.map((detail) => (
+                <div
+                  key={detail.test.id}
+                  className={`test-builder-card ${
+                    detail.test.id === selectedTest?.test.id ? "selected" : ""
+                  }`}
+                >
+                  <button type="button" onClick={() => onSelectTest(detail.test.id)}>
+                    <strong>{detail.test.title}</strong>
+                    <span>Version {detail.test.version}</span>
+                    <span>{detail.test.items.filter(isQuestionItem).length} questions</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="test-builder-card-archive"
+                    onClick={() => onArchiveTest(detail.test.id)}
+                    title="Archive this test (it stays in the bank)"
+                    aria-label={`Archive ${detail.test.title} version ${detail.test.version}`}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))
+            )}
           </aside>
+
+          {!selectedTest ? (
+            <div className="test-builder-empty-row">
+              <p>
+                {tests.length === 0
+                  ? "No test drafts yet."
+                  : "Open a test from the list, or create a new one."}
+              </p>
+              <button type="button" onClick={onCreateTest} disabled={loading}>
+                Create Test Draft
+              </button>
+            </div>
+          ) : (
+          <>
 
           <div className="test-builder-detail">
             <section className="test-builder-meta">
@@ -360,7 +472,7 @@ function TestBuilderPane({
                   }
                 />
               </label>
-              <label>
+              <label className="test-version-field">
                 Version
                 <input
                   value={selectedTest.test.version}
@@ -369,13 +481,6 @@ function TestBuilderPane({
                   }
                 />
               </label>
-              <button
-                type="button"
-                onClick={onAddSelectedQuestion}
-                disabled={!selectedQuestionId || selectedQuestionIsInTest || loading}
-              >
-                {selectedQuestionIsInTest ? "Selected Added" : "Add Selected Question"}
-              </button>
               <button type="button" onClick={addSectionItem} disabled={loading}>
                 Add Section
               </button>
@@ -848,6 +953,78 @@ function TestBuilderPane({
               </div>
             </section>
 
+            <details className="test-json-panel">
+              <summary>Test JSON</summary>
+              <div className="test-json-controls">
+                <div className="test-json-mode" role="group" aria-label="JSON contents">
+                  <button
+                    type="button"
+                    className={jsonMode === "full" ? "active" : ""}
+                    aria-pressed={jsonMode === "full"}
+                    onClick={() => setJsonMode("full")}
+                  >
+                    Test + Questions
+                  </button>
+                  <button
+                    type="button"
+                    className={jsonMode === "questions" ? "active" : ""}
+                    aria-pressed={jsonMode === "questions"}
+                    onClick={() => setJsonMode("questions")}
+                  >
+                    Questions Only
+                  </button>
+                </div>
+                <div className="test-json-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(jsonDraft).then(
+                        () => setJsonCopied(true),
+                        () => setJsonCopied(false),
+                      );
+                    }}
+                  >
+                    {jsonCopied ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJsonDraft(jsonForMode);
+                      setJsonDirty(false);
+                    }}
+                    disabled={!jsonDirty}
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onApplyTestJson(selectedTest.test.id, jsonDraft);
+                      setJsonDirty(false);
+                    }}
+                    disabled={loading || !jsonDirty}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+              <p className="test-json-help">
+                {questionItemCount === 0
+                  ? "This test has no questions yet, so pasting a batch of question JSON here creates those questions in the bank and adds them to the test."
+                  : "Editing settings here updates the test. Pasted questions are ignored while the test already has questions."}
+              </p>
+              <textarea
+                className="test-json-editor"
+                value={jsonDraft}
+                spellCheck={false}
+                onChange={(event) => {
+                  setJsonDraft(event.target.value);
+                  setJsonDirty(true);
+                  setJsonCopied(false);
+                }}
+              />
+            </details>
+
             <section className="test-item-list">
               <h3>Items</h3>
               {selectedTest.test.items.length === 0 ? (
@@ -1022,6 +1199,8 @@ function TestBuilderPane({
               )}
             </section>
           </div>
+          </>
+          )}
         </div>
       )}
     </section>

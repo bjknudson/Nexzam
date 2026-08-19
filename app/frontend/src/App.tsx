@@ -5,6 +5,8 @@ import {
   createBank,
   createQuestion,
   createQuestionFromJson,
+  createQuestionsFromJson,
+  getBackendHealth,
   createTestDraft,
   deleteQuestion,
   getCurrentBank,
@@ -29,6 +31,7 @@ import {
 } from "./api";
 import {
   closeCurrentPaneWindow,
+  getAppVersion,
   getDesktopContext,
   isDesktopShell,
   onBankPropertiesMenu,
@@ -51,6 +54,7 @@ import {
   looksLikeUnescapedLatexInJson,
   MathPreviewField,
   MathTextPreview,
+  QuestionAssetPreviewList,
   QuestionMathSummaryPreview,
 } from "./MathPreview";
 import BankPropertiesDialog, { type BankPropertiesMode } from "./BankPropertiesDialog";
@@ -318,6 +322,29 @@ function PoppedOutPagePlaceholder({
   );
 }
 
+function nextVersionLabel(current: string, taken: Set<string>): string {
+  const trimmed = current.trim() || "A";
+
+  if (/^[A-Za-z]$/.test(trimmed)) {
+    const start = trimmed.toUpperCase().charCodeAt(0);
+    for (let code = start + 1; code <= "Z".charCodeAt(0); code += 1) {
+      const candidate = String.fromCharCode(code);
+      if (!taken.has(candidate)) return candidate;
+    }
+  }
+
+  const numbered = trimmed.match(/^(.*?)(\d+)$/);
+  if (numbered) {
+    let next = Number(numbered[2]) + 1;
+    while (taken.has(`${numbered[1]}${next}`)) next += 1;
+    return `${numbered[1]}${next}`;
+  }
+
+  let suffix = 2;
+  while (taken.has(`${trimmed} ${suffix}`)) suffix += 1;
+  return `${trimmed} ${suffix}`;
+}
+
 const FILTER_OPTION_LABEL_MAX_LENGTH = 28;
 
 function truncateFilterLabel(value: string): string {
@@ -428,6 +455,13 @@ interface QuestionPaneProps {
   onCreateQuestion: () => void;
   onDuplicateQuestion: () => void;
   onDeleteQuestion: () => void;
+  showAddToTest?: boolean;
+  addToTestDisabled?: boolean;
+  addToTestLabel?: string;
+  onAddToTest?: () => void;
+  addToAllDisabled?: boolean;
+  addToAllLabel?: string;
+  onAddToAllTests?: () => void;
 }
 
 function QuestionPane({
@@ -462,6 +496,13 @@ function QuestionPane({
   onCreateQuestion,
   onDuplicateQuestion,
   onDeleteQuestion,
+  showAddToTest = false,
+  addToTestDisabled = false,
+  addToTestLabel = "Add to Test",
+  onAddToTest,
+  addToAllDisabled = false,
+  addToAllLabel = "Add to All",
+  onAddToAllTests,
 }: QuestionPaneProps) {
   const [difficultyFilter, setDifficultyFilter] = useState("");
   const [subtopicFilter, setSubtopicFilter] = useState("");
@@ -578,6 +619,26 @@ function QuestionPane({
             >
               Delete
             </button>
+            {showAddToTest ? (
+              <>
+                <button
+                  type="button"
+                  className="question-add-to-test"
+                  onClick={onAddToTest}
+                  disabled={addToTestDisabled}
+                >
+                  {addToTestLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={onAddToAllTests}
+                  disabled={addToAllDisabled}
+                  title="Add this question to every open test"
+                >
+                  {addToAllLabel}
+                </button>
+              </>
+            ) : null}
           </div>
           <input
             value={search}
@@ -877,6 +938,11 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftQuestion, setDraftQuestion] = useState<QuestionModel | null>(null);
   const [editorMode, setEditorMode] = useState<EditorMode>("form");
+  const [pendingTypeChange, setPendingTypeChange] = useState<QuestionType | null>(null);
+  const [backendVersionWarning, setBackendVersionWarning] = useState("");
+  const [newTestDialogOpen, setNewTestDialogOpen] = useState(false);
+  const [newTestTitle, setNewTestTitle] = useState("");
+  const [newTestError, setNewTestError] = useState("");
   const [rawJson, setRawJson] = useState("");
   const [search, setSearch] = useState("");
   const [topicFilter, setTopicFilter] = useState("");
@@ -913,6 +979,8 @@ function App() {
   const activePageIsPoppedOut = isMainWindow && poppedOutPages[activeWorkspacePage];
   const [testDrafts, setTestDrafts] = useState<TestDraftDetailModel[]>([]);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [openTestIds, setOpenTestIds] = useState<string[]>([]);
+  const openTestsBankRef = useRef<string | null>(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [editingFieldsEnabled, setEditingFieldsEnabled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1048,6 +1116,36 @@ function App() {
 
   useEffect(() => {
     if (!desktopMode || !isMainWindow) return;
+    if (!desktopContext?.backendReady) return;
+
+    let cancelled = false;
+    void (async () => {
+      const [appVersion, health] = await Promise.all([
+        getAppVersion().catch(() => null),
+        getBackendHealth().catch(() => null),
+      ]);
+      if (cancelled) return;
+
+      const backendVersion = health?.version;
+      if (!appVersion || !backendVersion || backendVersion === "unknown") return;
+      if (appVersion === backendVersion) return;
+
+      setBackendVersionWarning(
+        `Nexzam ${appVersion} is running a ${backendVersion} backend. Some features may not work. Reinstalling Nexzam should fix it.`,
+      );
+      console.warn(
+        `[nexzam] backend version mismatch: app ${appVersion}, backend ${backendVersion} (${health?.build ?? "unknown"} build). ` +
+          "If you build from source, rerun scripts/build_backend_binary.sh to refresh dist/backend.",
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopMode, isMainWindow, desktopContext?.backendReady]);
+
+  useEffect(() => {
+    if (!desktopMode || !isMainWindow) return;
 
     let cancelled = false;
     const unlistenFns: Array<() => void> = [];
@@ -1085,6 +1183,50 @@ function App() {
     if (!bank) return;
     void refreshQuestionList();
   }, [bank, search, topicFilter, typeFilter, hostsBankState]);
+
+  const selectedTestDetail = testDrafts.find((item) => item.test.id === selectedTestId) ?? null;
+  const openTestsMissingSelectedQuestion = selectedId
+    ? testDrafts.filter(
+        (item) =>
+          openTestIds.includes(item.test.id) &&
+          !item.test.items.some(
+            (entry) =>
+              (entry.item_type ?? "question") === "question" &&
+              entry.question_id === selectedId,
+          ),
+      )
+    : [];
+  const selectedQuestionIsInSelectedTest =
+    !!selectedId &&
+    !!selectedTestDetail?.test.items.some(
+      (item) => (item.item_type ?? "question") === "question" && item.question_id === selectedId,
+    );
+
+  const openTestsStorageKey = bank ? `nexzam:open-tests:${bank.manifest.bank_id}` : null;
+
+  useEffect(() => {
+    if (!openTestsStorageKey) {
+      openTestsBankRef.current = null;
+      setOpenTestIds([]);
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem(openTestsStorageKey);
+      const parsed = stored ? JSON.parse(stored) : [];
+      setOpenTestIds(Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : []);
+    } catch {
+      setOpenTestIds([]);
+    }
+    openTestsBankRef.current = openTestsStorageKey;
+  }, [openTestsStorageKey]);
+
+  useEffect(() => {
+    // Only write once the load above has run for this bank, or the initial
+    // empty state would erase what was stored.
+    if (!openTestsStorageKey || openTestsBankRef.current !== openTestsStorageKey) return;
+    localStorage.setItem(openTestsStorageKey, JSON.stringify(openTestIds));
+  }, [openTestsStorageKey, openTestIds]);
 
   useEffect(() => {
     if (!hostsBankState) return;
@@ -1615,18 +1757,131 @@ function App() {
     setSelectedTestId(detail.test.id);
   }
 
-  async function handleCreateTestDraft() {
+  function suggestNewTestTitle(): string {
+    if (!bank) return "New Test";
+    const taken = new Set(testDrafts.map((item) => item.test.title.trim().toLowerCase()));
+    const base = `${bank.manifest.title} Test`;
+    if (!taken.has(base.toLowerCase())) return base;
+    let suffix = 2;
+    while (taken.has(`${base} ${suffix}`.toLowerCase())) suffix += 1;
+    return `${base} ${suffix}`;
+  }
+
+  function handleOpenNewTestDialog() {
+    if (!bank) return;
+    setNewTestTitle(suggestNewTestTitle());
+    setNewTestError("");
+    setNewTestDialogOpen(true);
+  }
+
+  /** A new test needs its own title; further versions come from New Version. */
+  async function handleCreateTestDraft(title: string) {
     if (!bank) return;
 
+    const trimmed = title.trim();
+    if (!trimmed) {
+      setNewTestError("Give the test a title.");
+      return;
+    }
+    if (testDrafts.some((item) => item.test.title.trim().toLowerCase() === trimmed.toLowerCase())) {
+      setNewTestError(
+        "A test with this title already exists. Use New Version on that test, or pick a different title.",
+      );
+      return;
+    }
+
+    setNewTestDialogOpen(false);
     setLoading(true);
     try {
       const detail = await createTestDraft({
-        title: `${bank.manifest.title} Test`,
+        title: trimmed,
         version: "A",
       });
       replaceTestDraft(detail);
+      handleOpenTest(detail.test.id);
       setWorkspaceDirty(true);
       setStatusMessage(`Created ${detail.test.id} in the working copy.`);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleOpenTest(testId: string) {
+    setOpenTestIds((current) => (current.includes(testId) ? current : [...current, testId]));
+    setSelectedTestId(testId);
+  }
+
+  function handleArchiveTest(testId: string) {
+    setOpenTestIds((current) => {
+      const remaining = current.filter((id) => id !== testId);
+      if (selectedTestId === testId) {
+        setSelectedTestId(remaining[remaining.length - 1] ?? null);
+      }
+      return remaining;
+    });
+  }
+
+  async function handleAddSelectedQuestionToAllOpenTests() {
+    const questionId = selectedId;
+    if (!questionId || openTestsMissingSelectedQuestion.length === 0) return;
+
+    setLoading(true);
+    try {
+      let added = 0;
+      for (const target of openTestsMissingSelectedQuestion) {
+        const detail = await addQuestionToTest({
+          testId: target.test.id,
+          question_id: questionId,
+        });
+        replaceTestDraft(detail);
+        added += 1;
+      }
+      setWorkspaceDirty(true);
+      setStatusMessage(
+        `Added ${questionId} to ${added} open ${added === 1 ? "test" : "tests"}.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDuplicateTestDraft(sourceTestId: string) {
+    const source = testDrafts.find((item) => item.test.id === sourceTestId);
+    if (!source) return;
+
+    const takenVersions = new Set(
+      testDrafts
+        .filter((item) => item.test.title === source.test.title)
+        .map((item) => item.test.version),
+    );
+
+    setLoading(true);
+    try {
+      const created = await createTestDraft({
+        title: source.test.title,
+        version: nextVersionLabel(source.test.version, takenVersions),
+      });
+      // Carry the source's items and print settings onto the new draft, keeping
+      // the id and version the create call assigned.
+      const detail = await updateTestDraftApi(created.test.id, {
+        ...source.test,
+        id: created.test.id,
+        version: created.test.version,
+        performance_runs: [],
+      });
+
+      replaceTestDraft(detail);
+      handleOpenTest(detail.test.id);
+      setWorkspaceDirty(true);
+      setStatusMessage(
+        `Duplicated ${source.test.id} as ${detail.test.id} (version ${detail.test.version}).`,
+      );
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -1679,6 +1934,7 @@ function App() {
         version: "A",
       });
       const detail = await addQuestionIdsToTest(created.test.id, questionIds);
+      handleOpenTest(created.test.id);
       setQuestionImportOpen(false);
       setWorkspacePage("tests");
       setWorkspaceDirty(true);
@@ -1705,6 +1961,98 @@ function App() {
       setStatusMessage(
         `Added ${questionIds.length} imported questions to ${detail?.test.id ?? selectedTestId}.`,
       );
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Apply JSON pasted into the test builder.
+   *
+   * Accepts three shapes so a round trip through an AI tool can come back in
+   * whatever form it took: an array of question objects, `{ questions: [...] }`,
+   * or `{ test: {...}, questions: [...] }` / a bare test object.
+   *
+   * Questions are only created when the target test has none yet. That keeps the
+   * importer behavior explicit instead of silently duplicating questions into a
+   * test that is already built.
+   */
+  async function handleApplyTestJson(testId: string, raw: string) {
+    const target = testDrafts.find((item) => item.test.id === testId);
+    if (!target) return;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      setErrorMessage(`Test JSON is not valid: ${(error as Error).message}`);
+      return;
+    }
+
+    const payload = (Array.isArray(parsed) ? { questions: parsed } : parsed) as Record<
+      string,
+      unknown
+    > | null;
+    if (!payload || typeof payload !== "object") {
+      setErrorMessage("Test JSON must be an object or an array of questions.");
+      return;
+    }
+
+    const questionPayloads = Array.isArray(payload.questions)
+      ? (payload.questions as Record<string, unknown>[])
+      : [];
+    const testPayload = (
+      payload.test && typeof payload.test === "object"
+        ? payload.test
+        : "items" in payload || "print_settings" in payload
+          ? payload
+          : null
+    ) as TestDraftModel | null;
+
+    if (!testPayload && questionPayloads.length === 0) {
+      setErrorMessage("Test JSON contained no test settings and no questions.");
+      return;
+    }
+
+    const startedEmpty =
+      target.test.items.filter((item) => (item.item_type ?? "question") === "question").length === 0;
+
+    setLoading(true);
+    try {
+      const notes: string[] = [];
+
+      if (testPayload) {
+        const detail = await updateTestDraftApi(testId, {
+          ...target.test,
+          ...testPayload,
+          id: testId,
+        });
+        replaceTestDraft(detail);
+        notes.push("updated test settings");
+      }
+
+      if (questionPayloads.length > 0) {
+        if (!startedEmpty) {
+          notes.push(
+            `ignored ${questionPayloads.length} pasted questions because this test already has questions`,
+          );
+        } else {
+          // One round trip, and the backend writes nothing unless every row
+          // validates -- a bad row in a large paste cannot half-import.
+          const response = await createQuestionsFromJson(questionPayloads);
+          const createdIds = response.items.map((question) => question.id);
+          const detail = await addQuestionIdsToTest(testId, createdIds);
+          if (detail) replaceTestDraft(detail);
+          await refreshQuestionList();
+          notes.push(`created ${createdIds.length} questions and added them to the test`);
+        }
+      }
+
+      setWorkspaceDirty(true);
+      setStatusMessage(`Applied test JSON: ${notes.join("; ")}.`);
       setErrorMessage("");
     } catch (error) {
       setErrorMessage((error as Error).message);
@@ -2001,20 +2349,14 @@ function App() {
     }
   }
 
-  async function updateQuestionType(nextType: QuestionType) {
-    const base = draftQuestionRef.current ?? emptyQuestion();
-    let nextId = base.id;
-    if (base.type !== nextType) {
-      try {
-        nextId = (await getNextQuestionId(nextType)).id;
-      } catch (error) {
-        setErrorMessage((error as Error).message);
-      }
-    }
-
-    const next: QuestionModel = {
+  /**
+   * Rebuild a question for a different type. Each type keeps a different set of
+   * answer fields, so the ones that do not apply are reset. The id is left alone:
+   * renaming a saved question on a type change is what used to damage it.
+   */
+  function reshapeQuestionForType(base: QuestionModel, nextType: QuestionType): QuestionModel {
+    return {
       ...base,
-      id: nextId,
       type: nextType,
       answer:
         nextType === "multiple_choice"
@@ -2029,11 +2371,73 @@ function App() {
           : "",
       exemplar_answer: nextType === "free_response" ? base.exemplar_answer ?? "" : "",
     };
+  }
+
+  function describeDiscardedFields(base: QuestionModel, nextType: QuestionType): string[] {
+    const discarded: string[] = [];
+    if (base.type === "multiple_choice" && nextType !== "multiple_choice") {
+      const choices = (base.answer as MultipleChoiceAnswer | null)?.choices ?? [];
+      if (choices.some((choice) => choice.trim())) discarded.push("answer choices");
+    }
+    if (base.type === "numeric_response" && nextType !== "numeric_response" && base.answer) {
+      discarded.push("the numeric answer, unit, and tolerance");
+    }
+    if (base.type === "free_response" && nextType !== "free_response") {
+      if (base.rubric.length > 0) discarded.push("the rubric");
+      if ((base.exemplar_answer ?? "").trim()) discarded.push("the exemplar answer");
+    }
+    if (
+      (base.type === "short_answer" || base.type === "free_response") &&
+      nextType !== "short_answer" &&
+      nextType !== "free_response" &&
+      (base.sample_solution ?? "").trim()
+    ) {
+      discarded.push("the sample solution");
+    }
+    return discarded;
+  }
+
+  function applyQuestionTypeChange(nextType: QuestionType) {
+    const base = draftQuestionRef.current ?? emptyQuestion();
+    const next = reshapeQuestionForType(base, nextType);
 
     draftQuestionRef.current = next;
     setDraftQuestion(next);
     setRawJson(JSON.stringify(next, null, 2));
     markDraftDirty();
+    setPendingTypeChange(null);
+  }
+
+  async function handleDuplicateAsType(nextType: QuestionType) {
+    const base = draftQuestionRef.current;
+    if (!bank || !base) return;
+
+    setPendingTypeChange(null);
+    setLoading(true);
+    try {
+      const nextId = (await getNextQuestionId(nextType)).id;
+      const duplicate = { ...reshapeQuestionForType(base, nextType), id: nextId };
+      const created = await createQuestionFromJson(
+        duplicate as unknown as Record<string, unknown>,
+      );
+
+      draftDirtyRef.current = false;
+      setWorkspaceDirty(true);
+      setAutosaveState("saved");
+      replaceDraftLocally(created);
+      selectedIdRef.current = created.id;
+      setSelectedId(created.id);
+      await refreshQuestionList(created.id);
+      setStatusMessage(
+        `Created ${created.id} as a ${nextType} copy. ${base.id} is unchanged.`,
+      );
+      setErrorMessage("");
+    } catch (error) {
+      setAutosaveState("error");
+      setErrorMessage((error as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function updateMultipleChoiceChoice(index: number, value: string) {
@@ -2689,6 +3093,136 @@ function App() {
         onBankDirectoryChange={setBankDirectory}
       />
 
+      {newTestDialogOpen ? (
+        <div className="settings-overlay" onClick={() => setNewTestDialogOpen(false)}>
+          <div
+            className="settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="New test"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="settings-header">
+              <h2>New Test</h2>
+              <button
+                type="button"
+                className="settings-close"
+                onClick={() => setNewTestDialogOpen(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="settings-body">
+              <section className="settings-section">
+                <label className="bank-properties-field">
+                  Title
+                  <input
+                    value={newTestTitle}
+                    onChange={(event) => {
+                      setNewTestTitle(event.target.value);
+                      setNewTestError("");
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") void handleCreateTestDraft(newTestTitle);
+                    }}
+                    placeholder="Unit 3 Exam"
+                    autoFocus
+                  />
+                </label>
+                <p className="metadata-help-text">
+                  Starts at version A. To make another version of an existing test, use New Version
+                  on that test instead.
+                </p>
+                {newTestError ? <p className="bank-properties-error">{newTestError}</p> : null}
+              </section>
+            </div>
+
+            <div className="bank-properties-actions">
+              <button type="button" onClick={() => setNewTestDialogOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreateTestDraft(newTestTitle)}
+                disabled={loading || !newTestTitle.trim()}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingTypeChange && draftQuestion ? (
+        <div className="settings-overlay" onClick={() => setPendingTypeChange(null)}>
+          <div
+            className="settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Change question type"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="settings-header">
+              <h2>Change question type?</h2>
+              <button
+                type="button"
+                className="settings-close"
+                onClick={() => setPendingTypeChange(null)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="settings-body">
+              <section className="settings-section">
+                <p>
+                  Each question type stores different answer fields, so switching{" "}
+                  <strong>{draftQuestion.id}</strong> from <strong>{draftQuestion.type}</strong> to{" "}
+                  <strong>{pendingTypeChange}</strong> cannot carry everything across.
+                </p>
+                {describeDiscardedFields(draftQuestion, pendingTypeChange).length > 0 ? (
+                  <p className="type-change-warning">
+                    Changing the type discards{" "}
+                    {describeDiscardedFields(draftQuestion, pendingTypeChange).join(", ")}.
+                  </p>
+                ) : (
+                  <p className="metadata-help-text">
+                    This question has no type-specific content to lose yet.
+                  </p>
+                )}
+                <p className="metadata-help-text">
+                  Duplicating is usually the safer choice: it leaves {draftQuestion.id} untouched and
+                  opens a new {pendingTypeChange} question with the same prompt, tags, and standards.
+                </p>
+              </section>
+            </div>
+
+            <div className="bank-properties-actions type-change-actions">
+              <button type="button" onClick={() => setPendingTypeChange(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => applyQuestionTypeChange(pendingTypeChange)}
+              >
+                Change Type Anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDuplicateAsType(pendingTypeChange)}
+                disabled={loading}
+              >
+                Create a {pendingTypeChange} Duplicate
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <BankPropertiesDialog
         open={bankPropertiesOpen}
         mode={bankPropertiesMode}
@@ -2810,6 +3344,15 @@ function App() {
         </div>
       ) : null}
 
+      {backendVersionWarning ? (
+        <div className="backend-version-banner" role="alert">
+          <span>{backendVersionWarning}</span>
+          <button type="button" onClick={() => setBackendVersionWarning("")}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       <div className="status-strip">
         <span>{statusMessage}</span>
         <div className="status-pills">
@@ -2879,6 +3422,27 @@ function App() {
               void handleCreateQuestion(selectedIdRef.current ?? undefined)
             }
             onDeleteQuestion={() => void handleDeleteQuestion()}
+            showAddToTest={activeWorkspacePage === "tests"}
+            addToTestDisabled={
+              loading || !selectedId || !selectedTestDetail || selectedQuestionIsInSelectedTest
+            }
+            addToTestLabel={
+              selectedQuestionIsInSelectedTest
+                ? "Already in Test"
+                : selectedTestDetail
+                  ? `Add to ${selectedTestDetail.test.version}`
+                  : "Add to Test"
+            }
+            onAddToTest={() => void handleAddSelectedQuestionToTest()}
+            addToAllDisabled={
+              loading || !selectedId || openTestsMissingSelectedQuestion.length === 0
+            }
+            addToAllLabel={
+              openTestsMissingSelectedQuestion.length > 0
+                ? `Add to All (${openTestsMissingSelectedQuestion.length})`
+                : "Add to All"
+            }
+            onAddToAllTests={() => void handleAddSelectedQuestionToAllOpenTests()}
           />
         ) : null}
 
@@ -3007,6 +3571,7 @@ function App() {
                     </div>
                   ) : (
                     <div className="editor-form">
+                  {editingFieldsEnabled ? (
                   <section className="editor-grid">
                     <label>
                       ID
@@ -3019,9 +3584,10 @@ function App() {
                       Type
                       <select
                         value={draftQuestion.type}
-                        onChange={(event) =>
-                          void updateQuestionType(event.target.value as QuestionType)
-                        }
+                        onChange={(event) => {
+                          const nextType = event.target.value as QuestionType;
+                          if (nextType !== draftQuestion.type) setPendingTypeChange(nextType);
+                        }}
                       >
                         <option value="multiple_choice">multiple_choice</option>
                         <option value="numeric_response">numeric_response</option>
@@ -3044,6 +3610,26 @@ function App() {
                       />
                     </label>
                   </section>
+                  ) : (
+                    <dl className="question-identity-table">
+                      <div>
+                        <dt>ID</dt>
+                        <dd>{draftQuestion.id}</dd>
+                      </div>
+                      <div>
+                        <dt>Type</dt>
+                        <dd>{draftQuestion.type}</dd>
+                      </div>
+                      <div>
+                        <dt>Topic</dt>
+                        <dd>{draftQuestion.topic}</dd>
+                      </div>
+                      <div>
+                        <dt>Subtopic</dt>
+                        <dd>{draftQuestion.subtopic?.trim() ? draftQuestion.subtopic : "Not set"}</dd>
+                      </div>
+                    </dl>
+                  )}
 
                   <details
                     className="metadata-panel"
@@ -3096,6 +3682,7 @@ function App() {
                         onChange={(event) => updateDraft("status", event.target.value)}
                       />
                       </label>
+                      {editingFieldsEnabled ? (
                       <label className="metadata-span-2">
                       Tags
                       <input
@@ -3111,6 +3698,24 @@ function App() {
                         }
                       />
                       </label>
+                      ) : (
+                        <div className="metadata-span-2 standards-metadata-field">
+                          <div className="standards-metadata-header">
+                            <span>Tags</span>
+                          </div>
+                          {draftQuestion.tags.length > 0 ? (
+                            <div className="standards-inline-chips">
+                              {draftQuestion.tags.map((tag) => (
+                                <span key={tag} className="inline-standard-chip readonly">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="metadata-help-text">No tags.</p>
+                          )}
+                        </div>
+                      )}
                       <div className="metadata-span-full standards-metadata-field">
                         <div className="standards-metadata-header">
                           <span>Standards</span>
@@ -3118,7 +3723,7 @@ function App() {
                             type="button"
                             onClick={() => void handleOpenQuestionStandardsPicker()}
                           >
-                            Edit Standards
+                            Attach or Remove Standards
                           </button>
                         </div>
                         {draftQuestion.standards.length > 0 ? (
@@ -3171,6 +3776,17 @@ function App() {
                     />
                   </MathPreviewField>
 
+                  {!editingFieldsEnabled ? (
+                    draftQuestion.assets.length > 0 ? (
+                      <section className="asset-section asset-preview-section">
+                        <h2>Assets</h2>
+                        <QuestionAssetPreviewList
+                          assets={draftQuestion.assets}
+                          assetInspections={assetInspections}
+                        />
+                      </section>
+                    ) : null
+                  ) : (
                   <section className="asset-section">
                     <input
                       ref={assetInputRef}
@@ -3297,6 +3913,7 @@ function App() {
                       </>
                     )}
                   </section>
+                  )}
 
                   {draftQuestion.type === "multiple_choice" ? (
                     <section className="question-specific">
@@ -3538,20 +4155,23 @@ function App() {
                 pageMode
                 hasBank={!!bank}
                 loading={loading}
-                selectedQuestionId={selectedId}
                 selectedTestId={selectedTestId}
                 tests={testDrafts}
+                openTestIds={openTestIds}
                 onOpen={() => undefined}
                 onClose={() =>
                   isMainWindow
                     ? setWorkspacePage("questions")
                     : void handleDockWorkspacePage("tests")
                 }
-                onCreateTest={() => void handleCreateTestDraft()}
+                onCreateTest={handleOpenNewTestDialog}
+                onCreateNewVersion={(testId) => void handleDuplicateTestDraft(testId)}
                 onSelectTest={setSelectedTestId}
-                onAddSelectedQuestion={() => void handleAddSelectedQuestionToTest()}
+                onOpenTest={handleOpenTest}
+                onArchiveTest={handleArchiveTest}
                 onOpenPrintPreview={() => void handleOpenTestPrintPreview()}
                 onUpdateTest={(test) => void handleUpdateTestDraft(test)}
+                onApplyTestJson={(testId, raw) => void handleApplyTestJson(testId, raw)}
               />
             </main>
           )

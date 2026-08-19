@@ -13,12 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from .models import (
+    AssetInspectionBatchRequest,
     AssetInspectionRequest,
     AddQuestionToTestRequest,
     CreateBankRequest,
     CreateStandardPlaceholdersRequest,
     CreateStandardsManuallyRequest,
     CreateQuestionRequest,
+    CreateQuestionsFromJsonRequest,
+    CreateQuestionsFromJsonResponse,
     CreateTestDraftRequest,
     NextQuestionIdResponse,
     OpenBankRequest,
@@ -33,6 +36,7 @@ from .models import (
     UpsertCourseRequest,
 )
 from .service import BankWorkspaceError, BankWorkspaceService
+from .version import get_backend_version, is_frozen
 
 
 app = FastAPI(title="Nexzam Backend", version="0.1.0")
@@ -70,7 +74,11 @@ def handle_request_validation_error(_, exc: RequestValidationError):
 @app.get("/health")
 @app.get("/api/health")
 def healthcheck() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "version": get_backend_version(),
+        "build": "frozen" if is_frozen() else "source",
+    }
 
 
 @app.post("/api/banks/open")
@@ -304,6 +312,13 @@ def create_question_from_json(payload: dict[str, Any]):
     return service.create_question_from_json(payload)
 
 
+@app.post("/api/questions/from-json-batch")
+def create_questions_from_json(request: CreateQuestionsFromJsonRequest):
+    return CreateQuestionsFromJsonResponse(
+        items=service.create_questions_from_json(request.questions)
+    )
+
+
 @app.delete("/api/questions/{question_id}", status_code=204)
 def delete_question(question_id: str):
     service.delete_question(question_id)
@@ -317,6 +332,11 @@ async def upload_asset(file: UploadFile = File(...)):
 @app.post("/api/assets/inspect")
 def inspect_asset(payload: AssetInspectionRequest):
     return service.inspect_asset(payload)
+
+
+@app.post("/api/assets/inspect-batch")
+def inspect_assets(request: AssetInspectionBatchRequest):
+    return service.inspect_assets(request.assets)
 
 
 @app.get("/api/assets/file")

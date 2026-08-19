@@ -38,6 +38,14 @@ class AssetInspectionResponseModel(BaseModel):
     rendered_svg: str | None = None
 
 
+class AssetInspectionBatchRequest(BaseModel):
+    assets: list[AssetInspectionRequest] = Field(default_factory=list)
+
+
+class AssetInspectionBatchResponseModel(BaseModel):
+    items: list[AssetInspectionResponseModel] = Field(default_factory=list)
+
+
 class AssetListItemModel(BaseModel):
     path: str
     kind: str
@@ -542,6 +550,14 @@ class UpdateBankDetailsRequest(BaseModel):
 
 class CreateQuestionRequest(BaseModel):
     template_question_id: str | None = None
+
+
+class CreateQuestionsFromJsonRequest(BaseModel):
+    questions: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CreateQuestionsFromJsonResponse(BaseModel):
+    items: list["QuestionModel"] = Field(default_factory=list)
 
 
 class NextQuestionIdResponse(BaseModel):

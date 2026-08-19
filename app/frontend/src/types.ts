@@ -22,6 +22,16 @@ export interface AssetInspectionResponseModel {
   rendered_svg?: string | null;
 }
 
+export interface AssetInspectionBatchRequestItem {
+  path: string;
+  kind: string;
+  svg_variables: Record<string, string>;
+}
+
+export interface AssetInspectionBatchResponseModel {
+  items: AssetInspectionResponseModel[];
+}
+
 export interface AssetListItemModel {
   path: string;
   kind: string;
@@ -99,6 +109,10 @@ export interface CreateStandardsManuallyRequest {
   version?: string | null;
   description?: string | null;
   standards: ManualStandardRowModel[];
+}
+
+export interface CreateQuestionsFromJsonResponse {
+  items: QuestionModel[];
 }
 
 export interface RubricRowModel {

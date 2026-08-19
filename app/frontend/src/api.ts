@@ -1,4 +1,5 @@
 import type {
+  AssetInspectionBatchResponseModel,
   AssetInspectionResponseModel,
   AssetListResponseModel,
   AssetModel,
@@ -6,6 +7,7 @@ import type {
   BankSummaryModel,
   CourseListResponseModel,
   CourseModel,
+  CreateQuestionsFromJsonResponse,
   CreateStandardsManuallyRequest,
   QuestionImportListResponseModel,
   QuestionImportPromoteResponseModel,
@@ -42,6 +44,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(detail);
   }
   return response.json() as Promise<T>;
+}
+
+export interface BackendHealthModel {
+  status: string;
+  version?: string;
+  build?: string;
+}
+
+export async function getBackendHealth(): Promise<BackendHealthModel> {
+  return handleResponse(await fetch(buildApiUrl("/api/health")));
 }
 
 export async function openDemoBank(): Promise<BankSummaryModel> {
@@ -428,6 +440,30 @@ export async function inspectAsset(asset: AssetModel): Promise<AssetInspectionRe
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(asset),
+    }),
+  );
+}
+
+export async function inspectAssets(
+  assets: AssetModel[],
+): Promise<AssetInspectionBatchResponseModel> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/assets/inspect-batch"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assets }),
+    }),
+  );
+}
+
+export async function createQuestionsFromJson(
+  questions: Record<string, unknown>[],
+): Promise<CreateQuestionsFromJsonResponse> {
+  return handleResponse(
+    await fetch(buildApiUrl("/api/questions/from-json-batch"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questions }),
     }),
   );
 }
