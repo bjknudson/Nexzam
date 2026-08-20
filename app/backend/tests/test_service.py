@@ -954,3 +954,64 @@ def test_create_questions_from_json_rejects_an_empty_batch(
         bank_service.create_questions_from_json([])
 
     assert exc_info.value.status_code == 422
+
+
+def test_multiple_choice_indices_collapse_to_a_single_correct_answer() -> None:
+    from app.backend.models import QuestionModel
+
+    base = {
+        "id": "q_mc_9001",
+        "type": "multiple_choice",
+        "topic": "Ordering",
+        "difficulty": 2,
+        "prompt": "Order the integers from least to greatest.",
+        "answer": {"choices": ["a", "b", "c", "d"]},
+    }
+
+    # A repeated index carries no extra meaning: it is one correct answer.
+    repeated = QuestionModel.model_validate(
+        {**base, "answer": {**base["answer"], "correct_choice_indices": [0, 0]}}
+    )
+    assert repeated.answer == {"choices": ["a", "b", "c", "d"], "correct_choice_index": 0}
+
+    # A single-element list is a single-answer question written the long way.
+    single = QuestionModel.model_validate(
+        {**base, "answer": {**base["answer"], "correct_choice_indices": [2]}}
+    )
+    assert single.answer == {"choices": ["a", "b", "c", "d"], "correct_choice_index": 2}
+
+    # Genuine multi-answer questions keep the list, deduped and sorted.
+    multi = QuestionModel.model_validate(
+        {**base, "answer": {**base["answer"], "correct_choice_indices": [3, 1, 3]}}
+    )
+    assert multi.answer == {"choices": ["a", "b", "c", "d"], "correct_choice_indices": [1, 3]}
+
+
+def test_multiple_choice_indices_still_reject_unusable_values() -> None:
+    import pytest as _pytest
+
+    from app.backend.models import QuestionModel
+
+    base = {
+        "id": "q_mc_9002",
+        "type": "multiple_choice",
+        "topic": "Ordering",
+        "difficulty": 2,
+        "prompt": "Order the integers from least to greatest.",
+        "answer": {"choices": ["a", "b"]},
+    }
+
+    with _pytest.raises(ValueError, match="must reference choices"):
+        QuestionModel.model_validate(
+            {**base, "answer": {**base["answer"], "correct_choice_indices": [5]}}
+        )
+
+    with _pytest.raises(ValueError, match="at least one choice"):
+        QuestionModel.model_validate(
+            {**base, "answer": {**base["answer"], "correct_choice_indices": []}}
+        )
+
+    with _pytest.raises(ValueError, match="list of integers"):
+        QuestionModel.model_validate(
+            {**base, "answer": {**base["answer"], "correct_choice_indices": ["0"]}}
+        )

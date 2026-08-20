@@ -489,25 +489,39 @@ class QuestionModel(BaseModel):
     @model_validator(mode="after")
     def validate_question_shape(self) -> "QuestionModel":
         if self.type == "multiple_choice":
-            answer = self.answer or {}
+            answer = dict(self.answer or {})
             choices = answer.get("choices")
             if not isinstance(choices, list) or len(choices) < 2:
                 raise ValueError("multiple_choice questions need at least two choices")
             correct_indices = answer.get("correct_choice_indices")
             correct_index = answer.get("correct_choice_index")
             if correct_indices is not None:
-                if (
-                    not isinstance(correct_indices, list)
-                    or len(correct_indices) < 2
-                    or not all(type(index) is int for index in correct_indices)
+                if not isinstance(correct_indices, list) or not all(
+                    type(index) is int for index in correct_indices
                 ):
                     raise ValueError(
-                        "multiple_choice correct_choice_indices must contain at least two indices"
+                        "multiple_choice correct_choice_indices must be a list of integers"
                     )
-                if len(set(correct_indices)) != len(correct_indices):
-                    raise ValueError("multiple_choice correct_choice_indices must be unique")
                 if any(index < 0 or index >= len(choices) for index in correct_indices):
                     raise ValueError("multiple_choice correct_choice_indices must reference choices")
+
+                # A repeated index carries no extra meaning, and a single index is
+                # just a single-answer question written the long way. Normalize both
+                # so question JSON written by another tool imports cleanly, matching
+                # what the question form already does when it builds an answer.
+                unique_indices = sorted(dict.fromkeys(correct_indices))
+                if not unique_indices:
+                    raise ValueError(
+                        "multiple_choice correct_choice_indices must reference at least one choice"
+                    )
+
+                answer.pop("correct_choice_index", None)
+                answer.pop("correct_choice_indices", None)
+                if len(unique_indices) == 1:
+                    answer["correct_choice_index"] = unique_indices[0]
+                else:
+                    answer["correct_choice_indices"] = unique_indices
+                self.answer = answer
             elif type(correct_index) is not int:
                 raise ValueError(
                     "multiple_choice questions need a correct_choice_index or correct_choice_indices"
